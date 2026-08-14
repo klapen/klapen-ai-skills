@@ -1,0 +1,134 @@
+# `rick-explain-diff-html` — Agent Handoff Brief
+
+Short, self-contained brief for a Claude (or other agent) session picking
+this skill up cold. Paste this into a new session alongside the task.
+
+**Repo:** `github.com/klapen/klapen-ai-skills` (checkout: `~/work/personal/klapen-ai-skills`)
+**Path:** `rick-explain-diff-html/`
+**Authoritative spec:** [`SKILL.md`](SKILL.md) &mdash; defer to it on any conflict with this brief.
+
+---
+
+## Purpose
+
+Generates a rich, interactive, single-file HTML report explaining a code
+change, narrated by Rick Sanchez inside a "RickOS v137.0" alien-OS UI.
+
+## Design goals (non-negotiable)
+
+1. **Low per-run token cost.** All chrome (CSS, HTML shell, D3, d3-sankey,
+   highlight.js, 4 chart renderers, quiz engine, gauge widgets, animated
+   SVG banners) is bundled once and inlined by the renderer. Claude only
+   produces the per-PR **payload JSON** + **prose HTML fragments** &mdash;
+   nothing else.
+2. **Variety without extra tokens.** Every run randomly picks from 8 SVG
+   banners, 6 themes, 4 OS chromes, 4 gauge widgets, pooled boot-log lines,
+   and footer quips. All variety lives in files, not in Claude's output.
+3. **Rick's voice, technically correct.** Persona is "performative
+   nihilist" &mdash; arrogant on the surface, obsessively perfectionist in
+   the work. Technical explanations are brutally clear and accurate; the
+   snark is decoration.
+
+## Workflow (two-phase)
+
+```bash
+# Phase 1 — collect. Resolves branch/range/GitHub-PR-URL/GitLab-MR-URL
+# into a diff + PR metadata JSON on stdout.
+python3 rick-explain-diff-html/scripts/render.py collect --target <ref-or-url>
+
+# Phase 2 — Claude reads the diff, writes:
+#   /tmp/rick-payload-<slug>.json    (structured payload: risk, chart, quiz)
+#   /tmp/rick-sections-<slug>.html   (four HTML section fragments, delimited by
+#                                     <!-- SECTION: summary|context|core_logic|walkthrough -->)
+
+# Phase 3 — render. Assembles the final HTML.
+python3 rick-explain-diff-html/scripts/render.py render \
+    --payload  /tmp/rick-payload-<slug>.json \
+    --sections /tmp/rick-sections-<slug>.html \
+    [--theme <name>] [--chrome <name>] [--seed <int>] [--no-open]
+```
+
+Output: `/tmp/YYYY-MM-DD-explanation-<slug>.html`.
+
+**Trigger phrases:** `/rick-explain-diff-html [target]` or natural language
+("Rick explain this branch", "Rick's take on <URL>").
+
+## Payload contract (Claude's output)
+
+- `pr_slug` &mdash; kebab-case, drives filename.
+- `risk.value` (0&ndash;100) + `risk.label` &mdash; drives the gauge.
+- `chart.type` &isin; `force | state | sequence | sankey`. Pick per diff
+  shape (module graph / logic change / API flow / data pipeline).
+  `chart.data` shape depends on type &mdash; see SKILL.md for schemas.
+- `quiz` &mdash; **exactly 4** items, each
+  `{question, options: [4 strings], correct: 0–3, feedback: [4 strings]}`.
+  - Options must NOT include letter prefixes ("A. ", "B) ") &mdash; the
+    JS prepends them.
+  - Distractors must be **plausible** engineering choices; no jokes in
+    options. Rick's snark goes in `feedback`.
+  - `correct` MUST hit each of A/B/C/D **exactly once** across the 4
+    questions (one per position). Reorder `feedback` in lockstep when
+    reordering `options`.
+
+## Prose fragments (four required)
+
+- `summary` &mdash; 2 sentences, executive.
+- `context` &mdash; background. Start with
+  `<div class="callout">Skip if your IQ passes room temperature.</div>`,
+  then broad + narrow context.
+- `core_logic` &mdash; narrative that pairs with the diagram.
+  **The diagram is rendered ABOVE this prose**, so if you reference it
+  positionally use "above".
+- `walkthrough` &mdash; grouped code-change walkthrough. Wrap comparable
+  snippets in `<div data-toggle>` with two
+  `<div class="toggle-pane" data-label="Before|After">` children.
+
+All code snippets go inside `<pre>` or `<pre><code>`; `highlight.js`
+auto-detects language.
+
+## Available themes and chromes
+
+- Themes (all IDE-grade, high readability):
+  `gruvbox-dark` (default aesthetic), `nord`, `solarized-dark`, `dracula`,
+  `tokyo-night`, `catppuccin-mocha`.
+- Chromes: `rickos-v137`, `portal-terminal`, `council-hud`,
+  `space-cruiser-bridge`.
+
+## File layout
+
+```
+rick-explain-diff-html/
+├── SKILL.md                    # authoritative spec; read this first
+├── HANDOFF.md                  # this file
+├── scripts/render.py           # collect + render subcommands
+├── template/                   # base.html, core.css, core.js,
+│                               # d3.min.js, d3-sankey.min.js, highlight.min.js
+├── assets/
+│   ├── banners/  (8 SVG)       # rotate randomly per run
+│   ├── themes/   (6 CSS)
+│   ├── chrome/   (4 HTML)
+│   ├── gauges/   (4 HTML)
+│   ├── charts/   (4 JS)        # force-graph, state-machine, sequence-flow, sankey
+│   └── flourishes/             # boot-log.txt, footer-quips.txt
+└── examples/
+    ├── example.html            # rendered demo report (fictional cache-through PR)
+    ├── example-payload.json    # reproducible with --seed 42
+    └── example-sections.html
+```
+
+## Common pitfalls to avoid
+
+- Don't emit letter-prefixed quiz options.
+- Don't concentrate correct-answer positions &mdash; must be A/B/C/D
+  one-each.
+- Don't reference "diagram below" &mdash; the layout puts the diagram
+  above the core_logic prose.
+- Don't try to make Rick jokey in the options; he's only jokey in the
+  feedback and the prose.
+- Don't add character imagery (real Rick artwork is copyrighted); use
+  the abstract SVG banners.
+
+---
+
+*This brief is a summary. When in doubt, read
+[`SKILL.md`](SKILL.md) &mdash; it's the source of truth.*
