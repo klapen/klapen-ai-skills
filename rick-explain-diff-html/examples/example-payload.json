@@ -1,0 +1,88 @@
+{
+  "pr_slug": "example-lorem-ipsum",
+  "risk": {
+    "value": 42,
+    "label": "Lorem ipsum. Ships fine."
+  },
+  "chart": {
+    "type": "sequence",
+    "data": {
+      "actors": ["Client", "Service", "Cache", "Database"],
+      "messages": [
+        {"from": "Client", "to": "Service", "label": "GET /widgets/{id}"},
+        {"from": "Service", "to": "Cache", "label": "get('widget:{id}')"},
+        {"from": "Cache", "to": "Service", "label": "miss (or hit)"},
+        {"from": "Service", "to": "Database", "label": "SELECT * FROM widgets WHERE id=?"},
+        {"from": "Database", "to": "Service", "label": "row"},
+        {"from": "Service", "to": "Cache", "label": "set('widget:{id}', row, ttl=300)"},
+        {"from": "Service", "to": "Client", "label": "200 OK  { widget }"}
+      ]
+    }
+  },
+  "quiz": [
+    {
+      "question": "Why does the new cache middleware fall back to an in-memory LRU when Redis is unavailable, rather than propagating the error?",
+      "options": [
+        "The cache is treated as an optimization, not a source of truth. Losing Redis briefly should degrade latency, not availability — so the middleware quietly serves from the LRU (or straight from the DB on miss) instead of surfacing 5xx to callers.",
+        "The middleware treats Redis errors as bugs and short-circuits to raise 503 immediately, letting the caller retry against a healthy replica.",
+        "The middleware routes writes to Redis and reads to the LRU under all conditions, so a Redis outage only affects the write path.",
+        "The LRU is a scratch cache used only during test runs; production always propagates Redis errors."
+      ],
+      "correct": 0,
+      "feedback": [
+        "Correct. *urp* The cache is a latency layer. Losing it degrades speed, not correctness — availability wins.",
+        "Wrong. That's the *opposite* of the design. 5xx on a cache blip would take the whole endpoint down.",
+        "Wrong. Both reads and writes hit Redis first; the LRU is a fallback, not a split-brain.",
+        "Wrong. The LRU is a first-class production fallback, not a test-only scratch cache."
+      ]
+    },
+    {
+      "question": "The cache key format is 'widget:{id}:{schema_version}'. Why include schema_version in the key rather than doing a version-bump flush at deploy time?",
+      "options": [
+        "Because Redis doesn't support atomic prefix invalidation, so a deploy-time flush would have to iterate keys and could miss in-flight writes.",
+        "Version-bumping the key namespace makes old and new schema entries coexist during a rolling deploy — old pods keep reading v1 keys, new pods write v2, and there's no cache-warming stampede at cutover.",
+        "The version suffix protects against a race where two callers race to populate the same cache slot with different payload shapes.",
+        "It's a pure debugging convenience — the version suffix makes it easy to inspect a key and know which release wrote it."
+      ],
+      "correct": 1,
+      "feedback": [
+        "Wrong. Redis does have SCAN + DEL patterns — the flush is doable, just avoided for the coexistence reason.",
+        "Correct. Cache namespaces are the cheap way to run two schema versions concurrently through a rolling deploy without a cutover stampede.",
+        "Wrong. The version suffix doesn't guard writes — it partitions the keyspace. Populate races still need locking.",
+        "Wrong. Debug ergonomics are a bonus, not the reason."
+      ]
+    },
+    {
+      "question": "When the middleware hits Redis successfully but Redis returns a value that fails Pydantic validation, what does it do?",
+      "options": [
+        "It treats the cached blob as authoritative, logs a warning, and returns it as-is — trusting the write path to keep the cache clean.",
+        "It raises 500 to the caller, on the theory that a corrupt cache means an active incident that should not be silenced.",
+        "It ignores the corrupt value, deletes the key, and falls through to the database — treating validation failure as a cache miss with an aggressive eviction.",
+        "It repairs the value in place by round-tripping through the model's `model_validate_strings` mode and rewrites the corrected form back to Redis."
+      ],
+      "correct": 2,
+      "feedback": [
+        "Wrong. Returning corrupt data would just propagate the bug to callers. The middleware is more defensive than that.",
+        "Wrong. Corrupt cache entries are usually stale-schema bleed-through, not incidents worth paging on.",
+        "Correct. Treat-as-miss + evict. The DB is the source of truth; the cache gets a fresh write from that fallback.",
+        "Wrong. There's no in-place repair path. The middleware doesn't try to guess the correct shape from a broken one."
+      ]
+    },
+    {
+      "question": "The new test test_cache_miss_populates_ttl_from_config asserts the SET call carries a TTL kwarg. Why is that check load-bearing rather than a nice-to-have?",
+      "options": [
+        "It guards the release-notes claim that TTL is configurable, so QA can grep for it during regression testing.",
+        "It exercises the Redis client's ex= parameter path, which changed signature between versions of redis-py — the test would fail early if the pin drifts.",
+        "It's a stylistic check: the codebase's style guide says all SET calls must be TTL-bearing.",
+        "Without the TTL, cache entries live forever and the schema_version scheme's coexistence guarantee breaks — the test enforces the invariant that no cache entry outlives its schema version."
+      ],
+      "correct": 3,
+      "feedback": [
+        "Wrong. QA doesn't grep test code for release notes. That's not what tests are for.",
+        "Wrong. Not the actual reason. The pin-drift concern would be caught at import time, not by this assertion.",
+        "Wrong. Style guides don't need behavioral test coverage — they need linters.",
+        "Correct. TTL is the enforcement mechanism for the versioned-namespace invariant. Without it, v1 keys would haunt the cache forever and the coexistence property collapses."
+      ]
+    }
+  ]
+}
