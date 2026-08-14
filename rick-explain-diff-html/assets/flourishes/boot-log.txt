@@ -1,0 +1,30 @@
+[  0.001 ] RickOS kernel v137.0 booting on Dimension C-137
+[  0.014 ] Portal fluid stabilized at 73%
+[  0.023 ] Loading pathetic-human-code driver
+[  0.031 ] Cronenberg detector: 0 threats
+[  0.045 ] Council of Ricks handshake: R-42891 acknowledged
+[  0.062 ] Multiverse index rebuilt (2.7e14 entries)
+[  0.088 ] Anti-Morty firewall: engaged
+[  0.101 ] Sarcasm subsystem: level 11 of 10
+[  0.117 ] Beer.py: connected
+[  0.133 ] Loading interdimensional cable driver
+[  0.150 ] Meeseeks pool: 4 workers, all screaming
+[  0.164 ] Jerry-detection heuristics: online
+[  0.181 ] Portal-gun clip: 21/24 rounds
+[  0.199 ] Snuffles.exe: not responding (acceptable)
+[  0.213 ] Ship AI: judgmental
+[  0.229 ] Lab-coat.tex: mounted read-only
+[  0.242 ] Squanchy.h: still confusing
+[  0.257 ] Butter-robot: paused, asking what its purpose is
+[  0.273 ] Loading /dev/wubba-lubba-dub-dub
+[  0.288 ] Reticulating splines... no wait, that's a Sims joke
+[  0.305 ] Compiling smug preamble
+[  0.319 ] Diff-parser: hostile mode
+[  0.331 ] Empathy module: not found, skipping
+[  0.344 ] Rick's memory of your name: not cached
+[  0.358 ] Beth-approval indicator: dim
+[  0.373 ] Portal to Anatomy Park: locked
+[  0.388 ] Loading condescension.dll (2.4 GB)
+[  0.402 ] Establishing dimensional bearings...
+[  0.418 ] Compiling Rick's disappointment
+[  0.432 ] Report generation: READY

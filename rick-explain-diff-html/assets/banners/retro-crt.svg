@@ -1,0 +1,19 @@
+<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" aria-label="Retro CRT monitor">
+  <rect x="80" y="160" width="40" height="10" fill="none" stroke="currentColor" stroke-width="2"/>
+  <line x1="60" y1="172" x2="140" y2="172" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+  <rect x="20" y="30" width="160" height="128" rx="12" fill="none" stroke="currentColor" stroke-width="3"/>
+  <rect x="35" y="45" width="130" height="98" rx="6" fill="var(--bg-deep, #000)" stroke="var(--accent)" stroke-width="1"/>
+  <text x="45" y="65" fill="var(--accent)" font-family="monospace" font-size="10" letter-spacing="1">&gt; boot</text>
+  <text x="45" y="80" fill="var(--accent)" font-family="monospace" font-size="10" letter-spacing="1">&gt; init</text>
+  <text x="45" y="95" fill="var(--accent)" font-family="monospace" font-size="10" letter-spacing="1">&gt; run</text>
+  <text x="45" y="110" fill="var(--accent)" font-family="monospace" font-size="10" letter-spacing="1">&gt; ok</text>
+  <rect x="45" y="118" width="8" height="10" fill="var(--accent)">
+    <animate attributeName="opacity" values="1;0;1" dur="1s" repeatCount="indefinite"/>
+  </rect>
+  <rect x="35" y="45" width="130" height="2" fill="var(--accent)" opacity="0.5">
+    <animate attributeName="y" values="45;143;45" dur="4s" repeatCount="indefinite"/>
+  </rect>
+  <circle cx="165" cy="153" r="3" fill="var(--danger)">
+    <animate attributeName="opacity" values="1;0.4;1" dur="1.5s" repeatCount="indefinite"/>
+  </circle>
+</svg>

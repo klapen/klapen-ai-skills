@@ -1,0 +1,624 @@
+/* ===================================================================
+ * RickOS core.css — layout, typography, scanlines, responsive rules.
+ * Theme variables (--primary, --accent, --bg, --text, --glow) are
+ * defined by the injected theme file, NOT here.
+ * =================================================================== */
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg, #1d2021);
+  color: var(--text, #ebdbb2);
+  font-family: 'SF Mono', 'Fira Code', 'JetBrains Mono', 'Menlo', 'Consolas', monospace;
+  font-size: 14px;
+  line-height: 1.6;
+  overflow-x: hidden;
+  min-height: 100vh;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.35) 100%);
+  z-index: 999;
+}
+
+/* ---- Scanlines overlay ---- */
+.scanlines {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 998;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(255,255,255,0.02) 0px,
+    rgba(255,255,255,0.02) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+  mix-blend-mode: overlay;
+  opacity: 0.6;
+}
+
+/* ---- OS chrome (top bar) ---- */
+.chrome-top {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 14px;
+  background: var(--bg-deep, #1d2021);
+  border-bottom: 1px solid var(--primary);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--primary);
+}
+
+.chrome-top .chrome-left,
+.chrome-top .chrome-right {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+}
+
+.chrome-top .window-controls {
+  display: flex;
+  gap: 8px;
+}
+
+.window-controls button {
+  background: transparent;
+  border: 1px solid var(--primary);
+  color: var(--primary);
+  padding: 2px 8px;
+  font: inherit;
+  font-size: 10px;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.window-controls button:hover {
+  background: var(--primary);
+  color: var(--bg);
+}
+
+.portal-fluid-meter {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.portal-fluid-meter .fluid-bar {
+  display: inline-block;
+  width: 60px;
+  height: 6px;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid var(--primary);
+  position: relative;
+  overflow: hidden;
+}
+
+.portal-fluid-meter .fluid-bar::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  width: 73%;
+  background: var(--primary);
+  animation: fluid-flicker 3s infinite;
+}
+
+@keyframes fluid-flicker {
+  0%, 100% { opacity: 1; }
+  47% { opacity: 1; }
+  50% { opacity: 0.4; }
+  53% { opacity: 1; }
+}
+
+/* ---- Main window ---- */
+.rickos-window {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 20px 20px 60px;
+}
+
+/* ---- Compact hero strip: banner + boot log inline ---- */
+.hero-strip {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 12px 14px;
+  margin: 14px 0 22px;
+  background: var(--bg-deep, rgba(0,0,0,0.5));
+  border: 1px solid rgba(255,255,255,0.06);
+  border-left: 3px solid var(--primary);
+}
+
+.hero-strip .rick-banner {
+  flex: 0 0 140px;
+  width: 140px;
+  height: 140px;
+  color: var(--primary);
+  animation: banner-flicker 5s infinite;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.hero-strip .rick-banner svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.hero-strip .hero-right {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.boot-log-inline {
+  margin: 0;
+  padding: 0;
+  color: var(--text-dim, var(--text));
+  font-family: inherit;
+  font-size: 11px;
+  line-height: 1.35;
+  white-space: pre-wrap;
+  max-height: 5.6em;
+  overflow: hidden;
+}
+
+.banner-tagline {
+  margin-top: 8px;
+  font-size: 11px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--accent);
+  opacity: 0.85;
+}
+
+@keyframes banner-flicker {
+  0%, 100% { opacity: 1; }
+  93% { opacity: 1; }
+  94% { opacity: 0.7; }
+  96% { opacity: 1; }
+}
+
+@media (max-width: 700px) {
+  .hero-strip { flex-direction: column; align-items: flex-start; gap: 10px; }
+  .hero-strip .rick-banner { width: 100px; height: 100px; flex: 0 0 100px; }
+  .boot-log-inline { max-height: none; }
+}
+
+/* ---- Report sections ---- */
+.report-section {
+  margin: 32px 0;
+  padding: 18px 20px;
+  background: var(--bg-elev, rgba(0,0,0,0.35));
+  border: 1px solid rgba(255,255,255,0.06);
+  border-left: 3px solid var(--primary);
+  position: relative;
+}
+
+.section-header {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  margin-bottom: 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px dashed rgba(255,255,255,0.12);
+}
+
+.section-header h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--primary);
+  letter-spacing: 0.02em;
+}
+
+.section-number {
+  font-size: 26px;
+  color: var(--accent);
+  font-weight: 700;
+  opacity: 0.75;
+}
+
+.section-body {
+  color: var(--text);
+}
+
+.section-body p {
+  margin: 0 0 14px;
+}
+
+.section-body em {
+  color: var(--accent);
+  font-style: italic;
+}
+
+.section-body strong {
+  color: var(--primary);
+}
+
+.section-body code,
+.section-body pre {
+  font-family: inherit;
+}
+
+.section-body pre {
+  background: var(--bg-deep, rgba(0,0,0,0.7));
+  border: 1px solid rgba(255,255,255,0.08);
+  border-left: 2px solid var(--accent);
+  padding: 10px 14px;
+  overflow-x: auto;
+  white-space: pre;
+  font-size: 12.5px;
+  color: var(--text);
+  margin: 12px 0;
+}
+
+.section-body pre code,
+.section-body pre code.hljs {
+  background: transparent;
+  padding: 0;
+  color: inherit;
+  font-size: inherit;
+  display: block;
+  overflow-x: auto;
+}
+
+.section-body code {
+  background: var(--bg-deep, rgba(0,0,0,0.5));
+  padding: 1px 5px;
+  border-radius: 2px;
+  color: var(--accent);
+  font-size: 0.95em;
+}
+
+/* ---- Syntax highlighting: map hljs classes to theme vars ---- */
+/* Base */
+.hljs { color: var(--text); background: transparent; }
+/* Comments & meta */
+.hljs-comment,
+.hljs-quote,
+.hljs-meta { color: var(--text-dim, var(--text)); font-style: italic; }
+/* Keywords / control flow */
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-section,
+.hljs-doctag,
+.hljs-name,
+.hljs-strong,
+.hljs-tag { color: var(--primary); font-weight: 600; }
+/* Strings */
+.hljs-string,
+.hljs-regexp,
+.hljs-addition,
+.hljs-attribute,
+.hljs-meta-string { color: var(--accent); }
+/* Numbers, literals */
+.hljs-number,
+.hljs-literal,
+.hljs-symbol,
+.hljs-bullet,
+.hljs-link { color: var(--danger); }
+/* Types, classes, functions */
+.hljs-title,
+.hljs-class .hljs-title,
+.hljs-title.class_,
+.hljs-title.function_,
+.hljs-type,
+.hljs-built_in,
+.hljs-builtin-name { color: var(--accent); }
+/* Attributes / properties */
+.hljs-attr,
+.hljs-variable,
+.hljs-template-variable,
+.hljs-selector-attr,
+.hljs-selector-pseudo,
+.hljs-selector-class,
+.hljs-selector-id { color: var(--primary); }
+/* Params */
+.hljs-params { color: var(--text); }
+/* Punctuation / operators */
+.hljs-punctuation,
+.hljs-operator { color: var(--text-dim, var(--text)); }
+/* Diff-specific */
+.hljs-addition { color: var(--accent); background: rgba(180,180,180,0.05); }
+.hljs-deletion { color: var(--danger); background: rgba(180,180,180,0.05); }
+.hljs-emphasis { font-style: italic; }
+.hljs-strong { font-weight: 700; }
+
+.section-body .callout {
+  margin: 14px 0;
+  padding: 10px 14px;
+  border: 1px dashed var(--accent);
+  background: var(--bg-deep, rgba(0,0,0,0.35));
+  color: var(--accent);
+  font-size: 13px;
+}
+
+/* ---- Before/After toggle ---- */
+[data-toggle] {
+  margin: 14px 0;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: var(--bg-deep, rgba(0,0,0,0.4));
+}
+
+[data-toggle] .toggle-tabs {
+  display: flex;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+
+[data-toggle] .toggle-tab {
+  flex: 1;
+  padding: 6px 12px;
+  background: transparent;
+  border: none;
+  color: var(--text-dim, var(--text));
+  font: inherit;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+}
+
+[data-toggle] .toggle-tab.active {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+}
+
+[data-toggle] .toggle-pane {
+  display: none;
+  padding: 12px 14px;
+}
+
+[data-toggle] .toggle-pane.active {
+  display: block;
+}
+
+/* ---- Risk gauge ---- */
+.gauge-container {
+  margin: 22px auto 0;
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  max-width: 460px;
+  background: var(--bg-elev, rgba(0,0,0,0.5));
+  border: 1px solid rgba(255,255,255,0.1);
+}
+
+.gauge-container > svg,
+.gauge-container > div {
+  display: block;
+}
+
+.gauge-label {
+  font-size: 16px;
+  color: var(--accent);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-align: center;
+}
+
+/* ---- Chart canvas ---- */
+.chart-wrapper {
+  margin-top: 22px;
+  padding: 14px;
+  background: var(--bg-deep, rgba(0,0,0,0.5));
+  border: 1px solid rgba(255,255,255,0.08);
+  min-height: 320px;
+}
+
+#chart-canvas {
+  width: 100%;
+  min-height: 340px;
+  position: relative;
+}
+
+#chart-canvas svg {
+  width: 100%;
+  height: 100%;
+  min-height: 340px;
+  display: block;
+}
+
+.chart-controls {
+  margin-top: 10px;
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.ctrl-btn {
+  background: transparent;
+  border: 1px solid var(--primary);
+  color: var(--primary);
+  padding: 4px 12px;
+  font: inherit;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+}
+
+.ctrl-btn:hover {
+  background: var(--primary);
+  color: var(--bg);
+}
+
+/* Chart node/link styles used by chart renderers */
+.chart-node { cursor: pointer; }
+
+.chart-node circle,
+.chart-node rect {
+  fill: var(--bg-deep, rgba(0,0,0,0.7));
+  stroke: var(--primary);
+  stroke-width: 1.5;
+}
+
+.chart-node text {
+  fill: var(--text);
+  font-family: inherit;
+  font-size: 11px;
+  pointer-events: none;
+}
+
+.chart-link {
+  fill: none;
+  stroke: var(--accent);
+  stroke-opacity: 0.65;
+  stroke-width: 1.2;
+}
+
+.chart-link.added { stroke: var(--primary); stroke-opacity: 0.9; }
+.chart-link.removed { stroke: var(--danger); stroke-opacity: 0.75; stroke-dasharray: 4 3; }
+
+/* ---- Quiz ---- */
+.quiz-container { margin-top: 12px; }
+
+.quiz-question {
+  margin: 18px 0;
+  padding: 12px 14px;
+  background: var(--bg-deep, rgba(0,0,0,0.5));
+  border: 1px solid rgba(255,255,255,0.08);
+  border-left: 2px solid var(--primary);
+}
+
+.quiz-question .q-prompt {
+  margin: 0 0 10px;
+  color: var(--primary);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.quiz-question .q-number {
+  color: var(--accent);
+  margin-right: 6px;
+}
+
+.quiz-options {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.quiz-option {
+  padding: 8px 12px;
+  background: var(--bg-elev, rgba(0,0,0,0.4));
+  border: 1px solid rgba(255,255,255,0.1);
+  color: var(--text);
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  transition: background 120ms, border-color 120ms;
+}
+
+.quiz-option:hover {
+  background: rgba(255,255,255,0.04);
+  border-color: var(--primary);
+}
+
+.quiz-option.correct {
+  border-color: var(--accent);
+  background: rgba(255,255,255,0.03);
+  color: var(--accent);
+}
+
+.quiz-option.wrong {
+  border-color: var(--danger);
+  background: rgba(255,255,255,0.03);
+  color: var(--danger);
+}
+
+.quiz-option:disabled { cursor: not-allowed; }
+
+.quiz-feedback {
+  margin-top: 10px;
+  padding: 8px 12px;
+  border-left: 2px solid var(--accent);
+  background: var(--bg-deep, rgba(0,0,0,0.55));
+  font-size: 12.5px;
+  color: var(--accent);
+  font-style: italic;
+}
+
+.quiz-result {
+  margin-top: 20px;
+  padding: 16px 18px;
+  background: var(--bg-deep, rgba(0,0,0,0.7));
+  border: 1px solid var(--primary);
+  text-align: center;
+}
+
+.quiz-result .score {
+  font-size: 28px;
+  color: var(--primary);
+  font-weight: 700;
+}
+
+.quiz-result .rank {
+  margin-top: 8px;
+  font-size: 14px;
+  color: var(--accent);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.quiz-result .rank-comment {
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--text-dim, var(--text));
+  opacity: 0.9;
+  font-style: italic;
+}
+
+/* ---- Footer ---- */
+.rickos-footer {
+  margin-top: 60px;
+  padding: 18px 12px;
+  border-top: 1px solid rgba(255,255,255,0.12);
+  color: var(--text-dim, var(--text));
+  font-size: 11px;
+  text-align: center;
+}
+
+.rickos-footer .footer-quips {
+  margin-bottom: 10px;
+  font-style: italic;
+  color: var(--accent);
+}
+
+.rickos-footer .footer-meta {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  flex-wrap: wrap;
+  font-size: 10px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+
+/* ---- Responsive ---- */
+@media (max-width: 700px) {
+  html, body { font-size: 13px; }
+  .rickos-window { padding: 14px 12px 40px; }
+  .rick-banner { font-size: 7px; }
+  .chrome-top { flex-wrap: wrap; gap: 8px; padding: 6px 10px; }
+  .chrome-top .chrome-left,
+  .chrome-top .chrome-right { gap: 8px; font-size: 10px; }
+  .section-header h2 { font-size: 15px; }
+  .section-number { font-size: 20px; }
+}

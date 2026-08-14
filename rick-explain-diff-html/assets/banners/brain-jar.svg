@@ -1,0 +1,21 @@
+<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" aria-label="Brain in a jar">
+  <line x1="100" y1="18" x2="100" y2="6" stroke="var(--danger)" stroke-width="2"/>
+  <rect x="70" y="18" width="60" height="12" fill="currentColor" fill-opacity="0.3" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M 60 30 L 60 175 Q 60 185 70 185 L 130 185 Q 140 185 140 175 L 140 30 Z" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round"/>
+  <path d="M 62 60 L 62 175 Q 62 183 70 183 L 130 183 Q 138 183 138 175 L 138 60 Z" fill="var(--accent)" fill-opacity="0.13"/>
+  <path d="M 82 90 Q 75 85 78 100 Q 68 105 76 115 Q 70 122 82 128 Q 82 138 92 138 Q 100 145 108 138 Q 118 138 118 128 Q 130 122 124 115 Q 132 105 122 100 Q 125 85 118 90 Q 110 82 100 88 Q 90 82 82 90 Z" fill="var(--accent)" fill-opacity="0.4" stroke="var(--accent)" stroke-width="1.5"/>
+  <path d="M 100 88 L 100 138" stroke="currentColor" stroke-width="0.8" stroke-opacity="0.55" fill="none"/>
+  <path d="M 82 108 Q 100 100 118 108" stroke="currentColor" stroke-width="0.8" stroke-opacity="0.4" fill="none"/>
+  <circle cx="75" cy="160" r="2" fill="var(--accent)" fill-opacity="0.85">
+    <animate attributeName="cy" values="175;60" dur="5s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values="0.85;0" dur="5s" repeatCount="indefinite"/>
+  </circle>
+  <circle cx="125" cy="165" r="1.5" fill="var(--accent)" fill-opacity="0.85">
+    <animate attributeName="cy" values="180;55" dur="6s" begin="1.5s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values="0.85;0" dur="6s" begin="1.5s" repeatCount="indefinite"/>
+  </circle>
+  <circle cx="100" cy="170" r="2" fill="var(--accent)" fill-opacity="0.85">
+    <animate attributeName="cy" values="180;65" dur="4.5s" begin="2.8s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values="0.85;0" dur="4.5s" begin="2.8s" repeatCount="indefinite"/>
+  </circle>
+</svg>

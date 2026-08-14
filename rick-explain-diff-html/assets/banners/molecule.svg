@@ -1,0 +1,22 @@
+<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" aria-label="Molecule with orbits">
+  <ellipse cx="100" cy="100" rx="82" ry="34" fill="none" stroke="currentColor" stroke-width="1" stroke-opacity="0.4">
+    <animateTransform attributeName="transform" type="rotate" from="0 100 100" to="360 100 100" dur="16s" repeatCount="indefinite"/>
+  </ellipse>
+  <ellipse cx="100" cy="100" rx="82" ry="34" fill="none" stroke="var(--accent)" stroke-width="1" stroke-opacity="0.4" transform="rotate(60 100 100)">
+    <animateTransform attributeName="transform" type="rotate" from="60 100 100" to="420 100 100" dur="18s" repeatCount="indefinite"/>
+  </ellipse>
+  <ellipse cx="100" cy="100" rx="82" ry="34" fill="none" stroke="currentColor" stroke-width="1" stroke-opacity="0.4" transform="rotate(120 100 100)">
+    <animateTransform attributeName="transform" type="rotate" from="120 100 100" to="480 100 100" dur="20s" repeatCount="indefinite"/>
+  </ellipse>
+  <polygon points="100,50 145,75 145,125 100,150 55,125 55,75" fill="var(--bg-deep, #000)" fill-opacity="0.6" stroke="currentColor" stroke-width="2.5"/>
+  <polygon points="100,58 138,79 138,121 100,142 62,121 62,79" fill="none" stroke="currentColor" stroke-width="1" stroke-opacity="0.5"/>
+  <circle cx="100" cy="100" r="3" fill="currentColor"/>
+  <g fill="var(--accent)" stroke="currentColor" stroke-width="1">
+    <circle cx="100" cy="50" r="5"/>
+    <circle cx="145" cy="75" r="5"/>
+    <circle cx="145" cy="125" r="5"/>
+    <circle cx="100" cy="150" r="5"/>
+    <circle cx="55" cy="125" r="5"/>
+    <circle cx="55" cy="75" r="5"/>
+  </g>
+</svg>

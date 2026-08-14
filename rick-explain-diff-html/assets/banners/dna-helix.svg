@@ -1,0 +1,26 @@
+<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" aria-label="DNA helix">
+  <path d="M 60 15 Q 140 55 60 95 Q 140 135 60 175" fill="none" stroke="currentColor" stroke-width="2.5"/>
+  <path d="M 140 15 Q 60 55 140 95 Q 60 135 140 175" fill="none" stroke="var(--accent)" stroke-width="2.5"/>
+  <g stroke="currentColor" stroke-width="1" stroke-opacity="0.55">
+    <line x1="60" y1="15" x2="140" y2="15"/>
+    <line x1="85" y1="35" x2="115" y2="35"/>
+    <line x1="60" y1="55" x2="140" y2="55"/>
+    <line x1="115" y1="75" x2="85" y2="75"/>
+    <line x1="60" y1="95" x2="140" y2="95"/>
+    <line x1="85" y1="115" x2="115" y2="115"/>
+    <line x1="60" y1="135" x2="140" y2="135"/>
+    <line x1="115" y1="155" x2="85" y2="155"/>
+    <line x1="60" y1="175" x2="140" y2="175"/>
+  </g>
+  <g>
+    <circle cx="60" cy="15" r="4" fill="currentColor"/>
+    <circle cx="140" cy="15" r="4" fill="var(--accent)"/>
+    <circle cx="140" cy="95" r="4" fill="currentColor"/>
+    <circle cx="60" cy="95" r="4" fill="var(--accent)"/>
+    <circle cx="60" cy="175" r="4" fill="currentColor"/>
+    <circle cx="140" cy="175" r="4" fill="var(--accent)"/>
+  </g>
+  <rect x="30" y="15" width="140" height="3" fill="var(--accent)" opacity="0.3">
+    <animate attributeName="y" values="15;175;15" dur="6s" repeatCount="indefinite"/>
+  </rect>
+</svg>

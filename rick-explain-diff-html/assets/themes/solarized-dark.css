@@ -1,0 +1,12 @@
+/* solarized-dark: Ethan Schoonover's scientifically-calibrated dark scheme. */
+:root {
+  --bg: #002b36;
+  --bg-elev: #073642;
+  --bg-deep: #001f27;
+  --text: #93a1a1;
+  --text-dim: #586e75;
+  --primary: #b58900;       /* yellow */
+  --accent: #859900;        /* green */
+  --danger: #dc322f;        /* red */
+  --glow: rgba(181, 137, 0, 0.35);
+}

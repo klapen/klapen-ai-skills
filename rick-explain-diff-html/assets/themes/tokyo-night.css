@@ -1,0 +1,12 @@
+/* tokyo-night: the modern popular blue-purple night theme. */
+:root {
+  --bg: #1a1b26;
+  --bg-elev: #24283b;
+  --bg-deep: #16161e;
+  --text: #a9b1d6;
+  --text-dim: #565f89;
+  --primary: #7aa2f7;       /* blue */
+  --accent: #9ece6a;        /* green */
+  --danger: #f7768e;        /* red-pink */
+  --glow: rgba(122, 162, 247, 0.35);
+}

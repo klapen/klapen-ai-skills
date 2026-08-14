@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RickOS v137.0 — {{PR_SLUG}}</title>
+<style>
+/* ===== THEME (injected) ===== */
+{{THEME_CSS}}
+/* ===== CORE ===== */
+{{CORE_CSS}}
+</style>
+</head>
+<body>
+<div class="scanlines"></div>
+
+<!-- ===== OS CHROME (top bar / window frame) ===== -->
+{{CHROME_TOP}}
+
+<main class="rickos-window">
+
+  <!-- ===== COMPACT HERO STRIP (SVG banner + boot log side-by-side) ===== -->
+  <section class="hero-strip" aria-label="RickOS boot preamble">
+    <div class="rick-banner">{{BANNER}}</div>
+    <div class="hero-right">
+      <pre id="boot-log-lines" class="boot-log-inline">{{BOOT_LOG}}</pre>
+      <div class="banner-tagline">RickOS v137.0 &mdash; Dimension C-137 // *urp* Report Compiled</div>
+    </div>
+  </section>
+
+  <!-- ===== SECTION 1: System Diagnostics ===== -->
+  <section class="report-section" id="s-diagnostics">
+    <header class="section-header">
+      <span class="section-number">01</span>
+      <h2>System Diagnostics &mdash; Why I'm Forced To Fix Your Garbage</h2>
+    </header>
+    <div class="section-body">
+      {{SECTION_SUMMARY}}
+    </div>
+    <div class="gauge-container">
+      {{GAUGE}}
+      <div class="gauge-label" id="gauge-label">--</div>
+    </div>
+  </section>
+
+  <!-- ===== SECTION 2: Memory Dump / Context ===== -->
+  <section class="report-section" id="s-context">
+    <header class="section-header">
+      <span class="section-number">02</span>
+      <h2>Memory Dump &mdash; Context for Primates</h2>
+    </header>
+    <div class="section-body">
+      {{SECTION_CONTEXT}}
+    </div>
+  </section>
+
+  <!-- ===== SECTION 3: Core Logic + Interactive Diagram ===== -->
+  <section class="report-section" id="s-core">
+    <header class="section-header">
+      <span class="section-number">03</span>
+      <h2>Core Logic &mdash; The Actual *urp* Change</h2>
+    </header>
+    <div class="section-body">
+      {{SECTION_CORE_LOGIC}}
+    </div>
+    <div class="chart-wrapper">
+      <div id="chart-canvas" aria-label="Interactive diagram"></div>
+      <div class="chart-controls">
+        <button type="button" data-chart-action="reset" class="ctrl-btn">Reset View</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== SECTION 4: Code Breakdown / Walkthrough ===== -->
+  <section class="report-section" id="s-walkthrough">
+    <header class="section-header">
+      <span class="section-number">04</span>
+      <h2>Subsystem Diff &mdash; Line-by-Line for the Slow Kids</h2>
+    </header>
+    <div class="section-body walkthrough-body">
+      {{SECTION_WALKTHROUGH}}
+    </div>
+  </section>
+
+  <!-- ===== SECTION 5: IQ Assessment Quiz ===== -->
+  <section class="report-section" id="s-quiz">
+    <header class="section-header">
+      <span class="section-number">05</span>
+      <h2>Rick's IQ Assessment &mdash; Prove You Understood</h2>
+    </header>
+    <div id="quiz-container" class="quiz-container"></div>
+    <div id="quiz-result" class="quiz-result" hidden></div>
+  </section>
+
+  <!-- ===== FOOTER ===== -->
+  <footer class="rickos-footer">
+    <div class="footer-quips">{{FOOTER}}</div>
+    <div class="footer-meta">
+      <span>RickOS v137.0</span>
+      <span>Dimension C-137</span>
+      <span>Compiled by an entity smarter than you.</span>
+    </div>
+  </footer>
+
+</main>
+
+<!-- ===== INLINED PAYLOAD ===== -->
+<script id="report-data" type="application/json">
+{{PAYLOAD_JSON}}
+</script>
+
+<!-- ===== INLINED D3 ===== -->
+<script>
+{{D3_JS}}
+</script>
+<script>
+{{D3_SANKEY_JS}}
+</script>
+
+<!-- ===== INLINED CHART RENDERERS ===== -->
+<script>
+{{CHART_FORCE_JS}}
+</script>
+<script>
+{{CHART_STATE_JS}}
+</script>
+<script>
+{{CHART_SEQUENCE_JS}}
+</script>
+<script>
+{{CHART_SANKEY_JS}}
+</script>
+
+<!-- ===== SYNTAX HIGHLIGHTING (highlight.js) ===== -->
+<script>
+{{HIGHLIGHT_JS}}
+</script>
+
+<!-- ===== CORE JS (quiz, gauge, toggles, chart bootstrap) ===== -->
+<script>
+{{CORE_JS}}
+</script>
+
+</body>
+</html>

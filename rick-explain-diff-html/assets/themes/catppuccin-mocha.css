@@ -1,0 +1,12 @@
+/* catppuccin-mocha: soft pastels on warm dark, very readable. */
+:root {
+  --bg: #1e1e2e;
+  --bg-elev: #313244;
+  --bg-deep: #181825;
+  --text: #cdd6f4;
+  --text-dim: #7f849c;
+  --primary: #a6e3a1;       /* green */
+  --accent: #f9e2af;        /* yellow */
+  --danger: #f38ba8;        /* pink-red */
+  --glow: rgba(166, 227, 161, 0.35);
+}
