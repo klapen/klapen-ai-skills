@@ -26,6 +26,16 @@ window.RickChartTreemap = function (container, data, onJump) {
 
   var W = Math.max(360, container.clientWidth || 640), H = 300;
 
+  // Monospace-aware truncator: fit `text` into `availWidth` px at `fontSize`,
+  // appending an ellipsis if it doesn't fit. JetBrains Mono glyphs are ~0.6em.
+  function fit(text, availWidth, fontSize) {
+    var charW = fontSize * 0.6;
+    var maxChars = Math.max(1, Math.floor(availWidth / charW));
+    if (text.length <= maxChars) return text;
+    if (maxChars <= 1) return '…';
+    return text.slice(0, maxChars - 1) + '…';
+  }
+
   var groups = {};
   files.forEach(function (f) {
     var dir = f.path.indexOf('/') >= 0 ? f.path.slice(0, f.path.lastIndexOf('/')) : '.';
@@ -53,9 +63,17 @@ window.RickChartTreemap = function (container, data, onJump) {
   svg.selectAll('text.dir').data(root.children || []).enter().append('text').attr('class', 'dir')
     .attr('x', function (d) { return d.x0 + 4; }).attr('y', function (d) { return d.y0 + 12; })
     .style('fill', C.dim).attr('font-family', 'JetBrains Mono, monospace').attr('font-size', 10).attr('letter-spacing', '0.08em')
-    .text(function (d) { return d.data.name; });
+    // 0.08em letter-spacing → ~0.65em advance on top of the 0.6 monospace glyph.
+    .text(function (d) { return fit(d.data.name, Math.max(0, d.x1 - d.x0 - 8), 10 * 1.08); })
+    .append('title').text(function (d) { return d.data.name; });
 
-  var leaf = svg.selectAll('g.leaf').data(root.leaves()).enter().append('g').attr('class', 'leaf')
+  // Skip tiles the treemap couldn't allocate any real area for — they end up
+  // degenerate (width or height near 0) and can even round to positions
+  // outside the viewBox. They're still listed in the Files section below.
+  var visibleLeaves = root.leaves().filter(function (d) {
+    return (d.x1 - d.x0) >= 1 && (d.y1 - d.y0) >= 1;
+  });
+  var leaf = svg.selectAll('g.leaf').data(visibleLeaves).enter().append('g').attr('class', 'leaf')
     .attr('transform', function (d) { return 'translate(' + d.x0 + ',' + d.y0 + ')'; })
     .style('cursor', 'pointer')
     .on('click', function (e, d) {
@@ -75,7 +93,10 @@ window.RickChartTreemap = function (container, data, onJump) {
 
   leaf.filter(function (d) { return (d.x1 - d.x0) > 70 && (d.y1 - d.y0) > 34; }).each(function (d) {
     var g = d3.select(this);
-    g.append('text').attr('x', 7).attr('y', 17).style('fill', C.deep).attr('font-family', 'JetBrains Mono, monospace').attr('font-size', 11.5).attr('font-weight', 700).text(d.data.name);
+    var tileW = d.x1 - d.x0;
+    var availW = Math.max(0, tileW - 14);
+    g.append('text').attr('x', 7).attr('y', 17).style('fill', C.deep).attr('font-family', 'JetBrains Mono, monospace').attr('font-size', 11.5).attr('font-weight', 700)
+      .text(fit(d.data.name, availW, 11.5));
     g.append('text').attr('x', 7).attr('y', 32).style('fill', 'rgba(0,0,0,0.55)').attr('font-family', 'JetBrains Mono, monospace').attr('font-size', 10)
       .text('+' + (d.data.file.adds || 0) + ' −' + (d.data.file.dels || 0));
   });
