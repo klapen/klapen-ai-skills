@@ -264,11 +264,7 @@
 
       if (f.note) card.appendChild(el('div', 'rk-file__note', f.note));
 
-      var linesWrap = el('div', 'rk-file__lines');
-      linesWrap.hidden = !f.open;
-      renderFileLines(linesWrap, f.lines, f.truncated);
-      card.appendChild(linesWrap);
-
+      // Rick's flag goes ABOVE the diff so it isn't buried under hundreds of code lines.
       var calloutEl = null;
       if (f.callout) {
         calloutEl = el('div', 'rk-file__callout');
@@ -278,6 +274,11 @@
         calloutEl.hidden = !f.open;
         card.appendChild(calloutEl);
       }
+
+      var linesWrap = el('div', 'rk-file__lines');
+      linesWrap.hidden = !f.open;
+      renderFileLines(linesWrap, f.lines, f.truncated);
+      card.appendChild(linesWrap);
 
       function setOpen(open) {
         f.open = open;
