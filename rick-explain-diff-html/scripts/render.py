@@ -250,12 +250,46 @@ DIFF_GIT_RE = re.compile(r"^diff --git a/(.*) b/(.*)$")
 HUNK_RE = re.compile(r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@")
 
 
+def normalize_diff(diff_text):
+    """Ensure each file section starts with a `diff --git a/<p> b/<p>` header.
+
+    `git diff` and `gh pr diff` always emit that header. `glab mr diff`
+    (and some raw-URL `.diff` sources) don't — they jump straight from
+    one file's `+++` to the next file's `---`. Synthesize the missing
+    headers so `parse_unified_diff` can see file boundaries either way.
+    """
+    if "\ndiff --git " in ("\n" + diff_text):
+        return diff_text  # already git-format; leave alone
+    lines = diff_text.split("\n")
+    out = []
+    i = 0
+    n = len(lines)
+    while i < n:
+        line = lines[i]
+        if (
+            line.startswith("--- ")
+            and i + 1 < n
+            and lines[i + 1].startswith("+++ ")
+        ):
+            a = line[4:].strip()
+            b = lines[i + 1][4:].strip()
+            path_a = a[2:] if a.startswith("a/") else a
+            path_b = b[2:] if b.startswith("b/") else b
+            # Prefer the non-/dev/null side for the synthetic path.
+            path = path_b if path_b != "/dev/null" else path_a
+            out.append("diff --git a/{p} b/{p}".format(p=path))
+        out.append(line)
+        i += 1
+    return "\n".join(out)
+
+
 def parse_unified_diff(diff_text, max_lines=MAX_LINES_PER_FILE):
     """Parse a unified git diff into a list of per-file dicts:
         {path, status, adds, dels, lines: [{num, sign, text}], truncated}
     Line numbering is single-gutter: '-' lines show the old line number,
     '+'/context lines show the new line number.
     """
+    diff_text = normalize_diff(diff_text)
     lines = diff_text.split("\n")
     files = []
     i = 0
