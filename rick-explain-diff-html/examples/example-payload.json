@@ -1,8 +1,27 @@
 {
-  "pr_slug": "example-lorem-ipsum",
+  "pr_slug": "example-cache-through",
+  "pr_meta": {
+    "title": "Add Redis cache-through layer to /widgets with in-memory LRU fallback",
+    "branch": "feat/widgets-cache-through",
+    "base": "main",
+    "author": "m.smith",
+    "opened": "2d ago",
+    "commits": 6
+  },
   "risk": {
-    "value": 42,
-    "label": "Lorem ipsum. Ships fine."
+    "composite": 42,
+    "label": "medium",
+    "items": [
+      {"name": "Blast radius", "score": "3/5", "pct": 60, "tone": "warn", "note": "one live endpoint, a handful of existing lines touched."},
+      {"name": "Test coverage", "score": "4/5", "pct": 82, "tone": "ok", "note": "all four cache branches tested, including Redis-down."},
+      {"name": "Migration", "score": "1/5", "pct": 18, "tone": "ok", "note": "no schema change, no backfill, versioned keys."},
+      {"name": "Dependencies", "score": "2/5", "pct": 36, "tone": "ok", "note": "one new pinned package, already used elsewhere in the monorepo."},
+      {"name": "Rollback", "score": "2/5", "pct": 34, "tone": "ok", "note": "feature is additive; revert is one commit, cache expires on its own."},
+      {"name": "Observability", "score": "4/5", "pct": 78, "tone": "bad", "note": "no hit-ratio metric, no log on the Redis-down fallback. The weak spot."}
+    ]
+  },
+  "shape": {
+    "note": "Two thirds of this PR is a brand-new file and its tests. Only the handful of lines inside handlers.py touch code that already ran in production."
   },
   "chart": {
     "type": "sequence",
@@ -19,9 +38,42 @@
       ]
     }
   },
+  "files": [
+    {
+      "path": "services/widgets/cache.py",
+      "note": "The whole feature. One class, injected Redis + LRUCache, no globals. get() is the only method with a branch worth arguing about.",
+      "callout": "On a Redis error you return the LRU value with no metric and no log. When Redis dies at 3am nobody finds out from this code path.",
+      "open": true
+    },
+    {
+      "path": "services/widgets/handlers.py",
+      "note": "The only production code path that changes behaviour. Cache is consulted before the repository; a miss still costs a full DB round-trip.",
+      "callout": "404s are not cached. A hot bad id keeps hitting Postgres forever — the exact traffic shape this PR exists to stop.",
+      "open": true
+    },
+    {
+      "path": "config/settings.py",
+      "note": "Four env-prefixed settings. Sensible defaults, one of them duplicated at the call site."
+    },
+    {
+      "path": "tests/test_cache_through.py",
+      "note": "Four unit tests. They cover hit, miss+TTL, Redis-down fallback and corrupt-payload eviction — the four branches that matter."
+    },
+    {
+      "path": "requirements.txt",
+      "note": "One dependency: redis 5.0.x, async client, already vendored elsewhere in the monorepo."
+    }
+  ],
+  "look_here": [
+    {"file": "services/widgets/cache.py", "label": "cache.py · get() fallback path", "note": "Fail-open on Redis errors. Confirm you want stale-tolerant reads.", "tone": "bad"},
+    {"file": "services/widgets/handlers.py", "label": "handlers.py · 404 caching", "note": "Misses aren't negative-cached — a hot missing id still hits the DB every request.", "tone": "warn"},
+    {"file": "config/settings.py", "label": "settings.py · ttl=300 default", "note": "Hard-coded again at the call site in handlers.py. Pick one."}
+  ],
   "quiz": [
     {
       "question": "Why does the new cache middleware fall back to an in-memory LRU when Redis is unavailable, rather than propagating the error?",
+      "file": "services/widgets/cache.py",
+      "where": "cache.py:20",
       "options": [
         "The cache is treated as an optimization, not a source of truth. Losing Redis briefly should degrade latency, not availability — so the middleware quietly serves from the LRU (or straight from the DB on miss) instead of surfacing 5xx to callers.",
         "The middleware treats Redis errors as bugs and short-circuits to raise 503 immediately, letting the caller retry against a healthy replica.",
@@ -38,6 +90,8 @@
     },
     {
       "question": "The cache key format is 'widget:{id}:{schema_version}'. Why include schema_version in the key rather than doing a version-bump flush at deploy time?",
+      "file": "services/widgets/cache.py",
+      "where": "cache.py:16",
       "options": [
         "Because Redis doesn't support atomic prefix invalidation, so a deploy-time flush would have to iterate keys and could miss in-flight writes.",
         "Version-bumping the key namespace makes old and new schema entries coexist during a rolling deploy — old pods keep reading v1 keys, new pods write v2, and there's no cache-warming stampede at cutover.",
@@ -54,6 +108,8 @@
     },
     {
       "question": "When the middleware hits Redis successfully but Redis returns a value that fails Pydantic validation, what does it do?",
+      "file": "services/widgets/cache.py",
+      "where": "cache.py:25",
       "options": [
         "It treats the cached blob as authoritative, logs a warning, and returns it as-is — trusting the write path to keep the cache clean.",
         "It raises 500 to the caller, on the theory that a corrupt cache means an active incident that should not be silenced.",
@@ -70,6 +126,8 @@
     },
     {
       "question": "The new test test_cache_miss_populates_ttl_from_config asserts the SET call carries a TTL kwarg. Why is that check load-bearing rather than a nice-to-have?",
+      "file": "tests/test_cache_through.py",
+      "where": "test_cache_through.py:12",
       "options": [
         "It guards the release-notes claim that TTL is configurable, so QA can grep for it during regression testing.",
         "It exercises the Redis client's ex= parameter path, which changed signature between versions of redis-py — the test would fail early if the pin drifts.",
@@ -84,5 +142,10 @@
         "Correct. TTL is the enforcement mechanism for the versioned-namespace invariant. Without it, v1 keys would haunt the cache forever and the coexistence property collapses."
       ]
     }
+  ],
+  "concerns": [
+    {"severity": "HIGH", "text": "Redis fallback is silent — no metric, no log.", "file": "services/widgets/cache.py", "where": "cache.py:20"},
+    {"severity": "MEDIUM", "text": "TTL configured in settings but hard-coded at the call site.", "file": "config/settings.py", "where": "settings.py:79"},
+    {"severity": "LOW", "text": "Misses are not negative-cached; hot 404s still reach Postgres.", "file": "services/widgets/handlers.py", "where": "handlers.py:52"}
   ]
 }

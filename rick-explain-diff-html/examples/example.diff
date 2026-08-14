@@ -1,0 +1,104 @@
+diff --git a/services/widgets/cache.py b/services/widgets/cache.py
+new file mode 100644
+index 0000000..8a1f9c2
+--- /dev/null
++++ b/services/widgets/cache.py
+@@ -0,0 +1,24 @@
++from redis.asyncio import Redis
++from redis.exceptions import ConnectionError as RedisConnectionError
++from pydantic import ValidationError
++
++from .models import Widget
++from .lru import LRUCache
++
++
++class CacheThroughMiddleware:
++    def __init__(self, redis: Redis, lru: LRUCache, schema_version: str) -> None:
++        self.redis = redis
++        self.lru = lru
++        self.schema_version = schema_version
++
++    async def get(self, widget_id: str) -> Widget | None:
++        key = f"widget:{widget_id}:{self.schema_version}"
++        try:
++            raw = await self.redis.get(key)
++        except RedisConnectionError:
++            return self.lru.get(key)   # fail-open: latency-only degradation
++        if raw is None:
++            return None
++        try:
++            return Widget.model_validate_json(raw)
++        except ValidationError:
++            await self.redis.delete(key)
++            return None
+diff --git a/services/widgets/handlers.py b/services/widgets/handlers.py
+index 4f21a3c..9b7e0d1 100644
+--- a/services/widgets/handlers.py
++++ b/services/widgets/handlers.py
+@@ -40,6 +40,13 @@ router = APIRouter()
+
+ @router.get("/widgets/{widget_id}")
+-async def get_widget(widget_id: str) -> Widget:
++async def get_widget(
++    widget_id: str,
++    cache: CacheThroughMiddleware = Depends(get_cache),
++) -> Widget:
++    cached = await cache.get(widget_id)
++    if cached is not None:
++        return cached
+     widget = await repository.get(widget_id)
+     if widget is None:
+         raise HTTPException(404)
++    await cache.set(widget_id, widget, ttl=300)
+     return widget
+diff --git a/config/settings.py b/config/settings.py
+index c3d8e21..77aa410 100644
+--- a/config/settings.py
++++ b/config/settings.py
+@@ -74,3 +74,9 @@ class DatabaseSettings(BaseSettings):
+
+     model_config = SettingsConfigDict(env_prefix="DB_")
++
++
++class CacheSettings(BaseSettings):
++    redis_url: str = "redis://localhost:6379/0"
++    ttl_seconds: int = 300
++    lru_max_size: int = 1024
++    schema_version: str = "v1"
++
++    model_config = SettingsConfigDict(env_prefix="WIDGETS_CACHE_")
+diff --git a/tests/test_cache_through.py b/tests/test_cache_through.py
+new file mode 100644
+index 0000000..2c9e6b4
+--- /dev/null
++++ b/tests/test_cache_through.py
+@@ -0,0 +1,18 @@
++import pytest
++
++
++async def test_cache_hit_returns_without_db(cache, repo_spy):
++    await cache.redis.set("widget:w-1:v1", b'{"id":"w-1"}')
++    result = await cache.get("w-1")
++    assert repo_spy.get.await_count == 0
++
++
++async def test_cache_miss_populates_ttl_from_config(cache, redis_spy):
++    await cache.set("w-1", {"id": "w-1"}, ttl=300)
++    assert redis_spy.set.call_args.kwargs["ex"] == 300
++
++
++async def test_redis_down_falls_through_to_lru(cache, broken_redis):
++    assert await cache.get("w-1") == LRU_SENTINEL
++
++
++async def test_corrupt_cache_evicts_and_returns_none(cache, redis):
++    await redis.set("widget:w-1:v1", b"{not json")
++    assert await cache.get("w-1") is None
+diff --git a/requirements.txt b/requirements.txt
+index 9d1e2aa..1b4f77c 100644
+--- a/requirements.txt
++++ b/requirements.txt
+@@ -21,3 +21,4 @@ fastapi==0.111.0
+ pydantic==2.7.1
+ uvicorn==0.30.0
++redis==5.0.4

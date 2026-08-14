@@ -1,13 +1,14 @@
 /* gruvbox-dark: the warm, high-readability emacs classic.
  * Muted primaries, warm off-white text, dark warm bg. */
 :root {
-  --bg: #282828;
-  --bg-elev: #32302f;
-  --bg-deep: #1d2021;
-  --text: #ebdbb2;
-  --text-dim: #a89984;
-  --primary: #fabd2f;       /* bright yellow */
-  --accent: #b8bb26;        /* bright green */
-  --danger: #fb4934;        /* bright red */
-  --glow: rgba(250, 189, 47, 0.35);
+  --rk-bg: #282828;
+  --rk-deep: #1d2021;
+  --rk-surface: #32302f;
+  --rk-text: #ebdbb2;
+  --rk-dim: #a89984;
+  --rk-accent: #fabd2f;
+  --rk-ok: #b8bb26;
+  --rk-warn: #fe8019;
+  --rk-bad: #fb4934;
+  --rk-info: #83a598;
 }

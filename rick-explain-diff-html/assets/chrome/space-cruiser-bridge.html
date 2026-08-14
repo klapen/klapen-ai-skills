@@ -1,17 +1,24 @@
-<header class="chrome-top">
-  <div class="chrome-left">
-    <span>SPACE CRUISER // BRIDGE</span>
-    <span>NAV: 137/A</span>
-    <span class="portal-fluid-meter">
-      Shields: <span class="fluid-bar"></span> 61%
-    </span>
+<header class="rk-chrome rk-chrome--cruiser" data-screen-label="Chrome space-cruiser-bridge">
+  <div class="rk-chrome__readout">
+    <span class="rk-chrome__readout-label">bridge readout</span>
+    <span class="rk-chrome__telemetry" aria-hidden="true"></span>
+    <span>hull nominal</span><span>shields 74%</span><span>crew 1 (asleep)</span>
+    <span class="rk-chrome__eta">eta review &middot; 12 min</span>
   </div>
-  <div class="chrome-right">
-    <span>WARP: STANDBY</span>
-    <div class="window-controls">
-      <button type="button">◀</button>
-      <button type="button">⬢</button>
-      <button type="button" data-window-control="self-destruct">Eject</button>
-    </div>
+  <div class="rk-chrome__row">
+    <span class="rk-chrome__brand">
+      <svg viewBox="0 0 26 18" class="rk-chrome__icon" aria-hidden="true"><path d="M1 12 Q13 2 25 12" fill="none" style="stroke:var(--rk-warn)" stroke-width="1.4"></path><ellipse cx="13" cy="12.5" rx="9" ry="3.2" style="fill:var(--rk-warn)" opacity="0.85"></ellipse><circle cx="13" cy="16.5" r="1.8" style="fill:var(--rk-info)" opacity="0.9"></circle></svg>
+      cruiser &middot; deck 4
+    </span>
+    <span class="rk-chrome__meta" data-pr-meta>&nbsp;</span>
+    <nav class="rk-nav">
+      <a href="#s-summary">summary</a>
+      <a href="#s-risk">risk</a>
+      <a href="#s-shape" data-nav="shape">shape</a>
+      <a href="#s-flow">flow</a>
+      <a href="#s-files">files</a>
+      <a href="#s-quiz">quiz</a>
+      <button type="button" class="rk-chrome__toggle" data-crt-toggle data-label-on="viewscreen on" data-label-off="viewscreen off" title="Toggle viewscreen effects">viewscreen on</button>
+    </nav>
   </div>
 </header>

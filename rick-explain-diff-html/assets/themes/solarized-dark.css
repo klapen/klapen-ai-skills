@@ -1,12 +1,13 @@
-/* solarized-dark: Ethan Schoonover's scientifically-calibrated dark scheme. */
+/* solarized-dark: Ethan Schoonover's classic, precision-tuned contrast. */
 :root {
-  --bg: #002b36;
-  --bg-elev: #073642;
-  --bg-deep: #001f27;
-  --text: #93a1a1;
-  --text-dim: #586e75;
-  --primary: #b58900;       /* yellow */
-  --accent: #859900;        /* green */
-  --danger: #dc322f;        /* red */
-  --glow: rgba(181, 137, 0, 0.35);
+  --rk-bg: #002b36;
+  --rk-deep: #00212b;
+  --rk-surface: #073642;
+  --rk-text: #eee8d5;
+  --rk-dim: #93a1a1;
+  --rk-accent: #b58900;
+  --rk-ok: #859900;
+  --rk-warn: #cb4b16;
+  --rk-bad: #dc322f;
+  --rk-info: #268bd2;
 }

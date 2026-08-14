@@ -3,28 +3,29 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>RickOS v137.0 — example</title>
+<title>RickOS v137.0 — example-cache-through</title>
 <style>
 /* ===== THEME (injected) ===== */
 /* gruvbox-dark: the warm, high-readability emacs classic.
  * Muted primaries, warm off-white text, dark warm bg. */
 :root {
-  --bg: #282828;
-  --bg-elev: #32302f;
-  --bg-deep: #1d2021;
-  --text: #ebdbb2;
-  --text-dim: #a89984;
-  --primary: #fabd2f;       /* bright yellow */
-  --accent: #b8bb26;        /* bright green */
-  --danger: #fb4934;        /* bright red */
-  --glow: rgba(250, 189, 47, 0.35);
+  --rk-bg: #282828;
+  --rk-deep: #1d2021;
+  --rk-surface: #32302f;
+  --rk-text: #ebdbb2;
+  --rk-dim: #a89984;
+  --rk-accent: #fabd2f;
+  --rk-ok: #b8bb26;
+  --rk-warn: #fe8019;
+  --rk-bad: #fb4934;
+  --rk-info: #83a598;
 }
 
 /* ===== CORE ===== */
 /* ===================================================================
- * RickOS core.css — layout, typography, scanlines, responsive rules.
- * Theme variables (--primary, --accent, --bg, --text, --glow) are
- * defined by the injected theme file, NOT here.
+ * RickOS core.css — layout, typography, chrome, sections, responsive.
+ * Theme variables (--rk-bg/-deep/-surface/-text/-dim/-accent/-ok/-warn/
+ * -bad/-info) are defined by the injected theme file, NOT here.
  * =================================================================== */
 
 * { box-sizing: border-box; }
@@ -32,8 +33,8 @@
 html, body {
   margin: 0;
   padding: 0;
-  background: var(--bg, #1d2021);
-  color: var(--text, #ebdbb2);
+  background: var(--rk-bg);
+  color: var(--rk-text);
   font-family: 'SF Mono', 'Fira Code', 'JetBrains Mono', 'Menlo', 'Consolas', monospace;
   font-size: 14px;
   line-height: 1.6;
@@ -50,740 +51,710 @@ body::before {
   z-index: 999;
 }
 
-/* ---- Scanlines overlay ---- */
 .scanlines {
   position: fixed;
   inset: 0;
   pointer-events: none;
   z-index: 998;
-  background: repeating-linear-gradient(
-    to bottom,
-    rgba(255,255,255,0.02) 0px,
-    rgba(255,255,255,0.02) 1px,
-    transparent 1px,
-    transparent 3px
-  );
-  mix-blend-mode: overlay;
-  opacity: 0.6;
+  background: repeating-linear-gradient(to bottom, rgba(255,255,255,0.022) 0px, rgba(255,255,255,0.022) 1px, transparent 1px, transparent 3px);
 }
 
-/* ---- OS chrome (top bar) ---- */
-.chrome-top {
+@keyframes rk-flicker { 0%,92%,100%{opacity:1} 94%{opacity:0.72} 96%{opacity:1} }
+@keyframes rk-spin { to { transform:rotate(360deg) } }
+@keyframes rk-spin-rev { to { transform:rotate(-360deg) } }
+@keyframes rk-pulse { 0%,100%{opacity:0.35; transform:scale(0.94)} 50%{opacity:1; transform:scale(1.06)} }
+@keyframes rk-dash { to { stroke-dashoffset:-240 } }
+@keyframes rk-bob { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-4px)} }
+@keyframes rk-rise { 0%{transform:translateY(6px); opacity:0} 60%{opacity:0.9} 100%{transform:translateY(-16px); opacity:0} }
+@keyframes rk-sweep { 0%{transform:rotate(-52deg)} 50%{transform:rotate(52deg)} 100%{transform:rotate(-52deg)} }
+@keyframes rk-blink { 0%,49%{opacity:1} 50%,100%{opacity:0.15} }
+@keyframes rk-bootin { from{ transform:translateY(7px); opacity:0 } to{ transform:none; opacity:1 } }
+@media (prefers-reduced-motion: reduce) { *{ animation:none !important; transition:none !important } }
+
+/* ---- Sticky top stack: chrome header + hero strip ---- */
+.rk-topbar {
   position: sticky;
   top: 0;
   z-index: 100;
+}
+
+/* ---- Chrome (OS header) ---- */
+.rk-chrome {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 6px 14px;
-  background: var(--bg-deep, #1d2021);
-  border-bottom: 1px solid var(--primary);
-  font-size: 12px;
+  gap: 16px;
+  padding: 7px 18px;
+  background: var(--rk-deep);
+  border-bottom: 1px solid var(--rk-accent);
+  font-size: 11px;
+  letter-spacing: 0.07em;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--primary);
+  color: var(--rk-accent);
 }
 
-.chrome-top .chrome-left,
-.chrome-top .chrome-right {
+.rk-chrome__brand {
   display: flex;
-  gap: 14px;
   align-items: center;
+  gap: 7px;
+  font-weight: 700;
+  white-space: nowrap;
+  flex: 0 0 auto;
 }
 
-.chrome-top .window-controls {
+.rk-chrome__icon { width: 20px; height: 20px; display: block; }
+.rk-chrome__icon--spin { animation: rk-spin 9s linear infinite; }
+
+.rk-chrome__dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--rk-ok);
+  display: block;
+  animation: rk-blink 2.4s steps(1,end) infinite;
+}
+
+.rk-chrome__meta {
+  color: var(--rk-dim);
+  text-transform: none;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.rk-chrome__fluid {
   display: flex;
-  gap: 8px;
+  align-items: center;
+  gap: 6px;
+  color: var(--rk-dim);
+  font-size: 9.5px;
+  white-space: nowrap;
+  flex: 0 0 auto;
 }
 
-.window-controls button {
+.rk-chrome__fluid-bar {
+  position: relative;
+  width: 54px; height: 7px;
+  background: rgba(255,255,255,0.09);
+  display: block;
+}
+.rk-chrome__fluid-bar::after {
+  content: "";
+  position: absolute; inset: 0 34% 0 0;
+  background: var(--rk-ok);
+  animation: rk-flicker 5s linear infinite;
+}
+
+.rk-nav {
+  display: flex;
+  gap: 13px;
+  align-items: center;
+  flex: 0 0 auto;
+}
+
+.rk-nav a {
+  color: var(--rk-dim);
+  text-decoration: none;
+  border: 0;
+}
+.rk-nav a:hover { color: var(--rk-accent); }
+
+.rk-chrome__toggle,
+.rk-chrome__panic {
   background: transparent;
-  border: 1px solid var(--primary);
-  color: var(--primary);
-  padding: 2px 8px;
+  border: 1px solid var(--rk-accent);
+  color: var(--rk-accent);
   font: inherit;
   font-size: 10px;
   text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 3px 9px;
   cursor: pointer;
 }
+.rk-chrome__toggle:hover { background: var(--rk-accent); color: var(--rk-deep); }
+.rk-chrome__panic { border-color: var(--rk-bad); color: var(--rk-bad); }
+.rk-chrome__panic:hover { background: var(--rk-bad); color: var(--rk-deep); }
 
-.window-controls button:hover {
-  background: var(--primary);
-  color: var(--bg);
+/* -- chrome: portal-terminal -- */
+.rk-chrome--portal {
+  background: linear-gradient(180deg, var(--rk-deep), var(--rk-bg));
+  border-bottom: 2px solid var(--rk-ok);
+  box-shadow: 0 0 22px -6px var(--rk-ok);
+  color: var(--rk-ok);
 }
+.rk-chrome--portal .rk-nav a { padding: 2px 10px; border-left: 1px solid rgba(255,255,255,0.12); }
+.rk-chrome--portal .rk-nav a:hover { color: var(--rk-ok); }
+.rk-chrome--portal .rk-chrome__toggle { border: 1px dashed var(--rk-ok); border-radius: 11px; color: var(--rk-ok); }
+.rk-chrome--portal .rk-chrome__toggle:hover { background: var(--rk-ok); color: var(--rk-deep); }
 
-.portal-fluid-meter {
-  display: inline-flex;
+/* -- chrome: council-hud -- */
+.rk-chrome--council {
+  display: grid;
+  grid-template-columns: minmax(0,1fr) auto minmax(0,1fr);
+  padding: 9px 20px;
+  border-bottom: 1px solid var(--rk-info);
+  color: var(--rk-info);
+}
+.rk-chrome--council .rk-chrome__brand { letter-spacing: 0.18em; }
+.rk-chrome__bars { display: flex; gap: 3px; align-items: flex-end; }
+.rk-chrome__bars span { width: 3px; background: var(--rk-info); display: block; }
+.rk-chrome__bars span:nth-child(1) { height: 9px; opacity: 0.5; }
+.rk-chrome__bars span:nth-child(2) { height: 14px; }
+.rk-chrome__bars span:nth-child(3) { height: 6px; opacity: 0.35; }
+.rk-chrome__tribunal {
+  display: flex; align-items: center; gap: 8px;
+  justify-self: center;
+  padding: 2px 14px;
+  border: 1px solid var(--rk-info);
+  color: var(--rk-text);
+  letter-spacing: 0.16em;
+  white-space: nowrap;
+}
+.rk-chrome__pulse {
+  width: 6px; height: 6px; display: block;
+  background: var(--rk-warn);
+  animation: rk-pulse 1.9s ease-in-out infinite;
+}
+.rk-chrome--council .rk-nav { justify-self: end; }
+.rk-chrome--council .rk-nav a {
+  border-top: 1px solid rgba(255,255,255,0.14);
+  border-bottom: 1px solid rgba(255,255,255,0.14);
+  padding: 2px 8px;
+  font-size: 10px;
+}
+.rk-chrome--council .rk-nav a:hover { color: var(--rk-info); border-color: var(--rk-info); }
+.rk-chrome--council .rk-chrome__toggle { border-color: var(--rk-info); color: var(--rk-info); }
+.rk-chrome--council .rk-chrome__toggle:hover { background: var(--rk-info); color: var(--rk-deep); }
+
+/* -- chrome: space-cruiser-bridge -- */
+.rk-chrome--cruiser { flex-direction: column; align-items: stretch; padding: 0; color: var(--rk-text); }
+.rk-chrome__readout {
+  display: flex; align-items: center; gap: 10px;
+  padding: 4px 18px;
+  font-size: 9.5px;
+  letter-spacing: 0.14em;
+  color: var(--rk-dim);
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+.rk-chrome__readout-label { color: var(--rk-warn); }
+.rk-chrome__telemetry {
+  display: block;
+  width: 70px; height: 8px;
+  background: repeating-linear-gradient(90deg, var(--rk-ok) 0 3px, transparent 3px 5px);
+  opacity: 0.7;
+}
+.rk-chrome__eta { margin-left: auto; }
+.rk-chrome__row { display: flex; align-items: center; gap: 16px; padding: 7px 18px; }
+.rk-chrome--cruiser .rk-chrome__brand { color: var(--rk-warn); font-size: 11.5px; }
+.rk-chrome--cruiser .rk-nav { margin-left: auto; }
+.rk-chrome--cruiser .rk-nav a {
+  font-size: 10px;
+  padding: 3px 11px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.05);
+}
+.rk-chrome--cruiser .rk-nav a:hover { color: var(--rk-deep); background: var(--rk-warn); }
+.rk-chrome--cruiser .rk-chrome__toggle { border-color: var(--rk-warn); color: var(--rk-warn); border-radius: 999px; }
+.rk-chrome--cruiser .rk-chrome__toggle:hover { background: var(--rk-warn); color: var(--rk-deep); }
+
+/* ---- Hero strip: banner + boot log, collapsible ---- */
+.rk-hero {
+  background: var(--rk-deep);
+  border-bottom: 1px solid rgba(255,255,255,0.09);
+}
+.rk-hero__full {
+  max-width: 1160px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 190px minmax(0,1fr) auto;
   align-items: center;
-  gap: 6px;
+  gap: 18px;
+  padding: 8px 22px;
+  height: 76px;
 }
-
-.portal-fluid-meter .fluid-bar {
-  display: inline-block;
-  width: 60px;
-  height: 6px;
-  background: rgba(255,255,255,0.08);
-  border: 1px solid var(--primary);
-  position: relative;
+.rk-hero__banner { height: 60px; display: flex; align-items: center; overflow: hidden; opacity: 0.95; }
+.rk-hero__banner svg { display: block; }
+.rk-hero__boot {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1px;
+  height: 60px;
   overflow: hidden;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--rk-dim);
+  border-left: 1px solid rgba(255,255,255,0.09);
+  padding-left: 18px;
 }
-
-.portal-fluid-meter .fluid-bar::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  width: 73%;
-  background: var(--primary);
-  animation: fluid-flicker 3s infinite;
+.rk-hero__boot div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; animation: rk-bootin 0.4s ease-out both; }
+.rk-hero__boot .is-warn { color: var(--rk-warn); }
+.rk-hero__collapse {
+  align-self: center;
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.16);
+  color: var(--rk-dim);
+  font: inherit;
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 4px 9px;
+  cursor: pointer;
 }
-
-@keyframes fluid-flicker {
-  0%, 100% { opacity: 1; }
-  47% { opacity: 1; }
-  50% { opacity: 0.4; }
-  53% { opacity: 1; }
+.rk-hero__collapse:hover { border-color: var(--rk-accent); color: var(--rk-accent); }
+.rk-hero__tail {
+  display: none;
+  max-width: 1160px;
+  margin: 0 auto;
+  align-items: center;
+  gap: 12px;
+  padding: 3px 22px;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: var(--rk-dim);
 }
+.rk-hero__tail-dot { color: var(--rk-ok); }
+.rk-hero__tail-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rk-hero__tail-btn {
+  margin-left: auto;
+  background: transparent; border: 0;
+  color: var(--rk-dim);
+  font: inherit; letter-spacing: 0.1em; text-transform: uppercase;
+  cursor: pointer; padding: 2px 0;
+}
+.rk-hero__tail-btn:hover { color: var(--rk-accent); }
+.rk-hero.is-collapsed .rk-hero__full { display: none; }
+.rk-hero.is-collapsed .rk-hero__tail { display: flex; }
 
 /* ---- Main window ---- */
-.rickos-window {
-  max-width: 1080px;
+.rk-main {
+  max-width: 1160px;
   margin: 0 auto;
-  padding: 20px 20px 60px;
-}
-
-/* ---- Compact hero strip: banner + boot log inline ---- */
-.hero-strip {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-  padding: 12px 14px;
-  margin: 14px 0 22px;
-  background: var(--bg-deep, rgba(0,0,0,0.5));
-  border: 1px solid rgba(255,255,255,0.06);
-  border-left: 3px solid var(--primary);
-}
-
-.hero-strip .rick-banner {
-  flex: 0 0 140px;
-  width: 140px;
-  height: 140px;
-  color: var(--primary);
-  animation: banner-flicker 5s infinite;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.hero-strip .rick-banner svg {
-  display: block;
-  width: 100%;
-  height: 100%;
-  overflow: visible;
-}
-
-.hero-strip .hero-right {
-  flex: 1 1 auto;
-  min-width: 0;
-}
-
-.boot-log-inline {
-  margin: 0;
-  padding: 0;
-  color: var(--text-dim, var(--text));
-  font-family: inherit;
-  font-size: 11px;
-  line-height: 1.35;
-  white-space: pre-wrap;
-  max-height: 5.6em;
-  overflow: hidden;
-}
-
-.banner-tagline {
-  margin-top: 8px;
-  font-size: 11px;
-  letter-spacing: 0.15em;
-  text-transform: uppercase;
-  color: var(--accent);
-  opacity: 0.85;
-}
-
-@keyframes banner-flicker {
-  0%, 100% { opacity: 1; }
-  93% { opacity: 1; }
-  94% { opacity: 0.7; }
-  96% { opacity: 1; }
-}
-
-@media (max-width: 700px) {
-  .hero-strip { flex-direction: column; align-items: flex-start; gap: 10px; }
-  .hero-strip .rick-banner { width: 100px; height: 100px; flex: 0 0 100px; }
-  .boot-log-inline { max-height: none; }
+  padding: 26px 22px 0;
 }
 
 /* ---- Report sections ---- */
-.report-section {
-  margin: 32px 0;
-  padding: 18px 20px;
-  background: var(--bg-elev, rgba(0,0,0,0.35));
-  border: 1px solid rgba(255,255,255,0.06);
-  border-left: 3px solid var(--primary);
-  position: relative;
+.rk-section {
+  margin-top: 22px;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-left: 3px solid var(--rk-accent);
+  background: var(--rk-surface);
+  padding: 18px 22px 20px;
 }
+.rk-section:first-child { margin-top: 0; }
+.rk-section--verdict { border-left-color: var(--rk-ok); }
 
-.section-header {
+.rk-section__head {
   display: flex;
   align-items: baseline;
   gap: 14px;
-  margin-bottom: 14px;
   padding-bottom: 10px;
+  margin-bottom: 16px;
   border-bottom: 1px dashed rgba(255,255,255,0.12);
 }
-
-.section-header h2 {
-  margin: 0;
-  font-size: 18px;
-  font-weight: 600;
-  color: var(--primary);
-  letter-spacing: 0.02em;
-}
-
-.section-number {
-  font-size: 26px;
-  color: var(--accent);
+.rk-section__num {
+  font-size: 22px;
   font-weight: 700;
-  opacity: 0.75;
+  color: var(--rk-ok);
+  opacity: 0.8;
 }
-
-.section-body {
-  color: var(--text);
+.rk-section__head h2 {
+  margin: 0;
+  font-size: 19px;
+  font-weight: 600;
+  color: var(--rk-accent);
 }
+.rk-section__head h2 .rk-section__sub { color: var(--rk-text); font-weight: 400; }
+.rk-section__aside { margin-left: auto; font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--rk-dim); }
 
-.section-body p {
-  margin: 0 0 14px;
+/* ---- Summary section ---- */
+.rk-summary__top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  padding-bottom: 14px;
+  margin-bottom: 14px;
+  border-bottom: 1px dashed rgba(255,255,255,0.12);
 }
+.rk-summary__id { font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--rk-dim); }
+.rk-summary__title { margin: 6px 0 0; font-size: 26px; line-height: 1.25; font-weight: 600; color: var(--rk-text); letter-spacing: -0.01em; }
+.rk-summary__title code { font-size: 22px; color: var(--rk-accent); }
+.rk-summary__tags { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 12px; color: var(--rk-dim); }
+.rk-summary__tags strong { color: var(--rk-text); font-weight: 400; }
 
-.section-body em {
-  color: var(--accent);
-  font-style: italic;
-}
-
-.section-body strong {
-  color: var(--primary);
-}
-
-.section-body code,
-.section-body pre {
-  font-family: inherit;
-}
-
-.section-body pre {
-  background: var(--bg-deep, rgba(0,0,0,0.7));
+.rk-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(78px, auto));
+  gap: 1px;
+  background: rgba(255,255,255,0.08);
   border: 1px solid rgba(255,255,255,0.08);
-  border-left: 2px solid var(--accent);
+}
+.rk-stat { background: var(--rk-deep); padding: 10px 14px; }
+.rk-stat__value { font-size: 19px; font-weight: 700; color: var(--rk-text); }
+.rk-stat__value.is-ok { color: var(--rk-ok); }
+.rk-stat__value.is-bad { color: var(--rk-bad); }
+.rk-stat__label { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--rk-dim); }
+
+.rk-summary__bottom {
+  display: grid;
+  grid-template-columns: minmax(0,1.55fr) minmax(0,1fr);
+  gap: 0;
+}
+.rk-summary__prose {
+  padding-right: 22px;
+  border-right: 1px dashed rgba(255,255,255,0.12);
+  font-size: 15px; line-height: 1.65;
+}
+.rk-summary__prose p { margin: 0 0 10px; max-width: 68ch; }
+.rk-summary__lookhere-col { padding-left: 22px; }
+.rk-summary__label { font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--rk-accent); margin-bottom: 10px; }
+.rk-lookhere { display: flex; flex-direction: column; gap: 10px; }
+.rk-lookhere a {
+  display: block; padding: 9px 12px;
+  background: var(--rk-deep);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-left: 2px solid var(--rk-accent);
+  text-decoration: none;
+}
+.rk-lookhere a.is-bad { border-left-color: var(--rk-bad); }
+.rk-lookhere a.is-warn { border-left-color: var(--rk-warn); }
+.rk-lookhere__title { font-size: 12px; color: var(--rk-text); }
+.rk-lookhere__note { font-size: 12.5px; color: var(--rk-dim); margin-top: 3px; }
+
+/* ---- Risk bars ---- */
+.rk-risk-list { display: flex; flex-direction: column; gap: 2px; }
+.rk-risk-row {
+  display: grid;
+  grid-template-columns: 150px minmax(140px,1fr) minmax(0,2.1fr);
+  align-items: center;
+  gap: 16px;
+  padding: 9px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+.rk-risk-row__name { font-size: 12px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--rk-text); }
+.rk-risk-bar { position: relative; height: 14px; background: rgba(255,255,255,0.06); }
+.rk-risk-bar__fill { position: absolute; top: 0; bottom: 0; left: 0; opacity: 0.85; }
+.rk-risk-bar__fill.is-ok { background: var(--rk-ok); }
+.rk-risk-bar__fill.is-warn { background: var(--rk-warn); }
+.rk-risk-bar__fill.is-bad { background: var(--rk-bad); }
+.rk-risk-row__note { font-size: 13.5px; line-height: 1.5; color: var(--rk-dim); }
+.rk-risk-row__score { font-size: 12px; font-weight: 700; }
+.rk-risk-row__score.is-ok { color: var(--rk-ok); }
+.rk-risk-row__score.is-warn { color: var(--rk-warn); }
+.rk-risk-row__score.is-bad { color: var(--rk-bad); }
+
+/* ---- Shape (treemap) + Flow (existing charts) diagram wrapper ---- */
+.rk-shape-grid { display: grid; grid-template-columns: minmax(0,1fr) 250px; gap: 20px; align-items: start; }
+.rk-treemap { width: 100%; min-height: 300px; background: var(--rk-deep); border: 1px solid rgba(255,255,255,0.08); }
+.rk-shape-legend { display: flex; flex-direction: column; gap: 6px; font-size: 11px; color: var(--rk-dim); margin-top: 12px; }
+.rk-shape-legend span.swatch { width: 14px; height: 14px; display: inline-block; margin-right: 8px; vertical-align: -3px; }
+.rk-shape-legend .is-ok { background: var(--rk-ok); }
+.rk-shape-legend .is-warn { background: var(--rk-warn); }
+.rk-shape-legend .is-bad { background: var(--rk-bad); }
+.rk-shape-note { margin-top: 16px; padding-top: 14px; border-top: 1px dashed rgba(255,255,255,0.12); font-size: 13.5px; line-height: 1.6; }
+.rk-shape-note strong { color: var(--rk-accent); }
+
+.rk-diagram {
+  width: 100%;
+  min-height: 300px;
+  background: var(--rk-deep);
+  border: 1px solid rgba(255,255,255,0.08);
+}
+.rk-diagram svg { width: 100%; height: auto; min-height: 280px; display: block; overflow: visible; }
+.rk-flow-notes { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px,1fr)); gap: 18px; margin-top: 16px; font-size: 14px; line-height: 1.6; color: var(--rk-dim); }
+
+.chart-node { cursor: pointer; }
+.chart-node circle, .chart-node rect { fill: var(--rk-deep); stroke: var(--rk-accent); stroke-width: 1.5; }
+.chart-node text { fill: var(--rk-text); font-family: inherit; font-size: 11px; pointer-events: none; }
+.chart-link { fill: none; stroke: var(--rk-ok); stroke-opacity: 0.65; stroke-width: 1.2; }
+.chart-link.added { stroke: var(--rk-accent); stroke-opacity: 0.9; }
+.chart-link.removed { stroke: var(--rk-bad); stroke-opacity: 0.75; stroke-dasharray: 4 3; }
+
+/* ---- Section prose (Flow's core_logic fragment, Summary's prose) ---- */
+.rk-section-body { color: var(--rk-text); }
+.rk-section-body p { margin: 0 0 14px; }
+.rk-section-body em { color: var(--rk-accent); font-style: italic; }
+.rk-section-body strong { color: var(--rk-accent); }
+.rk-section-body pre {
+  background: var(--rk-deep);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-left: 2px solid var(--rk-accent);
   padding: 10px 14px;
   overflow-x: auto;
   white-space: pre;
   font-size: 12.5px;
-  color: var(--text);
+  color: var(--rk-text);
   margin: 12px 0;
 }
-
-.section-body pre code,
-.section-body pre code.hljs {
-  background: transparent;
-  padding: 0;
-  color: inherit;
-  font-size: inherit;
-  display: block;
-  overflow-x: auto;
-}
-
-.section-body code {
-  background: var(--bg-deep, rgba(0,0,0,0.5));
-  padding: 1px 5px;
-  border-radius: 2px;
-  color: var(--accent);
-  font-size: 0.95em;
-}
+.rk-section-body pre code, .rk-section-body pre code.hljs { background: transparent; padding: 0; color: inherit; font-size: inherit; display: block; overflow-x: auto; }
+.rk-section-body code { background: var(--rk-deep); padding: 1px 5px; border-radius: 2px; color: var(--rk-accent); font-size: 0.95em; }
+.rk-section-body .callout { margin: 14px 0; padding: 10px 14px; border: 1px dashed var(--rk-accent); background: var(--rk-deep); color: var(--rk-accent); font-size: 13px; }
 
 /* ---- Syntax highlighting: map hljs classes to theme vars ---- */
-/* Base */
-.hljs { color: var(--text); background: transparent; }
-/* Comments & meta */
-.hljs-comment,
-.hljs-quote,
-.hljs-meta { color: var(--text-dim, var(--text)); font-style: italic; }
-/* Keywords / control flow */
-.hljs-keyword,
-.hljs-selector-tag,
-.hljs-section,
-.hljs-doctag,
-.hljs-name,
-.hljs-strong,
-.hljs-tag { color: var(--primary); font-weight: 600; }
-/* Strings */
-.hljs-string,
-.hljs-regexp,
-.hljs-addition,
-.hljs-attribute,
-.hljs-meta-string { color: var(--accent); }
-/* Numbers, literals */
-.hljs-number,
-.hljs-literal,
-.hljs-symbol,
-.hljs-bullet,
-.hljs-link { color: var(--danger); }
-/* Types, classes, functions */
-.hljs-title,
-.hljs-class .hljs-title,
-.hljs-title.class_,
-.hljs-title.function_,
-.hljs-type,
-.hljs-built_in,
-.hljs-builtin-name { color: var(--accent); }
-/* Attributes / properties */
-.hljs-attr,
-.hljs-variable,
-.hljs-template-variable,
-.hljs-selector-attr,
-.hljs-selector-pseudo,
-.hljs-selector-class,
-.hljs-selector-id { color: var(--primary); }
-/* Params */
-.hljs-params { color: var(--text); }
-/* Punctuation / operators */
-.hljs-punctuation,
-.hljs-operator { color: var(--text-dim, var(--text)); }
-/* Diff-specific */
-.hljs-addition { color: var(--accent); background: rgba(180,180,180,0.05); }
-.hljs-deletion { color: var(--danger); background: rgba(180,180,180,0.05); }
+.hljs { color: var(--rk-text); background: transparent; }
+.hljs-comment, .hljs-quote, .hljs-meta { color: var(--rk-dim); font-style: italic; }
+.hljs-keyword, .hljs-selector-tag, .hljs-section, .hljs-doctag, .hljs-name, .hljs-strong, .hljs-tag { color: var(--rk-accent); font-weight: 600; }
+.hljs-string, .hljs-regexp, .hljs-addition, .hljs-attribute, .hljs-meta-string { color: var(--rk-ok); }
+.hljs-number, .hljs-literal, .hljs-symbol, .hljs-bullet, .hljs-link { color: var(--rk-bad); }
+.hljs-title, .hljs-class .hljs-title, .hljs-title.class_, .hljs-title.function_, .hljs-type, .hljs-built_in, .hljs-builtin-name { color: var(--rk-ok); }
+.hljs-attr, .hljs-variable, .hljs-template-variable, .hljs-selector-attr, .hljs-selector-pseudo, .hljs-selector-class, .hljs-selector-id { color: var(--rk-accent); }
+.hljs-params { color: var(--rk-text); }
+.hljs-punctuation, .hljs-operator { color: var(--rk-dim); }
+.hljs-addition { color: var(--rk-ok); background: rgba(180,180,180,0.05); }
+.hljs-deletion { color: var(--rk-bad); background: rgba(180,180,180,0.05); }
 .hljs-emphasis { font-style: italic; }
 .hljs-strong { font-weight: 700; }
 
-.section-body .callout {
-  margin: 14px 0;
-  padding: 10px 14px;
-  border: 1px dashed var(--accent);
-  background: var(--bg-deep, rgba(0,0,0,0.35));
-  color: var(--accent);
-  font-size: 13px;
+/* ---- Before/After toggle (still usable inside prose fragments) ---- */
+[data-toggle] { margin: 14px 0; border: 1px solid rgba(255,255,255,0.1); background: var(--rk-deep); }
+[data-toggle] .toggle-tabs { display: flex; border-bottom: 1px solid rgba(255,255,255,0.1); }
+[data-toggle] .toggle-tab { flex: 1; padding: 6px 12px; background: transparent; border: none; color: var(--rk-dim); font: inherit; font-size: 12px; text-transform: uppercase; letter-spacing: 0.1em; cursor: pointer; border-bottom: 2px solid transparent; }
+[data-toggle] .toggle-tab.active { color: var(--rk-accent); border-bottom-color: var(--rk-accent); }
+[data-toggle] .toggle-pane { display: none; padding: 12px 14px; }
+[data-toggle] .toggle-pane.active { display: block; }
+
+/* ---- Files: annotated diff viewer ---- */
+.rk-files { display: flex; flex-direction: column; gap: 14px; }
+.rk-files__toggle-all {
+  margin-left: auto;
+  background: transparent; border: 1px solid var(--rk-dim); color: var(--rk-dim);
+  font: inherit; font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em;
+  padding: 4px 10px; cursor: pointer;
 }
-
-/* ---- Before/After toggle ---- */
-[data-toggle] {
-  margin: 14px 0;
-  border: 1px solid rgba(255,255,255,0.1);
-  background: var(--bg-deep, rgba(0,0,0,0.4));
+.rk-files__toggle-all:hover { border-color: var(--rk-accent); color: var(--rk-accent); }
+.rk-file { border: 1px solid rgba(255,255,255,0.08); background: var(--rk-deep); }
+.rk-file__head {
+  display: flex; align-items: center; gap: 14px;
+  padding: 10px 14px; cursor: pointer;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  background: none; border-left: none; border-right: none; border-top: none;
+  width: 100%; text-align: left; color: inherit; font: inherit;
 }
-
-[data-toggle] .toggle-tabs {
-  display: flex;
-  border-bottom: 1px solid rgba(255,255,255,0.1);
+.rk-file__head:hover { background: rgba(250,189,47,0.05); }
+.rk-file__caret { font-size: 11px; color: var(--rk-dim); width: 10px; }
+.rk-file__path { font-size: 13px; color: var(--rk-text); }
+.rk-file__badge { font-size: 10px; letter-spacing: 0.1em; padding: 2px 7px; border: 1px solid var(--rk-accent); color: var(--rk-accent); }
+.rk-file__badge.is-new { border-color: var(--rk-ok); color: var(--rk-ok); }
+.rk-file__adds { font-size: 12px; color: var(--rk-ok); }
+.rk-file__dels { font-size: 12px; color: var(--rk-bad); }
+.rk-file__open-link { margin-left: auto; font-size: 11px; color: var(--rk-info); text-decoration: none; }
+.rk-file__note { padding: 10px 14px 0; font-size: 14px; line-height: 1.6; color: var(--rk-dim); max-width: 78ch; }
+.rk-file__lines { margin: 12px 0 0; border-top: 1px solid rgba(255,255,255,0.06); overflow-x: auto; }
+.rk-file__line {
+  display: grid; grid-template-columns: 52px 18px minmax(0,1fr);
+  font-size: 12.5px; line-height: 1.75; padding: 0 8px;
+  white-space: pre;
 }
-
-[data-toggle] .toggle-tab {
-  flex: 1;
-  padding: 6px 12px;
-  background: transparent;
-  border: none;
-  color: var(--text-dim, var(--text));
-  font: inherit;
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  cursor: pointer;
-  border-bottom: 2px solid transparent;
+.rk-file__line.is-add { background: rgba(184,187,38,0.10); color: var(--rk-text); }
+.rk-file__line.is-del { background: rgba(251,73,52,0.12); color: var(--rk-text); }
+.rk-file__line.is-ctx { color: var(--rk-dim); }
+.rk-file__line-num { color: var(--rk-dim); opacity: 0.55; text-align: right; padding-right: 10px; user-select: none; }
+.rk-file__line-sign { font-weight: 700; }
+.rk-file__line.is-add .rk-file__line-sign { color: var(--rk-ok); }
+.rk-file__line.is-del .rk-file__line-sign { color: var(--rk-bad); }
+.rk-file__truncated { padding: 8px 10px; font-size: 11.5px; color: var(--rk-dim); font-style: italic; }
+.rk-file__callout {
+  margin: 0; padding: 11px 14px;
+  background: rgba(251,73,52,0.08);
+  border-top: 1px solid rgba(251,73,52,0.35);
+  font-size: 13.5px; line-height: 1.55; color: var(--rk-text);
 }
-
-[data-toggle] .toggle-tab.active {
-  color: var(--primary);
-  border-bottom-color: var(--primary);
-}
-
-[data-toggle] .toggle-pane {
-  display: none;
-  padding: 12px 14px;
-}
-
-[data-toggle] .toggle-pane.active {
-  display: block;
-}
-
-/* ---- Risk gauge ---- */
-.gauge-container {
-  margin: 22px auto 0;
-  padding: 22px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 14px;
-  max-width: 460px;
-  background: var(--bg-elev, rgba(0,0,0,0.5));
-  border: 1px solid rgba(255,255,255,0.1);
-}
-
-.gauge-container > svg,
-.gauge-container > div {
-  display: block;
-}
-
-.gauge-label {
-  font-size: 16px;
-  color: var(--accent);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  text-align: center;
-}
-
-/* ---- Chart canvas ---- */
-.chart-wrapper {
-  margin-top: 22px;
-  padding: 14px;
-  background: var(--bg-deep, rgba(0,0,0,0.5));
-  border: 1px solid rgba(255,255,255,0.08);
-  min-height: 320px;
-}
-
-#chart-canvas {
-  width: 100%;
-  min-height: 340px;
-  position: relative;
-}
-
-#chart-canvas svg {
-  width: 100%;
-  height: auto;       /* let the viewBox aspect ratio drive computed height */
-  min-height: 340px;
-  display: block;
-  overflow: visible;  /* tolerate a couple pixels of labels near the edge */
-}
-
-.chart-controls {
-  margin-top: 10px;
-  display: flex;
-  gap: 8px;
-  justify-content: flex-end;
-}
-
-.ctrl-btn {
-  background: transparent;
-  border: 1px solid var(--primary);
-  color: var(--primary);
-  padding: 4px 12px;
-  font: inherit;
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  cursor: pointer;
-}
-
-.ctrl-btn:hover {
-  background: var(--primary);
-  color: var(--bg);
-}
-
-/* Chart node/link styles used by chart renderers */
-.chart-node { cursor: pointer; }
-
-.chart-node circle,
-.chart-node rect {
-  fill: var(--bg-deep, rgba(0,0,0,0.7));
-  stroke: var(--primary);
-  stroke-width: 1.5;
-}
-
-.chart-node text {
-  fill: var(--text);
-  font-family: inherit;
-  font-size: 11px;
-  pointer-events: none;
-}
-
-.chart-link {
-  fill: none;
-  stroke: var(--accent);
-  stroke-opacity: 0.65;
-  stroke-width: 1.2;
-}
-
-.chart-link.added { stroke: var(--primary); stroke-opacity: 0.9; }
-.chart-link.removed { stroke: var(--danger); stroke-opacity: 0.75; stroke-dasharray: 4 3; }
+.rk-file__callout-tag { font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--rk-bad); }
 
 /* ---- Quiz ---- */
-.quiz-container { margin-top: 12px; }
-
-.quiz-question {
-  margin: 18px 0;
-  padding: 12px 14px;
-  background: var(--bg-deep, rgba(0,0,0,0.5));
-  border: 1px solid rgba(255,255,255,0.08);
-  border-left: 2px solid var(--primary);
-}
-
-.quiz-question .q-prompt {
-  margin: 0 0 10px;
-  color: var(--primary);
-  font-size: 14px;
-  font-weight: 600;
-}
-
-.quiz-question .q-number {
-  color: var(--accent);
-  margin-right: 6px;
-}
-
-.quiz-options {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
+.quiz-container { margin-top: 12px; display: flex; flex-direction: column; gap: 16px; }
+.quiz-question { background: var(--rk-deep); border: 1px solid rgba(255,255,255,0.08); padding: 14px 16px; }
+.quiz-question .q-prompt { margin: 0 0 0; color: var(--rk-text); font-size: 15px; line-height: 1.55; display: flex; gap: 10px; align-items: baseline; }
+.quiz-question .q-number { color: var(--rk-dim); font-size: 11px; }
+.quiz-options { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; }
 .quiz-option {
-  padding: 8px 12px;
-  background: var(--bg-elev, rgba(0,0,0,0.4));
-  border: 1px solid rgba(255,255,255,0.1);
-  color: var(--text);
+  padding: 9px 12px;
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.12);
+  color: var(--rk-text);
   text-align: left;
-  font: inherit;
+  font: inherit; font-size: 14px; line-height: 1.5;
   cursor: pointer;
   transition: background 120ms, border-color 120ms;
 }
-
-.quiz-option:hover {
-  background: rgba(255,255,255,0.04);
-  border-color: var(--primary);
-}
-
-.quiz-option.correct {
-  border-color: var(--accent);
-  background: rgba(255,255,255,0.03);
-  color: var(--accent);
-}
-
-.quiz-option.wrong {
-  border-color: var(--danger);
-  background: rgba(255,255,255,0.03);
-  color: var(--danger);
-}
-
+.quiz-option:hover { background: rgba(255,255,255,0.04); border-color: var(--rk-accent); }
+.quiz-option.correct { border-color: var(--rk-ok); background: rgba(255,255,255,0.03); color: var(--rk-ok); }
+.quiz-option.wrong { border-color: var(--rk-bad); background: rgba(255,255,255,0.03); color: var(--rk-bad); }
 .quiz-option:disabled { cursor: not-allowed; }
-
+.quiz-evidence { margin-top: 10px; font-size: 12px; }
+.quiz-evidence a { color: var(--rk-info); }
 .quiz-feedback {
-  margin-top: 10px;
-  padding: 8px 12px;
-  border-left: 2px solid var(--accent);
-  background: var(--bg-deep, rgba(0,0,0,0.55));
-  font-size: 12.5px;
-  color: var(--accent);
-  font-style: italic;
+  margin-top: 10px; padding: 9px 12px;
+  font-size: 12.5px; line-height: 1.55;
+  border-left: 2px solid var(--rk-ok);
+  background: rgba(184,187,38,0.10);
+  color: var(--rk-ok);
 }
+.quiz-feedback.wrong { border-left-color: var(--rk-bad); background: rgba(251,73,52,0.10); color: var(--rk-bad); }
+.quiz-result { margin-top: 20px; padding: 16px 18px; background: var(--rk-deep); border: 1px solid var(--rk-accent); text-align: center; }
+.quiz-result .score { font-size: 28px; color: var(--rk-accent); font-weight: 700; }
+.quiz-result .rank { margin-top: 8px; font-size: 14px; color: var(--rk-ok); letter-spacing: 0.08em; text-transform: uppercase; }
+.quiz-result .rank-comment { margin-top: 10px; font-size: 12px; color: var(--rk-dim); font-style: italic; }
 
-.quiz-result {
-  margin-top: 20px;
-  padding: 16px 18px;
-  background: var(--bg-deep, rgba(0,0,0,0.7));
-  border: 1px solid var(--primary);
-  text-align: center;
+/* ---- Verdict ---- */
+.rk-verdict-grid { display: grid; grid-template-columns: minmax(0,1fr) minmax(260px,340px); gap: 24px; align-items: start; }
+.rk-concerns { display: flex; flex-direction: column; gap: 8px; }
+.rk-concern { display: grid; grid-template-columns: 88px minmax(0,1fr); gap: 12px; align-items: baseline; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.06); }
+.rk-concern__sev { font-size: 10px; letter-spacing: 0.1em; text-align: center; padding: 2px 0; border: 1px solid; }
+.rk-concern__sev.is-high { border-color: var(--rk-bad); color: var(--rk-bad); }
+.rk-concern__sev.is-medium { border-color: var(--rk-warn); color: var(--rk-warn); }
+.rk-concern__sev.is-low { border-color: var(--rk-accent); color: var(--rk-accent); }
+.rk-concern__text { font-size: 14px; line-height: 1.55; color: var(--rk-text); }
+.rk-concern__text a { font-size: 12px; margin-left: 6px; }
+.rk-verdict-buttons { display: flex; flex-direction: column; gap: 8px; }
+.rk-verdict-btn {
+  text-align: left;
+  background: transparent;
+  font: inherit; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase;
+  padding: 9px 12px; cursor: pointer;
+  border: 1px solid;
 }
-
-.quiz-result .score {
-  font-size: 28px;
-  color: var(--primary);
-  font-weight: 700;
-}
-
-.quiz-result .rank {
-  margin-top: 8px;
-  font-size: 14px;
-  color: var(--accent);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.quiz-result .rank-comment {
-  margin-top: 10px;
-  font-size: 12px;
-  color: var(--text-dim, var(--text));
-  opacity: 0.9;
-  font-style: italic;
-}
+.rk-verdict-btn.is-approve { border-color: var(--rk-ok); color: var(--rk-ok); }
+.rk-verdict-btn.is-changes { border-color: var(--rk-warn); color: var(--rk-warn); }
+.rk-verdict-btn.is-comment { border-color: var(--rk-info); color: var(--rk-info); }
+.rk-verdict-btn.is-active.is-approve { background: var(--rk-ok); color: var(--rk-deep); }
+.rk-verdict-btn.is-active.is-changes { background: var(--rk-warn); color: var(--rk-deep); }
+.rk-verdict-btn.is-active.is-comment { background: var(--rk-info); color: var(--rk-deep); }
+.rk-verdict-line { margin-top: 12px; padding: 10px 12px; background: var(--rk-deep); border-left: 2px solid var(--rk-ok); font-size: 12.5px; line-height: 1.55; color: var(--rk-ok); }
 
 /* ---- Footer ---- */
-.rickos-footer {
-  margin-top: 60px;
-  padding: 18px 12px;
-  border-top: 1px solid rgba(255,255,255,0.12);
-  color: var(--text-dim, var(--text));
-  font-size: 11px;
-  text-align: center;
-}
-
-.rickos-footer .footer-quips {
-  margin-bottom: 10px;
-  font-style: italic;
-  color: var(--accent);
-}
-
-.rickos-footer .footer-meta {
-  display: flex;
-  gap: 16px;
-  justify-content: center;
-  flex-wrap: wrap;
-  font-size: 10px;
-  letter-spacing: 0.15em;
-  text-transform: uppercase;
+.rk-footer {
+  display: flex; flex-wrap: wrap; gap: 8px 20px; justify-content: space-between;
+  padding: 22px 2px 40px;
+  font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--rk-dim);
 }
 
 /* ---- Responsive ---- */
-@media (max-width: 700px) {
+@media (max-width: 760px) {
   html, body { font-size: 13px; }
-  .rickos-window { padding: 14px 12px 40px; }
-  .rick-banner { font-size: 7px; }
-  .chrome-top { flex-wrap: wrap; gap: 8px; padding: 6px 10px; }
-  .chrome-top .chrome-left,
-  .chrome-top .chrome-right { gap: 8px; font-size: 10px; }
-  .section-header h2 { font-size: 15px; }
-  .section-number { font-size: 20px; }
+  .rk-main { padding: 18px 14px 0; }
+  .rk-chrome, .rk-chrome--council { flex-wrap: wrap; grid-template-columns: none; gap: 8px; }
+  .rk-hero__full { grid-template-columns: 1fr; height: auto; }
+  .rk-hero__banner { display: none; }
+  .rk-summary__bottom { grid-template-columns: 1fr; }
+  .rk-summary__prose { border-right: 0; padding-right: 0; }
+  .rk-summary__lookhere-col { padding-left: 0; margin-top: 18px; }
+  .rk-shape-grid { grid-template-columns: 1fr; }
+  .rk-verdict-grid { grid-template-columns: 1fr; }
+  .rk-risk-row { grid-template-columns: 1fr; gap: 6px; }
 }
 
 </style>
 </head>
 <body>
-<div class="scanlines"></div>
+<div class="scanlines" id="rk-scanlines"></div>
 
-<!-- ===== OS CHROME (top bar / window frame) ===== -->
-<header class="chrome-top">
-  <div class="chrome-left">
-    <span>RickOS v137.0</span>
-    <span>Dimension C-137</span>
-    <span class="portal-fluid-meter">
-      Portal Fluid: <span class="fluid-bar"></span> 73%
-    </span>
-  </div>
-  <div class="chrome-right">
-    <span>UPTIME: 4.09e12 ms</span>
-    <div class="window-controls">
-      <button type="button">_</button>
-      <button type="button">▢</button>
-      <button type="button" data-window-control="self-destruct">Self-Destruct</button>
-    </div>
-  </div>
+<div class="rk-topbar">
+  <!-- ===== OS CHROME (sticky header) ===== -->
+  <header class="rk-chrome rk-chrome--rickos" data-screen-label="Chrome rickos-v137">
+  <span class="rk-chrome__brand"><span class="rk-chrome__dot" aria-hidden="true"></span>RickOS v137</span>
+  <span class="rk-chrome__meta" data-pr-meta>&nbsp;</span>
+  <span class="rk-chrome__fluid" title="Portal fluid">fluid<span class="rk-chrome__fluid-bar"></span>66%</span>
+  <nav class="rk-nav">
+    <a href="#s-summary">Summary</a>
+    <a href="#s-risk">Risk</a>
+    <a href="#s-shape" data-nav="shape">Shape</a>
+    <a href="#s-flow">Flow</a>
+    <a href="#s-files">Files</a>
+    <a href="#s-quiz">Quiz</a>
+    <button type="button" class="rk-chrome__toggle" data-crt-toggle data-label-on="CRT: on" data-label-off="CRT: off" title="Toggle CRT effects">CRT: on</button>
+    <button type="button" class="rk-chrome__panic" data-panic-toggle title="Do not press this">self-destruct</button>
+  </nav>
 </header>
 
 
-<main class="rickos-window">
-
-  <!-- ===== COMPACT HERO STRIP (SVG banner + boot log side-by-side) ===== -->
-  <section class="hero-strip" aria-label="RickOS boot preamble">
-    <div class="rick-banner"><svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" aria-label="DNA helix">
-  <path d="M 60 15 Q 140 55 60 95 Q 140 135 60 175" fill="none" stroke="currentColor" stroke-width="2.5"/>
-  <path d="M 140 15 Q 60 55 140 95 Q 60 135 140 175" fill="none" stroke="var(--accent)" stroke-width="2.5"/>
-  <g stroke="currentColor" stroke-width="1" stroke-opacity="0.55">
-    <line x1="60" y1="15" x2="140" y2="15"/>
-    <line x1="85" y1="35" x2="115" y2="35"/>
-    <line x1="60" y1="55" x2="140" y2="55"/>
-    <line x1="115" y1="75" x2="85" y2="75"/>
-    <line x1="60" y1="95" x2="140" y2="95"/>
-    <line x1="85" y1="115" x2="115" y2="115"/>
-    <line x1="60" y1="135" x2="140" y2="135"/>
-    <line x1="115" y1="155" x2="85" y2="155"/>
-    <line x1="60" y1="175" x2="140" y2="175"/>
-  </g>
-  <g>
-    <circle cx="60" cy="15" r="4" fill="currentColor"/>
-    <circle cx="140" cy="15" r="4" fill="var(--accent)"/>
-    <circle cx="140" cy="95" r="4" fill="currentColor"/>
-    <circle cx="60" cy="95" r="4" fill="var(--accent)"/>
-    <circle cx="60" cy="175" r="4" fill="currentColor"/>
-    <circle cx="140" cy="175" r="4" fill="var(--accent)"/>
-  </g>
-  <rect x="30" y="15" width="140" height="3" fill="var(--accent)" opacity="0.3">
-    <animate attributeName="y" values="15;175;15" dur="6s" repeatCount="indefinite"/>
-  </rect>
-</svg>
+  <!-- ===== HERO STRIP (banner + boot log, collapsible) ===== -->
+  <div class="rk-hero" id="rk-hero">
+    <div class="rk-hero__full">
+      <div class="rk-hero__banner"><svg viewBox="0 0 190 60" style="width:190px; height:60px; display:block;"><path d="M10 30 Q35 4 60 30 T110 30 T160 30" fill="none" style="stroke:var(--rk-ok); stroke-dasharray:240; animation:rk-dash 6s linear infinite" stroke-width="1.8" opacity="0.9"></path><path d="M10 30 Q35 56 60 30 T110 30 T160 30" fill="none" style="stroke:var(--rk-info); stroke-dasharray:240; animation:rk-dash 6s linear infinite reverse" stroke-width="1.8" opacity="0.9"></path><g style="stroke:var(--rk-dim)" stroke-width="1" opacity="0.55"><line x1="22" y1="18" x2="22" y2="42"></line><line x1="47" y1="18" x2="47" y2="42"></line><line x1="72" y1="18" x2="72" y2="42"></line><line x1="97" y1="18" x2="97" y2="42"></line><line x1="122" y1="18" x2="122" y2="42"></line><line x1="147" y1="18" x2="147" y2="42"></line></g></svg>
 </div>
-    <div class="hero-right">
-      <pre id="boot-log-lines" class="boot-log-inline">[  0.344 ] Rick's memory of your name: not cached
+      <div class="rk-hero__boot" id="rk-boot-log" hidden>[  0.001 ] RickOS kernel v137.0 booting on Dimension C-137
+[  0.344 ] Rick's memory of your name: not cached
 [  0.117 ] Beer.py: connected
 [  0.101 ] Sarcasm subsystem: level 11 of 10
-[  0.045 ] Council of Ricks handshake: R-42891 acknowledged
-[  0.031 ] Cronenberg detector: 0 threats</pre>
-      <div class="banner-tagline">RickOS v137.0 &mdash; Dimension C-137 // *urp* Report Compiled</div>
+[  0.045 ] Council of Ricks handshake: R-42891 acknowledged</div>
+      <button type="button" class="rk-hero__collapse" id="rk-hero-collapse-btn" title="Hide the decorative strip">hide &#9650;</button>
     </div>
-  </section>
-
-  <!-- ===== SECTION 1: System Diagnostics ===== -->
-  <section class="report-section" id="s-diagnostics">
-    <header class="section-header">
-      <span class="section-number">01</span>
-      <h2>System Diagnostics &mdash; Why I'm Forced To Fix Your Garbage</h2>
-    </header>
-    <div class="section-body">
-      <p>L-listen up. This is a <em>demo report</em> &mdash; the subject is a completely fictional PR that adds a Redis-backed cache-through layer to a <code>/widgets</code> endpoint, with an in-memory LRU as a fallback when Redis is unavailable. All the code, quiz answers, and analysis below refer to that made-up feature, not to anything real.</p>
-<p>The point of this file is to show what a real Rick report <em>looks like</em>: chrome, sections, code coloring, interactive diagram, quiz. Everything is placeholder. *urp*</p>
+    <div class="rk-hero__tail">
+      <span class="rk-hero__tail-dot">&#9642;</span>
+      <span class="rk-hero__tail-text" id="rk-hero-tail-text"></span>
+      <button type="button" class="rk-hero__tail-btn" id="rk-hero-expand-btn">show banner &#9660;</button>
     </div>
-    <div class="gauge-container">
-      <svg class="gauge-dial" viewBox="0 0 300 190" width="320" height="200" xmlns="http://www.w3.org/2000/svg" aria-label="Analog risk dial">
-  <!-- background arc -->
-  <path d="M 40 150 A 110 110 0 0 1 260 150" fill="none" stroke="rgba(255,255,255,0.12)" stroke-width="16"/>
-  <!-- safe half -->
-  <path d="M 40 150 A 110 110 0 0 1 150 40" fill="none" stroke="var(--primary)" stroke-width="6" opacity="0.55"/>
-  <!-- danger half -->
-  <path d="M 150 40 A 110 110 0 0 1 260 150" fill="none" stroke="var(--danger, #ff5f5f)" stroke-width="6" opacity="0.55"/>
-  <!-- ticks -->
-  <g stroke="var(--text-dim, #888)" stroke-width="1">
-    <line x1="40"  y1="150" x2="50"  y2="150"/>
-    <line x1="70"  y1="80"  x2="80"  y2="87"/>
-    <line x1="150" y1="40"  x2="150" y2="52"/>
-    <line x1="230" y1="80"  x2="220" y2="87"/>
-    <line x1="260" y1="150" x2="250" y2="150"/>
-  </g>
-  <!-- labels -->
-  <text x="40"  y="175" fill="var(--primary)" font-family="inherit" font-size="11" text-anchor="middle" letter-spacing="1">SAFE</text>
-  <text x="150" y="30"  fill="var(--accent)"  font-family="inherit" font-size="11" text-anchor="middle" letter-spacing="1">RISK</text>
-  <text x="260" y="175" fill="var(--danger, #ff5f5f)"  font-family="inherit" font-size="11" text-anchor="middle" letter-spacing="1">DOOM</text>
-  <!-- needle -->
-  <g class="dial-needle" transform="rotate(-90 150 150)">
-    <line x1="150" y1="150" x2="150" y2="55" stroke="var(--primary)" stroke-width="4"
-          style="filter: drop-shadow(0 0 6px var(--glow));"/>
-    <circle cx="150" cy="150" r="9" fill="var(--primary)"
-            style="filter: drop-shadow(0 0 6px var(--glow));"/>
-    <circle cx="150" cy="150" r="3" fill="var(--bg, #000)"/>
-  </g>
-</svg>
+  </div>
+</div>
 
-      <div class="gauge-label" id="gauge-label">--</div>
+<main class="rk-main">
+
+  <!-- ===== SECTION: Summary ===== -->
+  <section class="rk-section" id="s-summary" data-screen-label="Summary">
+    <div class="rk-summary__top">
+      <div style="min-width:280px; flex:1 1 420px;">
+        <div class="rk-summary__id" id="rk-summary-id">&#8203;</div>
+        <h1 class="rk-summary__title" id="rk-summary-title"></h1>
+        <div class="rk-summary__tags" id="rk-summary-tags"></div>
+      </div>
+      <div class="rk-stats" id="rk-stats"></div>
     </div>
-  </section>
-
-  <!-- ===== SECTION 2: Memory Dump / Context ===== -->
-  <section class="report-section" id="s-context">
-    <header class="section-header">
-      <span class="section-number">02</span>
-      <h2>Memory Dump &mdash; Context for Primates</h2>
-    </header>
-    <div class="section-body">
-      <div class="callout">Skip if your IQ passes room temperature.</div>
-<p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. A <em>cache-through</em> layer is a piece of glue that sits between a service and its slow backing store: on a read, it checks the cache first, and only falls through to the database on a miss. Writes update both. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</p>
-<p>Before this fictional PR: the endpoint read straight from the DB every time, with no cache at all. Every request paid a full round-trip. That's fine at 10 QPS. It's not fine at 10K QPS. Ut enim ad minim veniam.</p>
-    </div>
-  </section>
-
-  <!-- ===== SECTION 3: Core Logic + Interactive Diagram ===== -->
-  <section class="report-section" id="s-core">
-    <header class="section-header">
-      <span class="section-number">03</span>
-      <h2>Core Logic &mdash; The Actual *urp* Change</h2>
-    </header>
-    <div class="chart-wrapper">
-      <div id="chart-canvas" aria-label="Interactive diagram"></div>
-      <div class="chart-controls">
-        <button type="button" data-chart-action="reset" class="ctrl-btn">Reset View</button>
+    <div class="rk-summary__bottom">
+      <div class="rk-summary__prose rk-section-body">
+        <p>L-listen up. This is a <em>demo report</em> &mdash; the subject is a completely fictional PR that adds a Redis-backed cache-through layer to a <code>/widgets</code> endpoint, with an in-memory LRU as a fallback when Redis is unavailable. All the code, quiz answers, and analysis below refer to that made-up feature, not to anything real.</p>
+<div class="callout">Skip if your IQ passes room temperature.</div>
+<p>A <em>cache-through</em> layer is a piece of glue that sits between a service and its slow backing store: on a read, it checks the cache first, and only falls through to the database on a miss. Writes update both. Before this fictional PR, the endpoint read straight from the DB every time, with no cache at all &mdash; fine at 10 QPS, not fine at 10K QPS.</p>
+<p>Reads now check Redis before the database. Cache keys carry a schema version so two deploys can share one Redis without a cutover stampede. If Redis is unreachable the middleware serves from a bounded in-memory LRU instead of raising &mdash; the cache is an optimization, never a source of truth.</p>
+      </div>
+      <div class="rk-summary__lookhere-col">
+        <div class="rk-summary__label">Look here first</div>
+        <div class="rk-lookhere" id="rk-lookhere"></div>
       </div>
     </div>
-    <div class="section-body">
-      <p>Three concerns are wired together: a Redis client for the primary cache, an in-memory LRU for the fallback path when Redis is down, and a small resolver that keeps them consistent. The sequence above shows the read path; write paths (not diagrammed) always populate Redis first, then LRU.</p>
+  </section>
+
+  <!-- ===== SECTION: Risk breakdown ===== -->
+  <section class="rk-section" id="s-risk" data-screen-label="Risk">
+    <div class="rk-section__head">
+      <span class="rk-section__num">01</span>
+      <h2 id="rk-risk-heading">Risk breakdown</h2>
+    </div>
+    <div class="rk-risk-list" id="rk-risk-list"></div>
+  </section>
+
+  <!-- ===== SECTION: Shape of the diff (optional treemap) ===== -->
+  <section class="rk-section" id="s-shape" data-screen-label="Shape of the diff" hidden>
+    <div class="rk-section__head">
+      <span class="rk-section__num">02</span>
+      <h2>Shape of the diff &mdash; <span class="rk-section__sub" id="rk-shape-sub"></span></h2>
+    </div>
+    <div class="rk-shape-grid">
+      <div class="rk-treemap" id="rk-treemap-canvas"></div>
+      <div>
+        <p style="margin:0 0 12px; font-size:13.5px; line-height:1.6; color:var(--rk-dim);">Area = changed lines. Colour = added vs. removed. Click a tile to jump to that file's diff.</p>
+        <div class="rk-shape-legend">
+          <div><span class="swatch is-ok"></span>all additions</div>
+          <div><span class="swatch is-warn"></span>mixed edit</div>
+          <div><span class="swatch is-bad"></span>mostly removed</div>
+        </div>
+        <div class="rk-shape-note" id="rk-shape-note"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== SECTION: Flow (interactive diagram) ===== -->
+  <section class="rk-section" id="s-flow" data-screen-label="Flow">
+    <div class="rk-section__head">
+      <span class="rk-section__num">03</span>
+      <h2>Flow &mdash; <span class="rk-section__sub">the shift this diff makes</span></h2>
+    </div>
+    <div class="rk-diagram" id="chart-canvas" aria-label="Interactive diagram"></div>
+    <div class="rk-section-body" style="margin-top:16px;">
+      <p>Three concerns are wired together above: a Redis client for the primary cache, an in-memory LRU for the fallback path when Redis is down, and a small resolver that keeps them consistent. The sequence above shows the read path; write paths (not diagrammed) always populate Redis first, then LRU.</p>
 <pre><code class="language-python">class CacheThroughMiddleware:
     def __init__(self, redis: Redis, lru: LRUCache, schema_version: str) -> None:
         self.redis = redis
@@ -804,109 +775,61 @@ body::before {
             # Corrupt payload: treat as miss and evict aggressively.
             await self.redis.delete(key)
             return None</code></pre>
-<p>The <code>schema_version</code> suffix in the key format is doing real work: it lets old and new schema versions coexist during a rolling deploy without a cache-warming stampede at cutover. Consequuntur magni dolores eos qui ratione voluptatem sequi nesciunt.</p>
+<p>The <code>schema_version</code> suffix in the key format is doing real work: it lets old and new schema versions coexist during a rolling deploy without a cache-warming stampede at cutover. See the Files section below for the file-by-file annotated diff, including the fail-open branch and the duplicated TTL Rick keeps flagging.</p>
     </div>
   </section>
 
-  <!-- ===== SECTION 4: Code Breakdown / Walkthrough ===== -->
-  <section class="report-section" id="s-walkthrough">
-    <header class="section-header">
-      <span class="section-number">04</span>
-      <h2>Subsystem Diff &mdash; Line-by-Line for the Slow Kids</h2>
-    </header>
-    <div class="section-body walkthrough-body">
-      <p>File by file. The interesting toggles are the middleware's <code>get()</code> before and after, and the tests that grew alongside it.</p>
-
-<p><strong>1. <code>services/widgets/cache.py</code></strong> (NEW). A single class with <code>get()</code>, <code>set()</code>, <code>invalidate()</code>. Depends on injected <code>Redis</code> and <code>LRUCache</code> instances; no globals.</p>
-
-<div data-toggle>
-  <div class="toggle-pane" data-label="Before"><pre><code class="language-python"># File did not exist. Every read went straight to the repository.</code></pre></div>
-  <div class="toggle-pane" data-label="After"><pre><code class="language-python">async def get(self, widget_id: str) -> Widget | None:
-    key = self._key(widget_id)
-    try:
-        raw = await self.redis.get(key)
-    except RedisConnectionError:
-        return self.lru.get(key)  # fallback: fail-open, latency-only degradation
-    if raw is None:
-        return None
-    try:
-        return Widget.model_validate_json(raw)
-    except ValidationError:
-        await self.redis.delete(key)
-        return None</code></pre></div>
-</div>
-
-<p><strong>2. <code>services/widgets/handlers.py</code></strong>. Existing handler now consults the cache before hitting the repository.</p>
-
-<div data-toggle>
-  <div class="toggle-pane" data-label="Before"><pre><code class="language-python">@router.get("/widgets/{widget_id}")
-async def get_widget(widget_id: str) -> Widget:
-    widget = await repository.get(widget_id)
-    if widget is None:
-        raise HTTPException(404)
-    return widget</code></pre></div>
-  <div class="toggle-pane" data-label="After"><pre><code class="language-python">@router.get("/widgets/{widget_id}")
-async def get_widget(
-    widget_id: str,
-    cache: CacheThroughMiddleware = Depends(get_cache),
-) -> Widget:
-    cached = await cache.get(widget_id)
-    if cached is not None:
-        return cached
-    widget = await repository.get(widget_id)
-    if widget is None:
-        raise HTTPException(404)
-    await cache.set(widget_id, widget, ttl=300)
-    return widget</code></pre></div>
-</div>
-
-<p><strong>3. <code>config/settings.py</code></strong>. Three new pydantic-settings fields for cache TTL, Redis URL, and LRU max size.</p>
-
-<pre><code class="language-python">class CacheSettings(BaseSettings):
-    redis_url: str = "redis://localhost:6379/0"
-    ttl_seconds: int = 300
-    lru_max_size: int = 1024
-    schema_version: str = "v1"
-
-    model_config = SettingsConfigDict(env_prefix="WIDGETS_CACHE_")</code></pre>
-
-<p><strong>4. Tests</strong>. Four new unit tests plus an integration test:</p>
-<ul>
-  <li><code>test_cache_hit_returns_without_db</code> &mdash; asserts <code>repository.get</code> is <em>never</em> called on hit.</li>
-  <li><code>test_cache_miss_populates_ttl_from_config</code> &mdash; asserts the SET call carries the correct TTL kwarg (see quiz Q4).</li>
-  <li><code>test_redis_down_falls_through_to_lru</code> &mdash; monkey-patches Redis to raise <code>RedisConnectionError</code> and asserts the LRU is consulted.</li>
-  <li><code>test_corrupt_cache_evicts_and_returns_none</code> &mdash; writes a malformed JSON blob into Redis and asserts the middleware deletes the key and returns <code>None</code>.</li>
-</ul>
-
-<p>Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.</p>
+  <!-- ===== SECTION: Files (annotated diff) ===== -->
+  <section class="rk-section" id="s-files" data-screen-label="Files">
+    <div class="rk-section__head">
+      <span class="rk-section__num">04</span>
+      <h2>File by file &mdash; <span class="rk-section__sub">annotated diff</span></h2>
+      <button type="button" class="rk-files__toggle-all" id="rk-files-toggle-all">Expand all</button>
     </div>
+    <div class="rk-files" id="rk-files"></div>
   </section>
 
-  <!-- ===== SECTION 5: IQ Assessment Quiz ===== -->
-  <section class="report-section" id="s-quiz">
-    <header class="section-header">
-      <span class="section-number">05</span>
-      <h2>Rick's IQ Assessment &mdash; Prove You Understood</h2>
-    </header>
+  <!-- ===== SECTION: Quiz ===== -->
+  <section class="rk-section" id="s-quiz" data-screen-label="Quiz">
+    <div class="rk-section__head">
+      <span class="rk-section__num">05</span>
+      <h2>Comprehension check <span class="rk-section__sub" style="font-size:15px;">&mdash; optional, 4 questions</span></h2>
+    </div>
     <div id="quiz-container" class="quiz-container"></div>
     <div id="quiz-result" class="quiz-result" hidden></div>
   </section>
 
-  <!-- ===== FOOTER ===== -->
-  <footer class="rickos-footer">
-    <div class="footer-quips">"Consider this your interdimensional participation trophy."  //  "If this helped you, that's your fault, not mine."</div>
-    <div class="footer-meta">
-      <span>RickOS v137.0</span>
-      <span>Dimension C-137</span>
-      <span>Compiled by an entity smarter than you.</span>
+  <!-- ===== SECTION: Verdict ===== -->
+  <section class="rk-section rk-section--verdict" id="s-verdict" data-screen-label="Verdict">
+    <div class="rk-verdict-grid">
+      <div>
+        <div class="rk-summary__label">Open concerns from this report</div>
+        <div class="rk-concerns" id="rk-concerns"></div>
+      </div>
+      <div>
+        <div class="rk-summary__label">Your call</div>
+        <div class="rk-verdict-buttons">
+          <button type="button" class="rk-verdict-btn is-approve" data-verdict="approve">Approve</button>
+          <button type="button" class="rk-verdict-btn is-changes" data-verdict="changes">Request changes</button>
+          <button type="button" class="rk-verdict-btn is-comment" data-verdict="comment">Comment only</button>
+        </div>
+        <div class="rk-verdict-line" id="rk-verdict-line" hidden></div>
+      </div>
     </div>
+  </section>
+
+  <!-- ===== FOOTER ===== -->
+  <footer class="rk-footer">
+    <span>RickOS v137.0 &middot; Dimension C-137</span>
+    <span id="rk-footer-meta"></span>
+    <span>"Wubba lubba dub dub. That's cry-for-help talk, look it up."  //  "Consider this your interdimensional participation trophy."</span>
   </footer>
 
 </main>
 
 <!-- ===== INLINED PAYLOAD ===== -->
 <script id="report-data" type="application/json">
-{"pr_slug": "example-lorem-ipsum", "risk": {"value": 42, "label": "Lorem ipsum. Ships fine."}, "chart": {"type": "sequence", "data": {"actors": ["Client", "Service", "Cache", "Database"], "messages": [{"from": "Client", "to": "Service", "label": "GET /widgets/{id}"}, {"from": "Service", "to": "Cache", "label": "get('widget:{id}')"}, {"from": "Cache", "to": "Service", "label": "miss (or hit)"}, {"from": "Service", "to": "Database", "label": "SELECT * FROM widgets WHERE id=?"}, {"from": "Database", "to": "Service", "label": "row"}, {"from": "Service", "to": "Cache", "label": "set('widget:{id}', row, ttl=300)"}, {"from": "Service", "to": "Client", "label": "200 OK  { widget }"}]}}, "quiz": [{"question": "Why does the new cache middleware fall back to an in-memory LRU when Redis is unavailable, rather than propagating the error?", "options": ["The cache is treated as an optimization, not a source of truth. Losing Redis briefly should degrade latency, not availability \u2014 so the middleware quietly serves from the LRU (or straight from the DB on miss) instead of surfacing 5xx to callers.", "The middleware treats Redis errors as bugs and short-circuits to raise 503 immediately, letting the caller retry against a healthy replica.", "The middleware routes writes to Redis and reads to the LRU under all conditions, so a Redis outage only affects the write path.", "The LRU is a scratch cache used only during test runs; production always propagates Redis errors."], "correct": 0, "feedback": ["Correct. *urp* The cache is a latency layer. Losing it degrades speed, not correctness \u2014 availability wins.", "Wrong. That's the *opposite* of the design. 5xx on a cache blip would take the whole endpoint down.", "Wrong. Both reads and writes hit Redis first; the LRU is a fallback, not a split-brain.", "Wrong. The LRU is a first-class production fallback, not a test-only scratch cache."]}, {"question": "The cache key format is 'widget:{id}:{schema_version}'. Why include schema_version in the key rather than doing a version-bump flush at deploy time?", "options": ["Because Redis doesn't support atomic prefix invalidation, so a deploy-time flush would have to iterate keys and could miss in-flight writes.", "Version-bumping the key namespace makes old and new schema entries coexist during a rolling deploy \u2014 old pods keep reading v1 keys, new pods write v2, and there's no cache-warming stampede at cutover.", "The version suffix protects against a race where two callers race to populate the same cache slot with different payload shapes.", "It's a pure debugging convenience \u2014 the version suffix makes it easy to inspect a key and know which release wrote it."], "correct": 1, "feedback": ["Wrong. Redis does have SCAN + DEL patterns \u2014 the flush is doable, just avoided for the coexistence reason.", "Correct. Cache namespaces are the cheap way to run two schema versions concurrently through a rolling deploy without a cutover stampede.", "Wrong. The version suffix doesn't guard writes \u2014 it partitions the keyspace. Populate races still need locking.", "Wrong. Debug ergonomics are a bonus, not the reason."]}, {"question": "When the middleware hits Redis successfully but Redis returns a value that fails Pydantic validation, what does it do?", "options": ["It treats the cached blob as authoritative, logs a warning, and returns it as-is \u2014 trusting the write path to keep the cache clean.", "It raises 500 to the caller, on the theory that a corrupt cache means an active incident that should not be silenced.", "It ignores the corrupt value, deletes the key, and falls through to the database \u2014 treating validation failure as a cache miss with an aggressive eviction.", "It repairs the value in place by round-tripping through the model's `model_validate_strings` mode and rewrites the corrected form back to Redis."], "correct": 2, "feedback": ["Wrong. Returning corrupt data would just propagate the bug to callers. The middleware is more defensive than that.", "Wrong. Corrupt cache entries are usually stale-schema bleed-through, not incidents worth paging on.", "Correct. Treat-as-miss + evict. The DB is the source of truth; the cache gets a fresh write from that fallback.", "Wrong. There's no in-place repair path. The middleware doesn't try to guess the correct shape from a broken one."]}, {"question": "The new test test_cache_miss_populates_ttl_from_config asserts the SET call carries a TTL kwarg. Why is that check load-bearing rather than a nice-to-have?", "options": ["It guards the release-notes claim that TTL is configurable, so QA can grep for it during regression testing.", "It exercises the Redis client's ex= parameter path, which changed signature between versions of redis-py \u2014 the test would fail early if the pin drifts.", "It's a stylistic check: the codebase's style guide says all SET calls must be TTL-bearing.", "Without the TTL, cache entries live forever and the schema_version scheme's coexistence guarantee breaks \u2014 the test enforces the invariant that no cache entry outlives its schema version."], "correct": 3, "feedback": ["Wrong. QA doesn't grep test code for release notes. That's not what tests are for.", "Wrong. Not the actual reason. The pin-drift concern would be caught at import time, not by this assertion.", "Wrong. Style guides don't need behavioral test coverage \u2014 they need linters.", "Correct. TTL is the enforcement mechanism for the versioned-namespace invariant. Without it, v1 keys would haunt the cache forever and the coexistence property collapses."]}]}
+{"pr_slug": "example-cache-through", "pr_meta": {"title": "Add Redis cache-through layer to /widgets with in-memory LRU fallback", "branch": "feat/widgets-cache-through", "base": "main", "author": "m.smith", "opened": "2d ago", "commits": 6}, "risk": {"composite": 42, "label": "medium", "items": [{"name": "Blast radius", "score": "3/5", "pct": 60, "tone": "warn", "note": "one live endpoint, a handful of existing lines touched."}, {"name": "Test coverage", "score": "4/5", "pct": 82, "tone": "ok", "note": "all four cache branches tested, including Redis-down."}, {"name": "Migration", "score": "1/5", "pct": 18, "tone": "ok", "note": "no schema change, no backfill, versioned keys."}, {"name": "Dependencies", "score": "2/5", "pct": 36, "tone": "ok", "note": "one new pinned package, already used elsewhere in the monorepo."}, {"name": "Rollback", "score": "2/5", "pct": 34, "tone": "ok", "note": "feature is additive; revert is one commit, cache expires on its own."}, {"name": "Observability", "score": "4/5", "pct": 78, "tone": "bad", "note": "no hit-ratio metric, no log on the Redis-down fallback. The weak spot."}]}, "shape": {"note": "Two thirds of this PR is a brand-new file and its tests. Only the handful of lines inside handlers.py touch code that already ran in production.", "files": [{"path": "services/widgets/cache.py", "adds": 27, "dels": 0}, {"path": "services/widgets/handlers.py", "adds": 8, "dels": 1}, {"path": "config/settings.py", "adds": 9, "dels": 0}, {"path": "tests/test_cache_through.py", "adds": 21, "dels": 0}, {"path": "requirements.txt", "adds": 1, "dels": 0}]}, "chart": {"type": "sequence", "data": {"actors": ["Client", "Service", "Cache", "Database"], "messages": [{"from": "Client", "to": "Service", "label": "GET /widgets/{id}"}, {"from": "Service", "to": "Cache", "label": "get('widget:{id}')"}, {"from": "Cache", "to": "Service", "label": "miss (or hit)"}, {"from": "Service", "to": "Database", "label": "SELECT * FROM widgets WHERE id=?"}, {"from": "Database", "to": "Service", "label": "row"}, {"from": "Service", "to": "Cache", "label": "set('widget:{id}', row, ttl=300)"}, {"from": "Service", "to": "Client", "label": "200 OK  { widget }"}]}}, "files": [{"path": "services/widgets/cache.py", "status": "NEW", "adds": 27, "dels": 0, "lines": [{"num": 1, "sign": "+", "text": "from redis.asyncio import Redis"}, {"num": 2, "sign": "+", "text": "from redis.exceptions import ConnectionError as RedisConnectionError"}, {"num": 3, "sign": "+", "text": "from pydantic import ValidationError"}, {"num": 4, "sign": "+", "text": ""}, {"num": 5, "sign": "+", "text": "from .models import Widget"}, {"num": 6, "sign": "+", "text": "from .lru import LRUCache"}, {"num": 7, "sign": "+", "text": ""}, {"num": 8, "sign": "+", "text": ""}, {"num": 9, "sign": "+", "text": "class CacheThroughMiddleware:"}, {"num": 10, "sign": "+", "text": "    def __init__(self, redis: Redis, lru: LRUCache, schema_version: str) -> None:"}, {"num": 11, "sign": "+", "text": "        self.redis = redis"}, {"num": 12, "sign": "+", "text": "        self.lru = lru"}, {"num": 13, "sign": "+", "text": "        self.schema_version = schema_version"}, {"num": 14, "sign": "+", "text": ""}, {"num": 15, "sign": "+", "text": "    async def get(self, widget_id: str) -> Widget | None:"}, {"num": 16, "sign": "+", "text": "        key = f\"widget:{widget_id}:{self.schema_version}\""}, {"num": 17, "sign": "+", "text": "        try:"}, {"num": 18, "sign": "+", "text": "            raw = await self.redis.get(key)"}, {"num": 19, "sign": "+", "text": "        except RedisConnectionError:"}, {"num": 20, "sign": "+", "text": "            return self.lru.get(key)   # fail-open: latency-only degradation"}, {"num": 21, "sign": "+", "text": "        if raw is None:"}, {"num": 22, "sign": "+", "text": "            return None"}, {"num": 23, "sign": "+", "text": "        try:"}, {"num": 24, "sign": "+", "text": "            return Widget.model_validate_json(raw)"}, {"num": 25, "sign": "+", "text": "        except ValidationError:"}, {"num": 26, "sign": "+", "text": "            await self.redis.delete(key)"}, {"num": 27, "sign": "+", "text": "            return None"}], "truncated": 0, "id": "f-services-widgets-cache-py", "note": "The whole feature. One class, injected Redis + LRUCache, no globals. get() is the only method with a branch worth arguing about.", "callout": "On a Redis error you return the LRU value with no metric and no log. When Redis dies at 3am nobody finds out from this code path.", "open": true}, {"path": "services/widgets/handlers.py", "status": "EDIT", "adds": 8, "dels": 1, "lines": [{"num": 40, "sign": " ", "text": "@router.get(\"/widgets/{widget_id}\")"}, {"num": 41, "sign": "-", "text": "async def get_widget(widget_id: str) -> Widget:"}, {"num": 41, "sign": "+", "text": "async def get_widget("}, {"num": 42, "sign": "+", "text": "    widget_id: str,"}, {"num": 43, "sign": "+", "text": "    cache: CacheThroughMiddleware = Depends(get_cache),"}, {"num": 44, "sign": "+", "text": ") -> Widget:"}, {"num": 45, "sign": "+", "text": "    cached = await cache.get(widget_id)"}, {"num": 46, "sign": "+", "text": "    if cached is not None:"}, {"num": 47, "sign": "+", "text": "        return cached"}, {"num": 48, "sign": " ", "text": "    widget = await repository.get(widget_id)"}, {"num": 49, "sign": " ", "text": "    if widget is None:"}, {"num": 50, "sign": " ", "text": "        raise HTTPException(404)"}, {"num": 51, "sign": "+", "text": "    await cache.set(widget_id, widget, ttl=300)"}, {"num": 52, "sign": " ", "text": "    return widget"}], "truncated": 0, "id": "f-services-widgets-handlers-py", "note": "The only production code path that changes behaviour. Cache is consulted before the repository; a miss still costs a full DB round-trip.", "callout": "404s are not cached. A hot bad id keeps hitting Postgres forever \u2014 the exact traffic shape this PR exists to stop.", "open": true}, {"path": "config/settings.py", "status": "EDIT", "adds": 9, "dels": 0, "lines": [{"num": 74, "sign": " ", "text": "    model_config = SettingsConfigDict(env_prefix=\"DB_\")"}, {"num": 75, "sign": "+", "text": ""}, {"num": 76, "sign": "+", "text": ""}, {"num": 77, "sign": "+", "text": "class CacheSettings(BaseSettings):"}, {"num": 78, "sign": "+", "text": "    redis_url: str = \"redis://localhost:6379/0\""}, {"num": 79, "sign": "+", "text": "    ttl_seconds: int = 300"}, {"num": 80, "sign": "+", "text": "    lru_max_size: int = 1024"}, {"num": 81, "sign": "+", "text": "    schema_version: str = \"v1\""}, {"num": 82, "sign": "+", "text": ""}, {"num": 83, "sign": "+", "text": "    model_config = SettingsConfigDict(env_prefix=\"WIDGETS_CACHE_\")"}], "truncated": 0, "id": "f-config-settings-py", "note": "Four env-prefixed settings. Sensible defaults, one of them duplicated at the call site.", "callout": "", "open": false}, {"path": "tests/test_cache_through.py", "status": "NEW", "adds": 21, "dels": 0, "lines": [{"num": 1, "sign": "+", "text": "import pytest"}, {"num": 2, "sign": "+", "text": ""}, {"num": 3, "sign": "+", "text": ""}, {"num": 4, "sign": "+", "text": "async def test_cache_hit_returns_without_db(cache, repo_spy):"}, {"num": 5, "sign": "+", "text": "    await cache.redis.set(\"widget:w-1:v1\", b'{\"id\":\"w-1\"}')"}, {"num": 6, "sign": "+", "text": "    result = await cache.get(\"w-1\")"}, {"num": 7, "sign": "+", "text": "    assert repo_spy.get.await_count == 0"}, {"num": 8, "sign": "+", "text": ""}, {"num": 9, "sign": "+", "text": ""}, {"num": 10, "sign": "+", "text": "async def test_cache_miss_populates_ttl_from_config(cache, redis_spy):"}, {"num": 11, "sign": "+", "text": "    await cache.set(\"w-1\", {\"id\": \"w-1\"}, ttl=300)"}, {"num": 12, "sign": "+", "text": "    assert redis_spy.set.call_args.kwargs[\"ex\"] == 300"}, {"num": 13, "sign": "+", "text": ""}, {"num": 14, "sign": "+", "text": ""}, {"num": 15, "sign": "+", "text": "async def test_redis_down_falls_through_to_lru(cache, broken_redis):"}, {"num": 16, "sign": "+", "text": "    assert await cache.get(\"w-1\") == LRU_SENTINEL"}, {"num": 17, "sign": "+", "text": ""}, {"num": 18, "sign": "+", "text": ""}, {"num": 19, "sign": "+", "text": "async def test_corrupt_cache_evicts_and_returns_none(cache, redis):"}, {"num": 20, "sign": "+", "text": "    await redis.set(\"widget:w-1:v1\", b\"{not json\")"}, {"num": 21, "sign": "+", "text": "    assert await cache.get(\"w-1\") is None"}], "truncated": 0, "id": "f-tests-test-cache-through-py", "note": "Four unit tests. They cover hit, miss+TTL, Redis-down fallback and corrupt-payload eviction \u2014 the four branches that matter.", "callout": "", "open": false}, {"path": "requirements.txt", "status": "EDIT", "adds": 1, "dels": 0, "lines": [{"num": 21, "sign": " ", "text": "pydantic==2.7.1"}, {"num": 22, "sign": " ", "text": "uvicorn==0.30.0"}, {"num": 23, "sign": "+", "text": "redis==5.0.4"}], "truncated": 0, "id": "f-requirements-txt", "note": "One dependency: redis 5.0.x, async client, already vendored elsewhere in the monorepo.", "callout": "", "open": false}], "look_here": [{"file": "services/widgets/cache.py", "label": "cache.py \u00b7 get() fallback path", "note": "Fail-open on Redis errors. Confirm you want stale-tolerant reads.", "tone": "bad"}, {"file": "services/widgets/handlers.py", "label": "handlers.py \u00b7 404 caching", "note": "Misses aren't negative-cached \u2014 a hot missing id still hits the DB every request.", "tone": "warn"}, {"file": "config/settings.py", "label": "settings.py \u00b7 ttl=300 default", "note": "Hard-coded again at the call site in handlers.py. Pick one."}], "quiz": [{"question": "Why does the new cache middleware fall back to an in-memory LRU when Redis is unavailable, rather than propagating the error?", "file": "services/widgets/cache.py", "where": "cache.py:20", "options": ["The cache is treated as an optimization, not a source of truth. Losing Redis briefly should degrade latency, not availability \u2014 so the middleware quietly serves from the LRU (or straight from the DB on miss) instead of surfacing 5xx to callers.", "The middleware treats Redis errors as bugs and short-circuits to raise 503 immediately, letting the caller retry against a healthy replica.", "The middleware routes writes to Redis and reads to the LRU under all conditions, so a Redis outage only affects the write path.", "The LRU is a scratch cache used only during test runs; production always propagates Redis errors."], "correct": 0, "feedback": ["Correct. *urp* The cache is a latency layer. Losing it degrades speed, not correctness \u2014 availability wins.", "Wrong. That's the *opposite* of the design. 5xx on a cache blip would take the whole endpoint down.", "Wrong. Both reads and writes hit Redis first; the LRU is a fallback, not a split-brain.", "Wrong. The LRU is a first-class production fallback, not a test-only scratch cache."]}, {"question": "The cache key format is 'widget:{id}:{schema_version}'. Why include schema_version in the key rather than doing a version-bump flush at deploy time?", "file": "services/widgets/cache.py", "where": "cache.py:16", "options": ["Because Redis doesn't support atomic prefix invalidation, so a deploy-time flush would have to iterate keys and could miss in-flight writes.", "Version-bumping the key namespace makes old and new schema entries coexist during a rolling deploy \u2014 old pods keep reading v1 keys, new pods write v2, and there's no cache-warming stampede at cutover.", "The version suffix protects against a race where two callers race to populate the same cache slot with different payload shapes.", "It's a pure debugging convenience \u2014 the version suffix makes it easy to inspect a key and know which release wrote it."], "correct": 1, "feedback": ["Wrong. Redis does have SCAN + DEL patterns \u2014 the flush is doable, just avoided for the coexistence reason.", "Correct. Cache namespaces are the cheap way to run two schema versions concurrently through a rolling deploy without a cutover stampede.", "Wrong. The version suffix doesn't guard writes \u2014 it partitions the keyspace. Populate races still need locking.", "Wrong. Debug ergonomics are a bonus, not the reason."]}, {"question": "When the middleware hits Redis successfully but Redis returns a value that fails Pydantic validation, what does it do?", "file": "services/widgets/cache.py", "where": "cache.py:25", "options": ["It treats the cached blob as authoritative, logs a warning, and returns it as-is \u2014 trusting the write path to keep the cache clean.", "It raises 500 to the caller, on the theory that a corrupt cache means an active incident that should not be silenced.", "It ignores the corrupt value, deletes the key, and falls through to the database \u2014 treating validation failure as a cache miss with an aggressive eviction.", "It repairs the value in place by round-tripping through the model's `model_validate_strings` mode and rewrites the corrected form back to Redis."], "correct": 2, "feedback": ["Wrong. Returning corrupt data would just propagate the bug to callers. The middleware is more defensive than that.", "Wrong. Corrupt cache entries are usually stale-schema bleed-through, not incidents worth paging on.", "Correct. Treat-as-miss + evict. The DB is the source of truth; the cache gets a fresh write from that fallback.", "Wrong. There's no in-place repair path. The middleware doesn't try to guess the correct shape from a broken one."]}, {"question": "The new test test_cache_miss_populates_ttl_from_config asserts the SET call carries a TTL kwarg. Why is that check load-bearing rather than a nice-to-have?", "file": "tests/test_cache_through.py", "where": "test_cache_through.py:12", "options": ["It guards the release-notes claim that TTL is configurable, so QA can grep for it during regression testing.", "It exercises the Redis client's ex= parameter path, which changed signature between versions of redis-py \u2014 the test would fail early if the pin drifts.", "It's a stylistic check: the codebase's style guide says all SET calls must be TTL-bearing.", "Without the TTL, cache entries live forever and the schema_version scheme's coexistence guarantee breaks \u2014 the test enforces the invariant that no cache entry outlives its schema version."], "correct": 3, "feedback": ["Wrong. QA doesn't grep test code for release notes. That's not what tests are for.", "Wrong. Not the actual reason. The pin-drift concern would be caught at import time, not by this assertion.", "Wrong. Style guides don't need behavioral test coverage \u2014 they need linters.", "Correct. TTL is the enforcement mechanism for the versioned-namespace invariant. Without it, v1 keys would haunt the cache forever and the coexistence property collapses."]}], "concerns": [{"severity": "HIGH", "text": "Redis fallback is silent \u2014 no metric, no log.", "file": "services/widgets/cache.py", "where": "cache.py:20"}, {"severity": "MEDIUM", "text": "TTL configured in settings but hard-coded at the call site.", "file": "config/settings.py", "where": "settings.py:79"}, {"severity": "LOW", "text": "Misses are not negative-cached; hot 404s still reach Postgres.", "file": "services/widgets/handlers.py", "where": "handlers.py:52"}], "stats": {"files": 5, "added": 66, "removed": 1}}
 </script>
 
 <!-- ===== INLINED D3 ===== -->
@@ -951,7 +874,7 @@ window.RickChartForce = function (container, data) {
     .attr('orient', 'auto')
     .append('path')
     .attr('d', 'M0,-5L10,0L0,5')
-    .attr('fill', 'var(--accent, #39ff14)');
+    .style('fill', 'var(--rk-ok)');
 
   var sim = d3.forceSimulation(nodes)
     .force('link', d3.forceLink(links).id(function (d) { return d.id; }).distance(90).strength(0.6))
@@ -1012,7 +935,7 @@ window.RickChartState = function (container, data) {
     .attr('orient', 'auto')
     .append('path')
     .attr('d', 'M0,-5L10,0L0,5')
-    .attr('fill', 'var(--accent, #39ff14)');
+    .style('fill', 'var(--rk-ok)');
 
   function drawPane(pane, offsetX, title) {
     if (!pane) return;
@@ -1020,7 +943,7 @@ window.RickChartState = function (container, data) {
     g.append('text')
       .attr('x', paneW / 2).attr('y', 20)
       .attr('text-anchor', 'middle')
-      .attr('fill', 'var(--primary, #00ff88)')
+      .style('fill', 'var(--rk-accent)')
       .attr('font-size', 13)
       .attr('font-family', 'inherit')
       .attr('letter-spacing', 2)
@@ -1055,7 +978,7 @@ window.RickChartState = function (container, data) {
           .attr('x', (s.x + e.x) / 2)
           .attr('y', (s.y + e.y) / 2 - 4)
           .attr('text-anchor', 'middle')
-          .attr('fill', 'var(--text, #d0ffd8)')
+          .style('fill', 'var(--rk-text)')
           .attr('font-size', 10)
           .attr('font-family', 'inherit')
           .text(t.label);
@@ -1107,7 +1030,7 @@ window.RickChartSequence = function (container, data) {
     .attr('orient', 'auto')
     .append('path')
     .attr('d', 'M0,-5L10,0L0,5')
-    .attr('fill', 'var(--accent, #39ff14)');
+    .style('fill', 'var(--rk-ok)');
 
   var actors = data.actors || [];
   var cols = actors.length;
@@ -1134,14 +1057,14 @@ window.RickChartSequence = function (container, data) {
     var ti = actors.indexOf(m.to);
     if (fi < 0 || ti < 0) return;
     var y = yStart + i * 40;
-    var stroke = m.side === 'after' ? 'var(--primary, #00ff88)' :
-                 m.side === 'before' ? '#ff5577' :
-                 'var(--accent, #39ff14)';
+    var stroke = m.side === 'after' ? 'var(--rk-accent)' :
+                 m.side === 'before' ? 'var(--rk-bad)' :
+                 'var(--rk-ok)';
     var dash = m.side === 'before' ? '5 3' : '';
     svg.append('line')
       .attr('x1', colX[fi]).attr('y1', y)
       .attr('x2', colX[ti]).attr('y2', y)
-      .attr('stroke', stroke)
+      .style('stroke', stroke)
       .attr('stroke-opacity', 0.85)
       .attr('stroke-width', 1.5)
       .attr('stroke-dasharray', dash)
@@ -1150,7 +1073,7 @@ window.RickChartSequence = function (container, data) {
       .attr('x', (colX[fi] + colX[ti]) / 2)
       .attr('y', y - 5)
       .attr('text-anchor', 'middle')
-      .attr('fill', 'var(--text, #d0ffd8)')
+      .style('fill', 'var(--rk-text)')
       .attr('font-size', 11)
       .attr('font-family', 'inherit')
       .text(m.label || '');
@@ -1214,6 +1137,93 @@ window.RickChartSankey = function (container, data) {
     .attr('dy', 4)
     .attr('text-anchor', function (d) { return d.x0 < width / 2 ? 'start' : 'end'; })
     .text(function (d) { return d.name; });
+};
+
+</script>
+<script>
+/* Shape-of-the-diff treemap. Grouped by directory, tile area = adds+dels,
+ * tile colour = additions-vs-removals ratio.
+ * Payload shape:
+ *   { files: [{path, adds, dels}] }
+ * onJump(path) is called when a tile is clicked, so the caller can expand
+ * and scroll to that file in the Files section.
+ */
+window.RickChartTreemap = function (container, data, onJump) {
+  container.innerHTML = '';
+  var d3 = window.d3;
+  var files = (data && data.files) || [];
+  if (!files.length) {
+    container.innerHTML = '<pre style="color:#ff5577">ERROR: no files to chart.</pre>';
+    return;
+  }
+
+  var cs = getComputedStyle(container);
+  var v = function (name, fallback) { return (cs.getPropertyValue(name) || '').trim() || fallback; };
+  var C = {
+    dim: v('--rk-dim', '#a89984'),
+    deep: v('--rk-deep', '#1d2021'),
+    ok: v('--rk-ok', '#b8bb26'),
+    warn: v('--rk-warn', '#fe8019'),
+    bad: v('--rk-bad', '#fb4934')
+  };
+
+  var W = Math.max(360, container.clientWidth || 640), H = 300;
+
+  var groups = {};
+  files.forEach(function (f) {
+    var dir = f.path.indexOf('/') >= 0 ? f.path.slice(0, f.path.lastIndexOf('/')) : '.';
+    (groups[dir] = groups[dir] || []).push(f);
+  });
+
+  var root = d3.hierarchy({
+    children: Object.keys(groups).map(function (k) {
+      return {
+        name: k,
+        children: groups[k].map(function (f) {
+          var total = Math.max(1, (f.adds || 0) + (f.dels || 0));
+          return { name: f.path.split('/').pop(), dir: k, value: total, ratio: (f.adds || 0) / total, file: f };
+        })
+      };
+    })
+  }).sum(function (d) { return d.value || 0; }).sort(function (a, b) { return b.value - a.value; });
+
+  d3.treemap().size([W, H]).paddingInner(2).paddingTop(18)(root);
+
+  var svg = d3.select(container).append('svg')
+    .attr('viewBox', '0 0 ' + W + ' ' + H)
+    .attr('width', '100%').attr('height', H).style('display', 'block');
+
+  svg.selectAll('text.dir').data(root.children || []).enter().append('text').attr('class', 'dir')
+    .attr('x', function (d) { return d.x0 + 4; }).attr('y', function (d) { return d.y0 + 12; })
+    .style('fill', C.dim).attr('font-family', 'JetBrains Mono, monospace').attr('font-size', 10).attr('letter-spacing', '0.08em')
+    .text(function (d) { return d.data.name; });
+
+  var leaf = svg.selectAll('g.leaf').data(root.leaves()).enter().append('g').attr('class', 'leaf')
+    .attr('transform', function (d) { return 'translate(' + d.x0 + ',' + d.y0 + ')'; })
+    .style('cursor', 'pointer')
+    .on('click', function (e, d) {
+      var full = d.data.dir === '.' ? d.data.name : d.data.dir + '/' + d.data.name;
+      if (typeof onJump === 'function') onJump(full);
+    });
+
+  var color = function (r) { return r >= 0.99 ? C.ok : r >= 0.6 ? C.warn : C.bad; };
+
+  leaf.append('rect')
+    .attr('width', function (d) { return Math.max(0, d.x1 - d.x0); })
+    .attr('height', function (d) { return Math.max(0, d.y1 - d.y0); })
+    .style('fill', function (d) { return color(d.data.ratio); })
+    .attr('fill-opacity', 0.82).style('stroke', C.deep)
+    .on('mouseenter', function () { d3.select(this).attr('fill-opacity', 1); })
+    .on('mouseleave', function () { d3.select(this).attr('fill-opacity', 0.82); });
+
+  leaf.filter(function (d) { return (d.x1 - d.x0) > 70 && (d.y1 - d.y0) > 34; }).each(function (d) {
+    var g = d3.select(this);
+    g.append('text').attr('x', 7).attr('y', 17).style('fill', C.deep).attr('font-family', 'JetBrains Mono, monospace').attr('font-size', 11.5).attr('font-weight', 700).text(d.data.name);
+    g.append('text').attr('x', 7).attr('y', 32).style('fill', 'rgba(0,0,0,0.55)').attr('font-family', 'JetBrains Mono, monospace').attr('font-size', 10)
+      .text('+' + (d.data.file.adds || 0) + ' −' + (d.data.file.dels || 0));
+  });
+
+  leaf.append('title').text(function (d) { return d.data.file.path + '  +' + (d.data.file.adds || 0) + ' −' + (d.data.file.dels || 0); });
 };
 
 </script>
@@ -2454,11 +2464,11 @@ return Ke}()
 ;"object"==typeof exports&&"undefined"!=typeof module&&(module.exports=hljs);
 </script>
 
-<!-- ===== CORE JS (quiz, gauge, toggles, chart bootstrap) ===== -->
+<!-- ===== CORE JS (renders payload into every section, wires interactions) ===== -->
 <script>
 /* ===================================================================
- * RickOS core.js — quiz engine, gauge animation, Before/After toggles,
- * chart bootstrap. Reads #report-data (JSON) on DOMContentLoaded.
+ * RickOS core.js — renders the payload JSON into every section and
+ * wires up all interactions. Reads #report-data on DOMContentLoaded.
  * =================================================================== */
 
 (function () {
@@ -2466,50 +2476,459 @@ return Ke}()
 
   function $(sel, root) { return (root || document).querySelector(sel); }
   function $$(sel, root) { return Array.from((root || document).querySelectorAll(sel)); }
+  function el(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text !== undefined && text !== null) e.textContent = text;
+    return e;
+  }
+  function fileDomId(path) {
+    return 'f-' + String(path || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  }
 
   function loadPayload() {
     var node = document.getElementById('report-data');
     if (!node) return null;
-    try {
-      return JSON.parse(node.textContent);
-    } catch (e) {
-      console.error('RickOS: payload JSON parse failed', e);
-      return null;
+    try { return JSON.parse(node.textContent); }
+    catch (e) { console.error('RickOS: payload JSON parse failed', e); return null; }
+  }
+
+  // ------------------------- Chrome -------------------------
+  function initChrome(prMeta) {
+    var meta = $$('[data-pr-meta]');
+    if (prMeta) {
+      var bits = [];
+      if (prMeta.number) bits.push('PR #' + prMeta.number);
+      if (prMeta.branch) bits.push(prMeta.branch);
+      if (prMeta.base) bits.push('→ ' + prMeta.base);
+      var text = bits.join(' · ');
+      meta.forEach(function (m) { m.textContent = text || ' '; });
+    }
+
+    $$('[data-crt-toggle]').forEach(function (btn) {
+      var on = btn.getAttribute('data-label-on') || 'CRT: on';
+      var off = btn.getAttribute('data-label-off') || 'CRT: off';
+      var scan = document.getElementById('rk-scanlines');
+      btn.addEventListener('click', function () {
+        var showing = !scan || scan.style.display !== 'none';
+        if (scan) scan.style.display = showing ? 'none' : '';
+        btn.textContent = showing ? off : on;
+      });
+    });
+
+    $$('[data-panic-toggle]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var orig = btn.textContent;
+        btn.textContent = 'ARMED';
+        setTimeout(function () { btn.textContent = orig; }, 1400);
+      });
+    });
+  }
+
+  // ------------------------- Hero: banner + boot log -------------------------
+  function initHero() {
+    var pre = document.getElementById('rk-boot-log');
+    var hero = document.getElementById('rk-hero');
+    var tailText = document.getElementById('rk-hero-tail-text');
+    if (!pre || !hero) return;
+
+    var full = pre.textContent;
+    var lines = full.split('\n').map(function (l) { return l.trim(); }).filter(Boolean);
+    pre.innerHTML = '';
+    pre.hidden = false;
+    lines.forEach(function (line, i) {
+      var d = el('div', /⚠/.test(line) ? 'is-warn' : '', line);
+      d.style.animationDelay = (i * 0.09).toFixed(2) + 's';
+      pre.appendChild(d);
+    });
+    if (tailText) tailText.textContent = lines[lines.length - 1] || '';
+
+    function setCollapsed(collapsed) {
+      hero.classList.toggle('is-collapsed', collapsed);
+    }
+    var collapseBtn = document.getElementById('rk-hero-collapse-btn');
+    var expandBtn = document.getElementById('rk-hero-expand-btn');
+    if (collapseBtn) collapseBtn.addEventListener('click', function () { setCollapsed(true); });
+    if (expandBtn) expandBtn.addEventListener('click', function () { setCollapsed(false); });
+  }
+
+  // ------------------------- Summary -------------------------
+  function initSummary(payload) {
+    var meta = payload.pr_meta || {};
+    var idLine = document.getElementById('rk-summary-id');
+    if (idLine) {
+      var bits = [];
+      if (meta.number) bits.push('Pull request #' + meta.number);
+      bits.push('open');
+      if (meta.commits) bits.push(meta.commits + ' commit' + (meta.commits === 1 ? '' : 's'));
+      idLine.textContent = bits.join(' · ');
+    }
+    var title = document.getElementById('rk-summary-title');
+    if (title) title.textContent = meta.title || payload.pr_slug || 'Untitled change';
+
+    var tags = document.getElementById('rk-summary-tags');
+    if (tags) {
+      tags.innerHTML = '';
+      if (meta.author) {
+        var authorSpan = el('span');
+        authorSpan.appendChild(document.createTextNode('@' + meta.author + ' → '));
+        var b = el('strong', null, meta.base || 'main');
+        authorSpan.appendChild(b);
+        tags.appendChild(authorSpan);
+      }
+      if (meta.branch) tags.appendChild(el('span', null, meta.branch));
+      if (meta.opened) tags.appendChild(el('span', null, 'opened ' + meta.opened));
+    }
+
+    var stats = document.getElementById('rk-stats');
+    if (stats && payload.stats) {
+      stats.innerHTML = '';
+      var tiles = [
+        { label: 'Files', value: payload.stats.files, tone: '' },
+        { label: 'Added', value: '+' + payload.stats.added, tone: 'is-ok' },
+        { label: 'Removed', value: '−' + payload.stats.removed, tone: 'is-bad' }
+      ];
+      tiles.forEach(function (t) {
+        var tile = el('div', 'rk-stat');
+        tile.appendChild(el('div', 'rk-stat__value ' + t.tone, String(t.value)));
+        tile.appendChild(el('div', 'rk-stat__label', t.label));
+        stats.appendChild(tile);
+      });
+    }
+
+    var lookhere = document.getElementById('rk-lookhere');
+    var lookhereCol = lookhere ? lookhere.closest('.rk-summary__lookhere-col') : null;
+    if (lookhere) {
+      lookhere.innerHTML = '';
+      var items = payload.look_here || [];
+      if (!items.length && lookhereCol) { lookhereCol.hidden = true; }
+      else {
+        items.slice(0, 3).forEach(function (it) {
+          var a = el('a');
+          a.href = '#' + fileDomId(it.file);
+          if (it.tone === 'bad' || it.tone === 'warn') a.classList.add('is-' + it.tone);
+          a.appendChild(el('div', 'rk-lookhere__title', it.label || it.file || ''));
+          if (it.note) a.appendChild(el('div', 'rk-lookhere__note', it.note));
+          lookhere.appendChild(a);
+        });
+      }
     }
   }
 
-  // ------------------------- Gauge -------------------------
-  function initGauge(risk) {
-    if (!risk) return;
-    var val = Math.max(0, Math.min(100, Number(risk.value) || 0));
-    var lbl = risk.label || '--';
-
-    // 1) analog dial (SVG): rotate .dial-needle
-    var needle = document.querySelector('.gauge-dial .dial-needle');
-    if (needle) {
-      // -90deg = 0, +90deg = 100
-      var deg = -90 + (val / 100) * 180;
-      needle.setAttribute('transform', 'rotate(' + deg + ' 100 100)');
+  // ------------------------- Risk -------------------------
+  function initRisk(risk) {
+    var heading = document.getElementById('rk-risk-heading');
+    var list = document.getElementById('rk-risk-list');
+    if (!risk || !list) return;
+    if (heading) {
+      heading.textContent = '';
+      heading.appendChild(document.createTextNode('Risk breakdown — '));
+      var span = el('span', null, 'composite ' + risk.composite + '/100, ' + (risk.label || ''));
+      span.style.color = 'var(--rk-text)';
+      heading.appendChild(span);
     }
-    // 2) LCD bar: width % on .lcd-fill
-    var fill = document.querySelector('.gauge-lcd .lcd-fill');
-    if (fill) fill.style.width = val + '%';
-    var lcdText = document.querySelector('.gauge-lcd .lcd-value');
-    if (lcdText) lcdText.textContent = val;
+    (risk.items || []).forEach(function (r) {
+      var tone = r.tone === 'ok' || r.tone === 'bad' ? r.tone : (r.tone === 'warn' ? 'warn' : 'warn');
+      var row = el('div', 'rk-risk-row');
+      row.appendChild(el('div', 'rk-risk-row__name', r.name));
+      var bar = el('div', 'rk-risk-bar');
+      var fill = el('div', 'rk-risk-bar__fill is-' + tone);
+      fill.style.width = Math.max(0, Math.min(100, r.pct || 0)) + '%';
+      bar.appendChild(fill);
+      row.appendChild(bar);
+      var note = el('div', 'rk-risk-row__note');
+      var score = el('span', 'rk-risk-row__score is-' + tone, r.score || '');
+      note.appendChild(score);
+      note.appendChild(document.createTextNode(' ' + (r.note || '')));
+      row.appendChild(note);
+      list.appendChild(row);
+    });
+  }
 
-    // 3) portal-fluid tube: fill height
-    var tubeFill = document.querySelector('.gauge-tube .tube-fill');
-    if (tubeFill) tubeFill.style.height = val + '%';
+  // ------------------------- Shape (treemap) -------------------------
+  function initShape(shape, jumpToFile) {
+    var section = document.getElementById('s-shape');
+    if (!shape || !shape.files || !shape.files.length) {
+      if (section) section.hidden = true;
+      $$('[data-nav="shape"]').forEach(function (a) { a.remove(); });
+      return;
+    }
+    section.hidden = false;
+    var totalChanged = shape.files.reduce(function (s, f) { return s + (f.adds || 0) + (f.dels || 0); }, 0);
+    var sub = document.getElementById('rk-shape-sub');
+    if (sub) sub.textContent = totalChanged + ' changed lines across ' + shape.files.length + ' file' + (shape.files.length === 1 ? '' : 's');
+    var note = document.getElementById('rk-shape-note');
+    if (note) note.textContent = shape.note || '';
 
-    // 4) geiger needle: rotate
-    var gNeedle = document.querySelector('.gauge-geiger .geiger-needle');
-    if (gNeedle) {
-      var gDeg = -60 + (val / 100) * 120;
-      gNeedle.setAttribute('transform', 'rotate(' + gDeg + ' 100 130)');
+    var canvas = document.getElementById('rk-treemap-canvas');
+    if (canvas && typeof window.RickChartTreemap === 'function') {
+      try { window.RickChartTreemap(canvas, { files: shape.files }, jumpToFile); }
+      catch (e) {
+        console.error('RickOS: treemap render failed', e);
+        canvas.innerHTML = '<pre style="color:#ff5577">ERROR: treemap renderer crashed.</pre>';
+      }
+    }
+  }
+
+  // ------------------------- Flow (existing chart bootstrap) -------------------------
+  function initFlow(chart) {
+    var canvas = document.getElementById('chart-canvas');
+    if (!canvas || !chart || !chart.type) return;
+    var fn = null;
+    switch (chart.type) {
+      case 'force': fn = window.RickChartForce; break;
+      case 'state': fn = window.RickChartState; break;
+      case 'sequence': fn = window.RickChartSequence; break;
+      case 'sankey': fn = window.RickChartSankey; break;
+    }
+    if (typeof fn !== 'function') {
+      canvas.innerHTML = '<pre style="color:#ff5577">ERROR: chart type "' + chart.type + '" not recognized.</pre>';
+      return;
+    }
+    try { fn(canvas, chart.data || {}); }
+    catch (e) {
+      console.error('RickOS: chart renderer failed', e);
+      canvas.innerHTML = '<pre style="color:#ff5577">ERROR: renderer crashed. ' + (e && e.message || e) + '</pre>';
+    }
+  }
+
+  // ------------------------- Files: annotated diff viewer -------------------------
+  function renderFileLines(container, lines, truncated) {
+    container.innerHTML = '';
+    (lines || []).forEach(function (ln) {
+      var kind = ln.sign === '+' ? 'is-add' : ln.sign === '-' ? 'is-del' : 'is-ctx';
+      var row = el('div', 'rk-file__line ' + kind);
+      row.appendChild(el('span', 'rk-file__line-num', String(ln.num)));
+      row.appendChild(el('span', 'rk-file__line-sign', ln.sign === ' ' ? '' : ln.sign));
+      var text = el('span', 'rk-file__line-text', ln.text);
+      row.appendChild(text);
+      container.appendChild(row);
+    });
+    if (truncated) container.appendChild(el('div', 'rk-file__truncated', '… ' + truncated + ' more lines omitted — see the full diff in your repo.'));
+  }
+
+  function initFiles(files) {
+    var wrap = document.getElementById('rk-files');
+    var toggleAllBtn = document.getElementById('rk-files-toggle-all');
+    if (!wrap || !Array.isArray(files)) return;
+
+    var cards = {};
+
+    files.forEach(function (f) {
+      var card = el('div', 'rk-file');
+      card.id = f.id || fileDomId(f.path);
+
+      var head = document.createElement('button');
+      head.type = 'button';
+      head.className = 'rk-file__head';
+      var caret = el('span', 'rk-file__caret', f.open ? '▾' : '▸');
+      head.appendChild(caret);
+      head.appendChild(el('span', 'rk-file__path', f.path));
+      var badge = el('span', 'rk-file__badge' + (f.status === 'NEW' ? ' is-new' : ''), f.status);
+      head.appendChild(badge);
+      head.appendChild(el('span', 'rk-file__adds', '+' + f.adds));
+      head.appendChild(el('span', 'rk-file__dels', '−' + f.dels));
+      card.appendChild(head);
+
+      if (f.note) card.appendChild(el('div', 'rk-file__note', f.note));
+
+      var linesWrap = el('div', 'rk-file__lines');
+      linesWrap.hidden = !f.open;
+      renderFileLines(linesWrap, f.lines, f.truncated);
+      card.appendChild(linesWrap);
+
+      var calloutEl = null;
+      if (f.callout) {
+        calloutEl = el('div', 'rk-file__callout');
+        var tag = el('span', 'rk-file__callout-tag', 'Rick flags this · ');
+        calloutEl.appendChild(tag);
+        calloutEl.appendChild(document.createTextNode(f.callout));
+        calloutEl.hidden = !f.open;
+        card.appendChild(calloutEl);
+      }
+
+      function setOpen(open) {
+        f.open = open;
+        caret.textContent = open ? '▾' : '▸';
+        linesWrap.hidden = !open;
+        if (calloutEl) calloutEl.hidden = !open;
+      }
+      head.addEventListener('click', function () { setOpen(!f.open); });
+      cards[f.path] = { setOpen: setOpen, card: card };
+
+      wrap.appendChild(card);
+    });
+
+    if (toggleAllBtn) {
+      toggleAllBtn.addEventListener('click', function () {
+        var allOpen = files.every(function (f) { return f.open; });
+        Object.keys(cards).forEach(function (p) { cards[p].setOpen(!allOpen); });
+        toggleAllBtn.textContent = allOpen ? 'Expand all' : 'Collapse all';
+      });
+      toggleAllBtn.textContent = files.length && files.every(function (f) { return f.open; }) ? 'Collapse all' : 'Expand all';
     }
 
-    var labelEl = document.getElementById('gauge-label');
-    if (labelEl) labelEl.textContent = val + '%  //  ' + lbl;
+    return function jumpToFile(path) {
+      var entry = cards[path];
+      if (!entry) return;
+      entry.setOpen(true);
+      setTimeout(function () {
+        var y = entry.card.getBoundingClientRect().top + window.pageYOffset - 60;
+        window.scrollTo({ top: y, behavior: 'smooth' });
+      }, 40);
+    };
+  }
+
+  // ------------------------- Cross-section evidence links -------------------------
+  function initEvidenceLinks(jumpToFile) {
+    document.addEventListener('click', function (e) {
+      var a = e.target.closest('a[href^="#f-"]');
+      if (!a) return;
+      var id = a.getAttribute('href').slice(1);
+      var target = document.getElementById(id);
+      if (!target) return;
+      e.preventDefault();
+      var path = target.querySelector('.rk-file__path');
+      if (jumpToFile && path) jumpToFile(path.textContent);
+      else target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  }
+
+  // ------------------------- Quiz -------------------------
+  var RANKS = [
+    { min: 0,  name: 'Cronenberg-Grade Intellect',      comment: "L-l-listen, I've seen turnips with more curiosity than you." },
+    { min: 20, name: 'Morty-Tier Comprehension',        comment: 'Which is to say, barely functional. But congrats, you tried.' },
+    { min: 40, name: 'Jerry-Level Understanding',       comment: "You'd survive maybe *urp* six minutes in Dimension C-42." },
+    { min: 60, name: 'Summer-Grade Awareness',          comment: 'Not embarrassing. Not impressive either. Fine.' },
+    { min: 80, name: 'Beth-Tier Cognition',             comment: 'Alright, you actually followed along. Weird flex, but okay.' },
+    { min: 100, name: 'Rick-Adjacent (Impossible)',     comment: "You cheated or you're me. Either way, get out of my dimension." }
+  ];
+
+  function initQuiz(quiz) {
+    var wrap = $('#quiz-container');
+    if (!wrap || !Array.isArray(quiz)) return;
+
+    var answered = 0, correct = 0;
+
+    quiz.forEach(function (q, qi) {
+      var qEl = el('div', 'quiz-question');
+
+      var prompt = el('div', 'q-prompt');
+      prompt.appendChild(el('span', 'q-number', 'Q' + (qi + 1)));
+      prompt.appendChild(el('div', null, q.question || ''));
+      qEl.appendChild(prompt);
+
+      var opts = el('div', 'quiz-options');
+      (q.options || []).forEach(function (opt, oi) {
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'quiz-option';
+        var cleanOpt = String(opt).replace(/^\s*[A-Da-d]\s*[.):-]\s+/, '');
+        b.textContent = String.fromCharCode(65 + oi) + '.  ' + cleanOpt;
+        b.addEventListener('click', function () {
+          if (qEl.dataset.answered) return;
+          qEl.dataset.answered = '1';
+          var isCorrect = oi === Number(q.correct);
+          $$('.quiz-option', opts).forEach(function (btn) { btn.disabled = true; });
+          b.classList.add(isCorrect ? 'correct' : 'wrong');
+          if (!isCorrect) {
+            var correctBtn = $$('.quiz-option', opts)[Number(q.correct)];
+            if (correctBtn) correctBtn.classList.add('correct');
+          }
+          var fb = el('div', 'quiz-feedback' + (isCorrect ? '' : ' wrong'), (q.feedback && q.feedback[oi]) || (isCorrect ? 'Correct. Somehow.' : 'Wrong. Obviously.'));
+          qEl.appendChild(fb);
+
+          answered += 1;
+          if (isCorrect) correct += 1;
+          if (answered === quiz.length) renderResult(correct, quiz.length);
+        });
+        opts.appendChild(b);
+      });
+      qEl.appendChild(opts);
+
+      if (q.file) {
+        var ev = el('div', 'quiz-evidence');
+        ev.appendChild(document.createTextNode('evidence: '));
+        var a = document.createElement('a');
+        a.href = '#' + fileDomId(q.file);
+        a.textContent = q.where || q.file;
+        ev.appendChild(a);
+        qEl.appendChild(ev);
+      }
+
+      wrap.appendChild(qEl);
+    });
+  }
+
+  function renderResult(correct, total) {
+    var pct = Math.round((correct / total) * 100);
+    var rank = RANKS[0];
+    for (var i = 0; i < RANKS.length; i++) if (pct >= RANKS[i].min) rank = RANKS[i];
+
+    var box = $('#quiz-result');
+    if (!box) return;
+    box.hidden = false;
+    box.innerHTML = '';
+    box.appendChild(el('div', 'score', correct + ' / ' + total + '  //  ' + pct + '%'));
+    box.appendChild(el('div', 'rank', 'RANK: ' + rank.name));
+    box.appendChild(el('div', 'rank-comment', rank.comment));
+  }
+
+  // ------------------------- Verdict -------------------------
+  function initConcerns(concerns) {
+    var wrap = document.getElementById('rk-concerns');
+    if (!wrap) return;
+    (concerns || []).forEach(function (c) {
+      var row = el('div', 'rk-concern');
+      var sevClass = c.severity === 'HIGH' ? 'is-high' : c.severity === 'MEDIUM' ? 'is-medium' : 'is-low';
+      row.appendChild(el('span', 'rk-concern__sev ' + sevClass, c.severity));
+      var text = el('div', 'rk-concern__text', c.text + ' ');
+      if (c.file) {
+        var a = document.createElement('a');
+        a.href = '#' + fileDomId(c.file);
+        a.textContent = c.where || c.file;
+        text.appendChild(a);
+      }
+      row.appendChild(text);
+      wrap.appendChild(row);
+    });
+  }
+
+  var VERDICT_LINES = {
+    approve: 'Approved with open concerns still on the board. Bold. I respect the chaos.',
+    changes: 'Good. Fix them before it is 3am and nobody knows why the alarms are going off.',
+    comment: 'A comment. The review equivalent of leaving the room slowly.'
+  };
+
+  function initVerdict() {
+    var buttons = $$('.rk-verdict-btn');
+    var line = document.getElementById('rk-verdict-line');
+    buttons.forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        buttons.forEach(function (b) { b.classList.remove('is-active'); });
+        btn.classList.add('is-active');
+        if (line) {
+          line.hidden = false;
+          line.textContent = VERDICT_LINES[btn.dataset.verdict] || '';
+        }
+      });
+    });
+  }
+
+  // ------------------------- Syntax highlighting -------------------------
+  function initHighlight() {
+    if (typeof window.hljs !== 'object' || typeof window.hljs.highlightElement !== 'function') return;
+    $$('pre code').forEach(function (elm) {
+      try { window.hljs.highlightElement(elm); } catch (e) {}
+    });
+    $$('.rk-section-body pre').forEach(function (pre) {
+      if (pre.querySelector('code')) return;
+      var code = document.createElement('code');
+      code.textContent = pre.textContent;
+      pre.textContent = '';
+      pre.appendChild(code);
+      try { window.hljs.highlightElement(code); } catch (e) {}
+    });
   }
 
   // ------------------------- Before/After toggle -------------------------
@@ -2518,9 +2937,7 @@ return Ke}()
       var panes = $$('.toggle-pane', wrap);
       var tabs = $$('.toggle-tab', wrap);
       if (!tabs.length && panes.length) {
-        // auto-generate tabs from data-label on panes
-        var tabRow = document.createElement('div');
-        tabRow.className = 'toggle-tabs';
+        var tabRow = el('div', 'toggle-tabs');
         panes.forEach(function (p, i) {
           var t = document.createElement('button');
           t.type = 'button';
@@ -2544,187 +2961,26 @@ return Ke}()
     });
   }
 
-  // ------------------------- Chart bootstrap -------------------------
-  function initChart(chart) {
-    if (!chart || !chart.type) return;
-    var canvas = document.getElementById('chart-canvas');
-    if (!canvas) return;
-
-    var fn = null;
-    switch (chart.type) {
-      case 'force': fn = window.RickChartForce; break;
-      case 'state': fn = window.RickChartState; break;
-      case 'sequence': fn = window.RickChartSequence; break;
-      case 'sankey': fn = window.RickChartSankey; break;
-    }
-    if (typeof fn !== 'function') {
-      canvas.innerHTML = '<pre style="color:#ff5577">ERROR: chart type "' + chart.type + '" not recognized. Did you eat crayons for breakfast?</pre>';
-      return;
-    }
-    try {
-      fn(canvas, chart.data || {});
-    } catch (e) {
-      console.error('RickOS: chart renderer failed', e);
-      canvas.innerHTML = '<pre style="color:#ff5577">ERROR: renderer crashed. ' + (e && e.message || e) + '</pre>';
-    }
-
-    var reset = document.querySelector('[data-chart-action="reset"]');
-    if (reset && chart.type === 'force') {
-      reset.addEventListener('click', function () {
-        canvas.innerHTML = '';
-        try { fn(canvas, chart.data || {}); } catch (e) {}
-      });
-    }
-  }
-
-  // ------------------------- Quiz -------------------------
-  var RANKS = [
-    { min: 0,  name: 'Cronenberg-Grade Intellect',      comment: "L-l-listen, I've seen turnips with more curiosity than you." },
-    { min: 20, name: 'Morty-Tier Comprehension',        comment: 'Which is to say, barely functional. But congrats, you tried.' },
-    { min: 40, name: 'Jerry-Level Understanding',       comment: "You'd survive maybe *urp* six minutes in Dimension C-42." },
-    { min: 60, name: 'Summer-Grade Awareness',          comment: 'Not embarrassing. Not impressive either. Fine.' },
-    { min: 80, name: 'Beth-Tier Cognition',             comment: 'Alright, you actually followed along. Weird flex, but okay.' },
-    { min: 100, name: 'Rick-Adjacent (Impossible)',     comment: "You cheated or you're me. Either way, get out of my dimension." }
-  ];
-
-  function initQuiz(quiz) {
-    var wrap = $('#quiz-container');
-    if (!wrap || !Array.isArray(quiz)) return;
-
-    var answered = 0;
-    var correct = 0;
-
-    quiz.forEach(function (q, qi) {
-      var qEl = document.createElement('div');
-      qEl.className = 'quiz-question';
-
-      var prompt = document.createElement('p');
-      prompt.className = 'q-prompt';
-      prompt.innerHTML = '<span class="q-number">Q' + (qi + 1) + '.</span>' + escapeHtml(q.question || '');
-      qEl.appendChild(prompt);
-
-      var opts = document.createElement('div');
-      opts.className = 'quiz-options';
-      (q.options || []).forEach(function (opt, oi) {
-        var b = document.createElement('button');
-        b.type = 'button';
-        b.className = 'quiz-option';
-        // Strip any accidental "A. " / "B) " / "c: " prefix so we don't double up.
-        var cleanOpt = String(opt).replace(/^\s*[A-Da-d]\s*[.):-]\s+/, '');
-        b.textContent = String.fromCharCode(65 + oi) + '.  ' + cleanOpt;
-        b.addEventListener('click', function () {
-          if (qEl.dataset.answered) return;
-          qEl.dataset.answered = '1';
-          var isCorrect = oi === Number(q.correct);
-          $$('.quiz-option', opts).forEach(function (btn) { btn.disabled = true; });
-          b.classList.add(isCorrect ? 'correct' : 'wrong');
-          if (!isCorrect) {
-            var correctBtn = $$('.quiz-option', opts)[Number(q.correct)];
-            if (correctBtn) correctBtn.classList.add('correct');
-          }
-          var fb = document.createElement('div');
-          fb.className = 'quiz-feedback';
-          fb.textContent = (q.feedback && q.feedback[oi]) || (isCorrect ? 'Correct. Somehow.' : 'Wrong. Obviously.');
-          qEl.appendChild(fb);
-
-          answered += 1;
-          if (isCorrect) correct += 1;
-          if (answered === quiz.length) renderResult(correct, quiz.length);
-        });
-        opts.appendChild(b);
-      });
-      qEl.appendChild(opts);
-      wrap.appendChild(qEl);
-    });
-  }
-
-  function renderResult(correct, total) {
-    var pct = Math.round((correct / total) * 100);
-    var rank = RANKS[0];
-    for (var i = 0; i < RANKS.length; i++) if (pct >= RANKS[i].min) rank = RANKS[i];
-
-    var box = $('#quiz-result');
-    if (!box) return;
-    box.hidden = false;
-    box.innerHTML =
-      '<div class="score">' + correct + ' / ' + total + '  //  ' + pct + '%</div>' +
-      '<div class="rank">RANK: ' + rank.name + '</div>' +
-      '<div class="rank-comment">' + rank.comment + '</div>';
-  }
-
-  // ------------------------- Boot log typewriter -------------------------
-  function initBootLog() {
-    var pre = document.getElementById('boot-log-lines');
-    if (!pre) return;
-    var full = pre.textContent;
-    var lines = full.split('\n').filter(function (l) { return l.length > 0; });
-    pre.textContent = '';
-    var i = 0;
-    function step() {
-      if (i >= lines.length) return;
-      pre.textContent += lines[i] + '\n';
-      i += 1;
-      setTimeout(step, 180 + Math.random() * 160);
-    }
-    step();
-  }
-
-  // ------------------------- Utils -------------------------
-  function escapeHtml(s) {
-    return String(s)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;');
-  }
-
-  // ------------------------- Syntax highlighting -------------------------
-  function initHighlight() {
-    if (typeof window.hljs !== 'object' || typeof window.hljs.highlightElement !== 'function') return;
-    // Highlight every <pre><code> block AND bare <pre> that looks like code (heuristic).
-    $$('pre code').forEach(function (el) {
-      try { window.hljs.highlightElement(el); } catch (e) {}
-    });
-    // For bare <pre> blocks (no inner <code>), auto-detect and wrap.
-    $$('pre').forEach(function (pre) {
-      if (pre.querySelector('code')) return;
-      // Skip banner and boot-log
-      if (pre.classList.contains('rick-banner') || pre.classList.contains('boot-log-inline') || pre.id === 'boot-log-lines') return;
-      var code = document.createElement('code');
-      code.textContent = pre.textContent;
-      pre.textContent = '';
-      pre.appendChild(code);
-      try { window.hljs.highlightElement(code); } catch (e) {}
-    });
-  }
-
   // ------------------------- Boot -------------------------
   document.addEventListener('DOMContentLoaded', function () {
-    var data = loadPayload() || {};
-    initBootLog();
-    initGauge(data.risk);
-    initToggles();
-    initChart(data.chart);
-    initQuiz(data.quiz || []);
-    initHighlight();
+    var payload = loadPayload() || {};
 
-    // Self-destruct button easter egg
-    var sd = document.querySelector('[data-window-control="self-destruct"]');
-    if (sd) {
-      sd.addEventListener('click', function () {
-        document.body.style.transition = 'opacity 700ms';
-        document.body.style.opacity = '0';
-        setTimeout(function () {
-          document.body.innerHTML =
-            '<pre style="color:#ff5577;padding:40px;font-family:monospace;font-size:14px;">' +
-            '   SELF-DESTRUCT SEQUENCE ABORTED.\n' +
-            '   Rick disabled this button 40 years ago.\n' +
-            '   Try harder, Morty.\n' +
-            '</pre>';
-          document.body.style.opacity = '1';
-        }, 800);
-      });
-    }
+    initChrome(payload.pr_meta);
+    initHero();
+    initSummary(payload);
+    initRisk(payload.risk);
+
+    var jumpToFile = initFiles(payload.files || []);
+    initShape(payload.shape, jumpToFile);
+    initFlow(payload.chart);
+    initEvidenceLinks(jumpToFile);
+
+    initQuiz(payload.quiz || []);
+    initConcerns(payload.concerns || []);
+    initVerdict();
+
+    initToggles();
+    initHighlight();
   });
 })();
 

@@ -1,17 +1,1 @@
-<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" aria-label="Portal ring">
-  <circle cx="100" cy="100" r="85" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="8 4" stroke-opacity="0.7">
-    <animateTransform attributeName="transform" type="rotate" from="0 100 100" to="360 100 100" dur="20s" repeatCount="indefinite"/>
-  </circle>
-  <circle cx="100" cy="100" r="65" fill="none" stroke="var(--accent)" stroke-width="1.5" stroke-dasharray="4 3" stroke-opacity="0.6">
-    <animateTransform attributeName="transform" type="rotate" from="360 100 100" to="0 100 100" dur="15s" repeatCount="indefinite"/>
-  </circle>
-  <circle cx="100" cy="100" r="45" fill="none" stroke="currentColor" stroke-width="1.5" stroke-opacity="0.85"/>
-  <circle cx="100" cy="100" r="22" fill="var(--accent)" fill-opacity="0.12" stroke="var(--accent)" stroke-width="1.5"/>
-  <circle cx="100" cy="100" r="4" fill="currentColor"/>
-  <g stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
-    <line x1="100" y1="15" x2="100" y2="8"/>
-    <line x1="185" y1="100" x2="192" y2="100"/>
-    <line x1="100" y1="185" x2="100" y2="192"/>
-    <line x1="15" y1="100" x2="8" y2="100"/>
-  </g>
-</svg>
+<svg viewBox="0 0 190 60" style="width:190px; height:60px; display:block;"><g transform="translate(95 30)"><circle r="24" fill="none" style="stroke:var(--rk-ok)" stroke-width="1.2" stroke-dasharray="6 5" opacity="0.7"></circle><circle r="24" fill="none" style="stroke:var(--rk-ok); animation:rk-spin 11s linear infinite; transform-origin:0 0" stroke-width="2" stroke-dasharray="30 90" opacity="0.9"></circle><circle r="15" fill="none" style="stroke:var(--rk-ok); animation:rk-spin-rev 7s linear infinite; transform-origin:0 0" stroke-width="3" stroke-dasharray="20 60"></circle><circle r="7" style="fill:var(--rk-ok); animation:rk-pulse 3s ease-in-out infinite; transform-origin:0 0" opacity="0.75"></circle></g></svg>

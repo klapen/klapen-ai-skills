@@ -26,7 +26,7 @@ window.RickChartForce = function (container, data) {
     .attr('orient', 'auto')
     .append('path')
     .attr('d', 'M0,-5L10,0L0,5')
-    .attr('fill', 'var(--accent, #39ff14)');
+    .style('fill', 'var(--rk-ok)');
 
   var sim = d3.forceSimulation(nodes)
     .force('link', d3.forceLink(links).id(function (d) { return d.id; }).distance(90).strength(0.6))

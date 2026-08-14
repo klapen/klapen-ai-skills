@@ -12,18 +12,24 @@ Two subcommands:
                 "pr": {"title", "body", "comments"} | null,
                 "provider": "github" | "gitlab" | "local"
             }
-        Claude consumes this JSON, then writes:
+        Also persists the raw diff to /tmp/rick-diff-<slug>.diff for the
+        render step to parse mechanically.
+
+        Claude consumes the JSON (and/or the .diff file), then writes:
             /tmp/rick-payload-<slug>.json    (payload for the report)
-            /tmp/rick-sections-<slug>.html   (4 HTML section fragments,
+            /tmp/rick-sections-<slug>.html   (2 HTML section fragments,
                                               delimited by
                                               <!-- SECTION: name -->)
 
-    render.py render --payload <json> --sections <html>
+    render.py render --payload <json> --sections <html> --diff <path>
                      [--slug <name>] [--theme <name>] [--chrome <name>]
                      [--seed <int>] [--no-open]
         Assemble the final HTML from the template + assets + Claude's
-        payload/sections. Writes to /tmp/YYYY-MM-DD-explanation-<slug>.html
-        and (by default) opens it in the user's browser.
+        payload/sections, merged with a mechanical parse of the raw
+        diff (per-file line-by-line content, stats, shape data — none
+        of which cost Claude any tokens). Writes to
+        /tmp/YYYY-MM-DD-explanation-<slug>.html and (by default) opens
+        it in the user's browser.
 """
 
 import argparse
@@ -43,6 +49,8 @@ HERE = Path(__file__).resolve().parent
 SKILL_DIR = HERE.parent
 TEMPLATE_DIR = SKILL_DIR / "template"
 ASSETS_DIR = SKILL_DIR / "assets"
+
+MAX_LINES_PER_FILE = 300
 
 
 # ---------------------------------------------------------------------
@@ -79,6 +87,12 @@ def slugify(s, fallback="report"):
     return s or fallback
 
 
+def file_dom_id(path):
+    """Must match core.js's fileDomId() exactly."""
+    s = re.sub(r"[^a-z0-9]+", "-", (path or "").lower()).strip("-")
+    return "f-" + s
+
+
 # ---------------------------------------------------------------------
 # `collect` subcommand
 # ---------------------------------------------------------------------
@@ -93,7 +107,6 @@ GITLAB_URL_RE = re.compile(
 
 def resolve_current_branch_diff():
     branch = run(["git", "rev-parse", "--abbrev-ref", "HEAD"]).stdout.strip()
-    # Best-effort merge base: origin/HEAD → main → master → develop
     base = None
     for candidate in ("origin/HEAD", "origin/main", "origin/master", "main", "master", "develop"):
         r = run(["git", "rev-parse", "--verify", "-q", candidate], check=False)
@@ -114,7 +127,6 @@ def resolve_range_diff(range_spec):
 
 
 def resolve_branch_diff(branch_name):
-    # merge base of branch with default base
     base = None
     for candidate in ("origin/HEAD", "origin/main", "origin/master", "main", "master"):
         r = run(["git", "rev-parse", "--verify", "-q", candidate], check=False)
@@ -137,7 +149,6 @@ def resolve_github_pr(url):
     slug = slugify(f"{m['repo']}-pr-{pr_num}")
     pr_meta = None
     if has_cmd("gh"):
-        # Use -R <owner/repo> so gh works from anywhere.
         base = ["gh", "-R", repo, "pr"]
         try:
             meta = run(base + ["view", pr_num, "--json", "title,body,comments"]).stdout
@@ -150,7 +161,6 @@ def resolve_github_pr(url):
         except Exception as e:
             eprint(f"gh pr diff failed: {e}")
 
-    # Fallback: public .diff fetch
     diff_url = url.rstrip("/") + ".diff"
     try:
         with urllib.request.urlopen(diff_url, timeout=15) as resp:
@@ -167,12 +177,11 @@ def resolve_gitlab_mr(url):
     m = GITLAB_URL_RE.match(url)
     if not m:
         raise RuntimeError("Not a valid GitLab MR URL.")
-    repo_path = m["path"]  # e.g., "galileo-ft/engineering/card-service/cal_service"
+    repo_path = m["path"]
     mr_num = m["num"]
     slug = slugify(f"{repo_path.split('/')[-1]}-mr-{mr_num}")
     pr_meta = None
     if has_cmd("glab"):
-        # Use -R <path> so glab works from anywhere, not just inside a checkout.
         base = ["glab", "-R", repo_path, "mr"]
         try:
             meta = run(base + ["view", mr_num, "--output", "json"]).stdout
@@ -190,7 +199,6 @@ def resolve_gitlab_mr(url):
         except Exception as e:
             eprint(f"glab mr diff failed: {e}")
 
-    # Fallback: try public .diff (works only for public projects)
     diff_url = url.rstrip("/") + ".diff"
     try:
         with urllib.request.urlopen(diff_url, timeout=15) as resp:
@@ -222,13 +230,150 @@ def cmd_collect(args):
             slug, diff = resolve_branch_diff(target)
             payload = {"slug": slugify(slug), "diff": diff, "pr": None, "provider": "local"}
     except Exception as e:
-        # Rick-flavored error but still JSON so caller can parse
         err = {"error": str(e), "hint": "L-listen, fix your target string, *urp*"}
         print(json.dumps(err))
         return 1
 
+    diff_path = Path(f"/tmp/rick-diff-{payload['slug']}.diff")
+    diff_path.write_text(payload["diff"], encoding="utf-8")
+    payload["diff_path"] = str(diff_path)
+
     print(json.dumps(payload))
     return 0
+
+
+# ---------------------------------------------------------------------
+# Unified-diff parser (mechanical — costs Claude zero tokens)
+# ---------------------------------------------------------------------
+
+DIFF_GIT_RE = re.compile(r"^diff --git a/(.*) b/(.*)$")
+HUNK_RE = re.compile(r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@")
+
+
+def parse_unified_diff(diff_text, max_lines=MAX_LINES_PER_FILE):
+    """Parse a unified git diff into a list of per-file dicts:
+        {path, status, adds, dels, lines: [{num, sign, text}], truncated}
+    Line numbering is single-gutter: '-' lines show the old line number,
+    '+'/context lines show the new line number.
+    """
+    lines = diff_text.split("\n")
+    files = []
+    i = 0
+    n = len(lines)
+
+    while i < n:
+        m = DIFF_GIT_RE.match(lines[i])
+        if not m:
+            i += 1
+            continue
+        a_path, b_path = m.group(1), m.group(2)
+        i += 1
+
+        status = "EDIT"
+        binary = False
+        path = b_path
+
+        # Header lines between "diff --git" and the first hunk (or next file).
+        while i < n and not lines[i].startswith("@@") and not DIFF_GIT_RE.match(lines[i]):
+            line = lines[i]
+            if line.startswith("new file mode"):
+                status = "NEW"
+            elif line.startswith("deleted file mode"):
+                status = "DELETED"
+                path = a_path
+            elif line.startswith("rename from"):
+                status = "RENAMED"
+            elif line.startswith("rename to "):
+                path = line[len("rename to "):].strip()
+            elif line.startswith("Binary files") or line.startswith("GIT binary patch"):
+                binary = True
+            elif line.startswith("+++ "):
+                p = line[4:].strip()
+                if p not in ("/dev/null",):
+                    path = p[2:] if p.startswith("b/") else p
+            elif line.startswith("--- "):
+                p = line[4:].strip()
+                if status == "DELETED" and p not in ("/dev/null",):
+                    path = p[2:] if p.startswith("a/") else p
+            i += 1
+
+        file_lines = []
+        adds = 0
+        dels = 0
+
+        while i < n and lines[i].startswith("@@"):
+            hm = HUNK_RE.match(lines[i])
+            if not hm:
+                i += 1
+                continue
+            old_ln = int(hm.group(1))
+            new_ln = int(hm.group(3))
+            i += 1
+            while i < n and not lines[i].startswith("@@") and not DIFF_GIT_RE.match(lines[i]):
+                line = lines[i]
+                if line.startswith("\\"):
+                    i += 1
+                    continue
+                if line == "" :
+                    i += 1
+                    continue
+                tag = line[0]
+                text = line[1:]
+                if tag == "+":
+                    file_lines.append({"num": new_ln, "sign": "+", "text": text})
+                    new_ln += 1
+                    adds += 1
+                elif tag == "-":
+                    file_lines.append({"num": old_ln, "sign": "-", "text": text})
+                    old_ln += 1
+                    dels += 1
+                else:
+                    file_lines.append({"num": new_ln, "sign": " ", "text": text})
+                    old_ln += 1
+                    new_ln += 1
+                i += 1
+
+        truncated = 0
+        if len(file_lines) > max_lines:
+            truncated = len(file_lines) - max_lines
+            file_lines = file_lines[:max_lines]
+
+        files.append({
+            "path": path,
+            "status": status,
+            "adds": adds,
+            "dels": dels,
+            "lines": [] if binary else file_lines,
+            "truncated": truncated,
+            "binary": binary,
+        })
+
+    return files
+
+
+def merge_files(claude_files, parsed_files):
+    by_path = {}
+    for cf in claude_files or []:
+        p = cf.get("path")
+        if p:
+            by_path[p] = cf
+
+    merged = []
+    for pf in parsed_files:
+        cf = by_path.get(pf["path"], {})
+        merged.append({
+            "path": pf["path"],
+            "status": pf["status"],
+            "adds": pf["adds"],
+            "dels": pf["dels"],
+            "lines": pf["lines"],
+            "truncated": pf["truncated"],
+            "id": file_dom_id(pf["path"]),
+            "note": cf.get("note", ""),
+            "callout": cf.get("callout", ""),
+            "open": bool(cf.get("open", False)),
+        })
+    return merged
 
 
 # ---------------------------------------------------------------------
@@ -259,11 +404,10 @@ def parse_sections(sections_html):
     Format:
         <!-- SECTION: summary -->
         ...html...
-        <!-- SECTION: context -->
+        <!-- SECTION: core_logic -->
         ...html...
     """
     parts = re.split(r"<!--\s*SECTION:\s*(\w+)\s*-->", sections_html)
-    # parts is [preamble, name1, body1, name2, body2, ...]
     result = {}
     for i in range(1, len(parts), 2):
         name = parts[i].strip().lower()
@@ -285,29 +429,57 @@ def cmd_render(args):
 
     payload_path = Path(args.payload)
     sections_path = Path(args.sections)
+    diff_path = Path(args.diff)
     if not payload_path.exists():
         eprint(f"Payload file not found: {payload_path}")
         return 1
     if not sections_path.exists():
         eprint(f"Sections file not found: {sections_path}")
         return 1
+    if not diff_path.exists():
+        eprint(f"Diff file not found: {diff_path}")
+        return 1
 
     payload_raw = read_text(payload_path)
     try:
-        payload = json.loads(payload_raw)
+        claude_payload = json.loads(payload_raw)
     except json.JSONDecodeError as e:
         eprint(f"Payload JSON invalid: {e}")
         return 1
     sections = parse_sections(read_text(sections_path))
+    diff_text = read_text(diff_path)
 
-    slug = args.slug or payload.get("pr_slug") or "report"
+    slug = args.slug or claude_payload.get("pr_slug") or "report"
     slug = slugify(slug)
+
+    # Mechanical diff parse — no Claude tokens involved.
+    parsed_files = parse_unified_diff(diff_text)
+    merged_files = merge_files(claude_payload.get("files"), parsed_files)
+    stats = {
+        "files": len(parsed_files),
+        "added": sum(f["adds"] for f in parsed_files),
+        "removed": sum(f["dels"] for f in parsed_files),
+    }
+
+    final_payload = dict(claude_payload)
+    final_payload["files"] = merged_files
+    final_payload["stats"] = stats
+
+    if "shape" in claude_payload and isinstance(claude_payload["shape"], dict):
+        final_payload["shape"] = {
+            "note": claude_payload["shape"].get("note", ""),
+            "files": [
+                {"path": f["path"], "adds": f["adds"], "dels": f["dels"]}
+                for f in parsed_files if not f.get("binary")
+            ],
+        }
+    else:
+        final_payload.pop("shape", None)
 
     # Pick assets
     banner = pick_random(list_assets("banners", ".svg"))
     theme = pick_random(list_assets("themes", ".css"), args.theme)
     chrome = pick_random(list_assets("chrome", ".html"), args.chrome)
-    gauge = pick_random(list_assets("gauges", ".html"))
     boot_lines = read_text(ASSETS_DIR / "flourishes" / "boot-log.txt").splitlines()
     quip_lines = read_text(ASSETS_DIR / "flourishes" / "footer-quips.txt").splitlines()
 
@@ -323,19 +495,17 @@ def cmd_render(args):
         "CHROME_TOP": read_text(chrome),
         "BANNER": read_text(banner),
         "BOOT_LOG": boot_sample,
-        "GAUGE": read_text(gauge),
         "FOOTER": footer_sample,
         "SECTION_SUMMARY": sections.get("summary", ERROR_FRAGMENT),
-        "SECTION_CONTEXT": sections.get("context", ERROR_FRAGMENT),
         "SECTION_CORE_LOGIC": sections.get("core_logic", ERROR_FRAGMENT),
-        "SECTION_WALKTHROUGH": sections.get("walkthrough", ERROR_FRAGMENT),
-        "PAYLOAD_JSON": json.dumps(payload),
+        "PAYLOAD_JSON": json.dumps(final_payload),
         "D3_JS": read_text(TEMPLATE_DIR / "d3.min.js"),
         "D3_SANKEY_JS": read_text(TEMPLATE_DIR / "d3-sankey.min.js"),
         "CHART_FORCE_JS": read_text(ASSETS_DIR / "charts" / "force-graph.js"),
         "CHART_STATE_JS": read_text(ASSETS_DIR / "charts" / "state-machine.js"),
         "CHART_SEQUENCE_JS": read_text(ASSETS_DIR / "charts" / "sequence-flow.js"),
         "CHART_SANKEY_JS": read_text(ASSETS_DIR / "charts" / "sankey.js"),
+        "CHART_TREEMAP_JS": read_text(ASSETS_DIR / "charts" / "treemap.js"),
         "CORE_JS": read_text(TEMPLATE_DIR / "core.js"),
         "HIGHLIGHT_JS": read_text(TEMPLATE_DIR / "highlight.min.js"),
     }
@@ -377,9 +547,10 @@ def build_parser():
                     help="Branch, range (A..B), PR URL, or MR URL. Omit for current branch.")
     pc.set_defaults(func=cmd_collect)
 
-    pr = sub.add_parser("render", help="Assemble the final HTML from payload+sections.")
+    pr = sub.add_parser("render", help="Assemble the final HTML from payload+sections+diff.")
     pr.add_argument("--payload", required=True, help="Path to payload JSON.")
     pr.add_argument("--sections", required=True, help="Path to sections HTML.")
+    pr.add_argument("--diff", required=True, help="Path to the raw diff (from `collect`'s diff_path).")
     pr.add_argument("--slug", default=None, help="Override the output filename slug.")
     pr.add_argument("--theme", default=None, help="Force a specific theme (stem name).")
     pr.add_argument("--chrome", default=None, help="Force a specific OS chrome (stem name).")

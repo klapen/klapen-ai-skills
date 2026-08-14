@@ -22,7 +22,7 @@ window.RickChartSequence = function (container, data) {
     .attr('orient', 'auto')
     .append('path')
     .attr('d', 'M0,-5L10,0L0,5')
-    .attr('fill', 'var(--accent, #39ff14)');
+    .style('fill', 'var(--rk-ok)');
 
   var actors = data.actors || [];
   var cols = actors.length;
@@ -49,14 +49,14 @@ window.RickChartSequence = function (container, data) {
     var ti = actors.indexOf(m.to);
     if (fi < 0 || ti < 0) return;
     var y = yStart + i * 40;
-    var stroke = m.side === 'after' ? 'var(--primary, #00ff88)' :
-                 m.side === 'before' ? '#ff5577' :
-                 'var(--accent, #39ff14)';
+    var stroke = m.side === 'after' ? 'var(--rk-accent)' :
+                 m.side === 'before' ? 'var(--rk-bad)' :
+                 'var(--rk-ok)';
     var dash = m.side === 'before' ? '5 3' : '';
     svg.append('line')
       .attr('x1', colX[fi]).attr('y1', y)
       .attr('x2', colX[ti]).attr('y2', y)
-      .attr('stroke', stroke)
+      .style('stroke', stroke)
       .attr('stroke-opacity', 0.85)
       .attr('stroke-width', 1.5)
       .attr('stroke-dasharray', dash)
@@ -65,7 +65,7 @@ window.RickChartSequence = function (container, data) {
       .attr('x', (colX[fi] + colX[ti]) / 2)
       .attr('y', y - 5)
       .attr('text-anchor', 'middle')
-      .attr('fill', 'var(--text, #d0ffd8)')
+      .style('fill', 'var(--rk-text)')
       .attr('font-size', 11)
       .attr('font-family', 'inherit')
       .text(m.label || '');

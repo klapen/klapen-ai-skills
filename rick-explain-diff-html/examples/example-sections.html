@@ -1,14 +1,11 @@
 <!-- SECTION: summary -->
 <p>L-listen up. This is a <em>demo report</em> &mdash; the subject is a completely fictional PR that adds a Redis-backed cache-through layer to a <code>/widgets</code> endpoint, with an in-memory LRU as a fallback when Redis is unavailable. All the code, quiz answers, and analysis below refer to that made-up feature, not to anything real.</p>
-<p>The point of this file is to show what a real Rick report <em>looks like</em>: chrome, sections, code coloring, interactive diagram, quiz. Everything is placeholder. *urp*</p>
-
-<!-- SECTION: context -->
 <div class="callout">Skip if your IQ passes room temperature.</div>
-<p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. A <em>cache-through</em> layer is a piece of glue that sits between a service and its slow backing store: on a read, it checks the cache first, and only falls through to the database on a miss. Writes update both. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</p>
-<p>Before this fictional PR: the endpoint read straight from the DB every time, with no cache at all. Every request paid a full round-trip. That's fine at 10 QPS. It's not fine at 10K QPS. Ut enim ad minim veniam.</p>
+<p>A <em>cache-through</em> layer is a piece of glue that sits between a service and its slow backing store: on a read, it checks the cache first, and only falls through to the database on a miss. Writes update both. Before this fictional PR, the endpoint read straight from the DB every time, with no cache at all &mdash; fine at 10 QPS, not fine at 10K QPS.</p>
+<p>Reads now check Redis before the database. Cache keys carry a schema version so two deploys can share one Redis without a cutover stampede. If Redis is unreachable the middleware serves from a bounded in-memory LRU instead of raising &mdash; the cache is an optimization, never a source of truth.</p>
 
 <!-- SECTION: core_logic -->
-<p>Three concerns are wired together: a Redis client for the primary cache, an in-memory LRU for the fallback path when Redis is down, and a small resolver that keeps them consistent. The sequence above shows the read path; write paths (not diagrammed) always populate Redis first, then LRU.</p>
+<p>Three concerns are wired together above: a Redis client for the primary cache, an in-memory LRU for the fallback path when Redis is down, and a small resolver that keeps them consistent. The sequence above shows the read path; write paths (not diagrammed) always populate Redis first, then LRU.</p>
 <pre><code class="language-python">class CacheThroughMiddleware:
     def __init__(self, redis: Redis, lru: LRUCache, schema_version: str) -> None:
         self.redis = redis
@@ -29,70 +26,4 @@
             # Corrupt payload: treat as miss and evict aggressively.
             await self.redis.delete(key)
             return None</code></pre>
-<p>The <code>schema_version</code> suffix in the key format is doing real work: it lets old and new schema versions coexist during a rolling deploy without a cache-warming stampede at cutover. Consequuntur magni dolores eos qui ratione voluptatem sequi nesciunt.</p>
-
-<!-- SECTION: walkthrough -->
-<p>File by file. The interesting toggles are the middleware's <code>get()</code> before and after, and the tests that grew alongside it.</p>
-
-<p><strong>1. <code>services/widgets/cache.py</code></strong> (NEW). A single class with <code>get()</code>, <code>set()</code>, <code>invalidate()</code>. Depends on injected <code>Redis</code> and <code>LRUCache</code> instances; no globals.</p>
-
-<div data-toggle>
-  <div class="toggle-pane" data-label="Before"><pre><code class="language-python"># File did not exist. Every read went straight to the repository.</code></pre></div>
-  <div class="toggle-pane" data-label="After"><pre><code class="language-python">async def get(self, widget_id: str) -> Widget | None:
-    key = self._key(widget_id)
-    try:
-        raw = await self.redis.get(key)
-    except RedisConnectionError:
-        return self.lru.get(key)  # fallback: fail-open, latency-only degradation
-    if raw is None:
-        return None
-    try:
-        return Widget.model_validate_json(raw)
-    except ValidationError:
-        await self.redis.delete(key)
-        return None</code></pre></div>
-</div>
-
-<p><strong>2. <code>services/widgets/handlers.py</code></strong>. Existing handler now consults the cache before hitting the repository.</p>
-
-<div data-toggle>
-  <div class="toggle-pane" data-label="Before"><pre><code class="language-python">@router.get("/widgets/{widget_id}")
-async def get_widget(widget_id: str) -> Widget:
-    widget = await repository.get(widget_id)
-    if widget is None:
-        raise HTTPException(404)
-    return widget</code></pre></div>
-  <div class="toggle-pane" data-label="After"><pre><code class="language-python">@router.get("/widgets/{widget_id}")
-async def get_widget(
-    widget_id: str,
-    cache: CacheThroughMiddleware = Depends(get_cache),
-) -> Widget:
-    cached = await cache.get(widget_id)
-    if cached is not None:
-        return cached
-    widget = await repository.get(widget_id)
-    if widget is None:
-        raise HTTPException(404)
-    await cache.set(widget_id, widget, ttl=300)
-    return widget</code></pre></div>
-</div>
-
-<p><strong>3. <code>config/settings.py</code></strong>. Three new pydantic-settings fields for cache TTL, Redis URL, and LRU max size.</p>
-
-<pre><code class="language-python">class CacheSettings(BaseSettings):
-    redis_url: str = "redis://localhost:6379/0"
-    ttl_seconds: int = 300
-    lru_max_size: int = 1024
-    schema_version: str = "v1"
-
-    model_config = SettingsConfigDict(env_prefix="WIDGETS_CACHE_")</code></pre>
-
-<p><strong>4. Tests</strong>. Four new unit tests plus an integration test:</p>
-<ul>
-  <li><code>test_cache_hit_returns_without_db</code> &mdash; asserts <code>repository.get</code> is <em>never</em> called on hit.</li>
-  <li><code>test_cache_miss_populates_ttl_from_config</code> &mdash; asserts the SET call carries the correct TTL kwarg (see quiz Q4).</li>
-  <li><code>test_redis_down_falls_through_to_lru</code> &mdash; monkey-patches Redis to raise <code>RedisConnectionError</code> and asserts the LRU is consulted.</li>
-  <li><code>test_corrupt_cache_evicts_and_returns_none</code> &mdash; writes a malformed JSON blob into Redis and asserts the middleware deletes the key and returns <code>None</code>.</li>
-</ul>
-
-<p>Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.</p>
+<p>The <code>schema_version</code> suffix in the key format is doing real work: it lets old and new schema versions coexist during a rolling deploy without a cache-warming stampede at cutover. See the Files section below for the file-by-file annotated diff, including the fail-open branch and the duplicated TTL Rick keeps flagging.</p>

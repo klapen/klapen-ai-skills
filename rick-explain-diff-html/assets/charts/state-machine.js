@@ -22,7 +22,7 @@ window.RickChartState = function (container, data) {
     .attr('orient', 'auto')
     .append('path')
     .attr('d', 'M0,-5L10,0L0,5')
-    .attr('fill', 'var(--accent, #39ff14)');
+    .style('fill', 'var(--rk-ok)');
 
   function drawPane(pane, offsetX, title) {
     if (!pane) return;
@@ -30,7 +30,7 @@ window.RickChartState = function (container, data) {
     g.append('text')
       .attr('x', paneW / 2).attr('y', 20)
       .attr('text-anchor', 'middle')
-      .attr('fill', 'var(--primary, #00ff88)')
+      .style('fill', 'var(--rk-accent)')
       .attr('font-size', 13)
       .attr('font-family', 'inherit')
       .attr('letter-spacing', 2)
@@ -65,7 +65,7 @@ window.RickChartState = function (container, data) {
           .attr('x', (s.x + e.x) / 2)
           .attr('y', (s.y + e.y) / 2 - 4)
           .attr('text-anchor', 'middle')
-          .attr('fill', 'var(--text, #d0ffd8)')
+          .style('fill', 'var(--rk-text)')
           .attr('font-size', 10)
           .attr('font-family', 'inherit')
           .text(t.label);

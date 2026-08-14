@@ -1,12 +1,13 @@
-/* nord: arctic, muted-blue palette. High readability, cool tones. */
+/* nord: cool arctic palette, low-saturation blues and frost tones. */
 :root {
-  --bg: #2e3440;
-  --bg-elev: #3b4252;
-  --bg-deep: #242933;
-  --text: #d8dee9;
-  --text-dim: #7d8494;
-  --primary: #88c0d0;       /* frost */
-  --accent: #a3be8c;        /* aurora green */
-  --danger: #bf616a;        /* aurora red */
-  --glow: rgba(136, 192, 208, 0.35);
+  --rk-bg: #2e3440;
+  --rk-deep: #242933;
+  --rk-surface: #3b4252;
+  --rk-text: #eceff4;
+  --rk-dim: #8fa1b3;
+  --rk-accent: #ebcb8b;
+  --rk-ok: #a3be8c;
+  --rk-warn: #d08770;
+  --rk-bad: #bf616a;
+  --rk-info: #88c0d0;
 }

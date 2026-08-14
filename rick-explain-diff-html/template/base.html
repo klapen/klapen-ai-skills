@@ -12,94 +12,135 @@
 </style>
 </head>
 <body>
-<div class="scanlines"></div>
+<div class="scanlines" id="rk-scanlines"></div>
 
-<!-- ===== OS CHROME (top bar / window frame) ===== -->
-{{CHROME_TOP}}
+<div class="rk-topbar">
+  <!-- ===== OS CHROME (sticky header) ===== -->
+  {{CHROME_TOP}}
 
-<main class="rickos-window">
-
-  <!-- ===== COMPACT HERO STRIP (SVG banner + boot log side-by-side) ===== -->
-  <section class="hero-strip" aria-label="RickOS boot preamble">
-    <div class="rick-banner">{{BANNER}}</div>
-    <div class="hero-right">
-      <pre id="boot-log-lines" class="boot-log-inline">{{BOOT_LOG}}</pre>
-      <div class="banner-tagline">RickOS v137.0 &mdash; Dimension C-137 // *urp* Report Compiled</div>
+  <!-- ===== HERO STRIP (banner + boot log, collapsible) ===== -->
+  <div class="rk-hero" id="rk-hero">
+    <div class="rk-hero__full">
+      <div class="rk-hero__banner">{{BANNER}}</div>
+      <div class="rk-hero__boot" id="rk-boot-log" hidden>{{BOOT_LOG}}</div>
+      <button type="button" class="rk-hero__collapse" id="rk-hero-collapse-btn" title="Hide the decorative strip">hide &#9650;</button>
     </div>
-  </section>
-
-  <!-- ===== SECTION 1: System Diagnostics ===== -->
-  <section class="report-section" id="s-diagnostics">
-    <header class="section-header">
-      <span class="section-number">01</span>
-      <h2>System Diagnostics &mdash; Why I'm Forced To Fix Your Garbage</h2>
-    </header>
-    <div class="section-body">
-      {{SECTION_SUMMARY}}
+    <div class="rk-hero__tail">
+      <span class="rk-hero__tail-dot">&#9642;</span>
+      <span class="rk-hero__tail-text" id="rk-hero-tail-text"></span>
+      <button type="button" class="rk-hero__tail-btn" id="rk-hero-expand-btn">show banner &#9660;</button>
     </div>
-    <div class="gauge-container">
-      {{GAUGE}}
-      <div class="gauge-label" id="gauge-label">--</div>
-    </div>
-  </section>
+  </div>
+</div>
 
-  <!-- ===== SECTION 2: Memory Dump / Context ===== -->
-  <section class="report-section" id="s-context">
-    <header class="section-header">
-      <span class="section-number">02</span>
-      <h2>Memory Dump &mdash; Context for Primates</h2>
-    </header>
-    <div class="section-body">
-      {{SECTION_CONTEXT}}
-    </div>
-  </section>
+<main class="rk-main">
 
-  <!-- ===== SECTION 3: Core Logic + Interactive Diagram ===== -->
-  <section class="report-section" id="s-core">
-    <header class="section-header">
-      <span class="section-number">03</span>
-      <h2>Core Logic &mdash; The Actual *urp* Change</h2>
-    </header>
-    <div class="chart-wrapper">
-      <div id="chart-canvas" aria-label="Interactive diagram"></div>
-      <div class="chart-controls">
-        <button type="button" data-chart-action="reset" class="ctrl-btn">Reset View</button>
+  <!-- ===== SECTION: Summary ===== -->
+  <section class="rk-section" id="s-summary" data-screen-label="Summary">
+    <div class="rk-summary__top">
+      <div style="min-width:280px; flex:1 1 420px;">
+        <div class="rk-summary__id" id="rk-summary-id">&#8203;</div>
+        <h1 class="rk-summary__title" id="rk-summary-title"></h1>
+        <div class="rk-summary__tags" id="rk-summary-tags"></div>
+      </div>
+      <div class="rk-stats" id="rk-stats"></div>
+    </div>
+    <div class="rk-summary__bottom">
+      <div class="rk-summary__prose rk-section-body">
+        {{SECTION_SUMMARY}}
+      </div>
+      <div class="rk-summary__lookhere-col">
+        <div class="rk-summary__label">Look here first</div>
+        <div class="rk-lookhere" id="rk-lookhere"></div>
       </div>
     </div>
-    <div class="section-body">
+  </section>
+
+  <!-- ===== SECTION: Risk breakdown ===== -->
+  <section class="rk-section" id="s-risk" data-screen-label="Risk">
+    <div class="rk-section__head">
+      <span class="rk-section__num">01</span>
+      <h2 id="rk-risk-heading">Risk breakdown</h2>
+    </div>
+    <div class="rk-risk-list" id="rk-risk-list"></div>
+  </section>
+
+  <!-- ===== SECTION: Shape of the diff (optional treemap) ===== -->
+  <section class="rk-section" id="s-shape" data-screen-label="Shape of the diff" hidden>
+    <div class="rk-section__head">
+      <span class="rk-section__num">02</span>
+      <h2>Shape of the diff &mdash; <span class="rk-section__sub" id="rk-shape-sub"></span></h2>
+    </div>
+    <div class="rk-shape-grid">
+      <div class="rk-treemap" id="rk-treemap-canvas"></div>
+      <div>
+        <p style="margin:0 0 12px; font-size:13.5px; line-height:1.6; color:var(--rk-dim);">Area = changed lines. Colour = added vs. removed. Click a tile to jump to that file's diff.</p>
+        <div class="rk-shape-legend">
+          <div><span class="swatch is-ok"></span>all additions</div>
+          <div><span class="swatch is-warn"></span>mixed edit</div>
+          <div><span class="swatch is-bad"></span>mostly removed</div>
+        </div>
+        <div class="rk-shape-note" id="rk-shape-note"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== SECTION: Flow (interactive diagram) ===== -->
+  <section class="rk-section" id="s-flow" data-screen-label="Flow">
+    <div class="rk-section__head">
+      <span class="rk-section__num">03</span>
+      <h2>Flow &mdash; <span class="rk-section__sub">the shift this diff makes</span></h2>
+    </div>
+    <div class="rk-diagram" id="chart-canvas" aria-label="Interactive diagram"></div>
+    <div class="rk-section-body" style="margin-top:16px;">
       {{SECTION_CORE_LOGIC}}
     </div>
   </section>
 
-  <!-- ===== SECTION 4: Code Breakdown / Walkthrough ===== -->
-  <section class="report-section" id="s-walkthrough">
-    <header class="section-header">
-      <span class="section-number">04</span>
-      <h2>Subsystem Diff &mdash; Line-by-Line for the Slow Kids</h2>
-    </header>
-    <div class="section-body walkthrough-body">
-      {{SECTION_WALKTHROUGH}}
+  <!-- ===== SECTION: Files (annotated diff) ===== -->
+  <section class="rk-section" id="s-files" data-screen-label="Files">
+    <div class="rk-section__head">
+      <span class="rk-section__num">04</span>
+      <h2>File by file &mdash; <span class="rk-section__sub">annotated diff</span></h2>
+      <button type="button" class="rk-files__toggle-all" id="rk-files-toggle-all">Expand all</button>
     </div>
+    <div class="rk-files" id="rk-files"></div>
   </section>
 
-  <!-- ===== SECTION 5: IQ Assessment Quiz ===== -->
-  <section class="report-section" id="s-quiz">
-    <header class="section-header">
-      <span class="section-number">05</span>
-      <h2>Rick's IQ Assessment &mdash; Prove You Understood</h2>
-    </header>
+  <!-- ===== SECTION: Quiz ===== -->
+  <section class="rk-section" id="s-quiz" data-screen-label="Quiz">
+    <div class="rk-section__head">
+      <span class="rk-section__num">05</span>
+      <h2>Comprehension check <span class="rk-section__sub" style="font-size:15px;">&mdash; optional, 4 questions</span></h2>
+    </div>
     <div id="quiz-container" class="quiz-container"></div>
     <div id="quiz-result" class="quiz-result" hidden></div>
   </section>
 
-  <!-- ===== FOOTER ===== -->
-  <footer class="rickos-footer">
-    <div class="footer-quips">{{FOOTER}}</div>
-    <div class="footer-meta">
-      <span>RickOS v137.0</span>
-      <span>Dimension C-137</span>
-      <span>Compiled by an entity smarter than you.</span>
+  <!-- ===== SECTION: Verdict ===== -->
+  <section class="rk-section rk-section--verdict" id="s-verdict" data-screen-label="Verdict">
+    <div class="rk-verdict-grid">
+      <div>
+        <div class="rk-summary__label">Open concerns from this report</div>
+        <div class="rk-concerns" id="rk-concerns"></div>
+      </div>
+      <div>
+        <div class="rk-summary__label">Your call</div>
+        <div class="rk-verdict-buttons">
+          <button type="button" class="rk-verdict-btn is-approve" data-verdict="approve">Approve</button>
+          <button type="button" class="rk-verdict-btn is-changes" data-verdict="changes">Request changes</button>
+          <button type="button" class="rk-verdict-btn is-comment" data-verdict="comment">Comment only</button>
+        </div>
+        <div class="rk-verdict-line" id="rk-verdict-line" hidden></div>
+      </div>
     </div>
+  </section>
+
+  <!-- ===== FOOTER ===== -->
+  <footer class="rk-footer">
+    <span>RickOS v137.0 &middot; Dimension C-137</span>
+    <span id="rk-footer-meta"></span>
+    <span>{{FOOTER}}</span>
   </footer>
 
 </main>
@@ -130,13 +171,16 @@
 <script>
 {{CHART_SANKEY_JS}}
 </script>
+<script>
+{{CHART_TREEMAP_JS}}
+</script>
 
 <!-- ===== SYNTAX HIGHLIGHTING (highlight.js) ===== -->
 <script>
 {{HIGHLIGHT_JS}}
 </script>
 
-<!-- ===== CORE JS (quiz, gauge, toggles, chart bootstrap) ===== -->
+<!-- ===== CORE JS (renders payload into every section, wires interactions) ===== -->
 <script>
 {{CORE_JS}}
 </script>

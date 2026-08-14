@@ -1,12 +1,13 @@
-/* catppuccin-mocha: soft pastels on warm dark, very readable. */
+/* catppuccin-mocha: soft pastel-on-dark, gentle contrast. */
 :root {
-  --bg: #1e1e2e;
-  --bg-elev: #313244;
-  --bg-deep: #181825;
-  --text: #cdd6f4;
-  --text-dim: #7f849c;
-  --primary: #a6e3a1;       /* green */
-  --accent: #f9e2af;        /* yellow */
-  --danger: #f38ba8;        /* pink-red */
-  --glow: rgba(166, 227, 161, 0.35);
+  --rk-bg: #1e1e2e;
+  --rk-deep: #181825;
+  --rk-surface: #313244;
+  --rk-text: #cdd6f4;
+  --rk-dim: #a6adc8;
+  --rk-accent: #f9e2af;
+  --rk-ok: #a6e3a1;
+  --rk-warn: #fab387;
+  --rk-bad: #f38ba8;
+  --rk-info: #89b4fa;
 }

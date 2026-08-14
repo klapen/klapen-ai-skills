@@ -1,12 +1,13 @@
-/* tokyo-night: the modern popular blue-purple night theme. */
+/* tokyo-night: neon-on-navy, subdued but vivid accents. */
 :root {
-  --bg: #1a1b26;
-  --bg-elev: #24283b;
-  --bg-deep: #16161e;
-  --text: #a9b1d6;
-  --text-dim: #565f89;
-  --primary: #7aa2f7;       /* blue */
-  --accent: #9ece6a;        /* green */
-  --danger: #f7768e;        /* red-pink */
-  --glow: rgba(122, 162, 247, 0.35);
+  --rk-bg: #1a1b26;
+  --rk-deep: #16161e;
+  --rk-surface: #24283b;
+  --rk-text: #c0caf5;
+  --rk-dim: #8189af;
+  --rk-accent: #e0af68;
+  --rk-ok: #9ece6a;
+  --rk-warn: #ff9e64;
+  --rk-bad: #f7768e;
+  --rk-info: #7dcfff;
 }

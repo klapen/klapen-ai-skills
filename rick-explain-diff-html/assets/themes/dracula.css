@@ -1,12 +1,13 @@
-/* dracula: the well-known dark theme. Green + pink accents. */
+/* dracula: high-contrast purples/pinks on near-black. */
 :root {
-  --bg: #282a36;
-  --bg-elev: #343746;
-  --bg-deep: #1e1f29;
-  --text: #f8f8f2;
-  --text-dim: #9a9caa;
-  --primary: #50fa7b;       /* green */
-  --accent: #f1fa8c;        /* yellow */
-  --danger: #ff5555;        /* red */
-  --glow: rgba(80, 250, 123, 0.35);
+  --rk-bg: #282a36;
+  --rk-deep: #21222c;
+  --rk-surface: #343746;
+  --rk-text: #f8f8f2;
+  --rk-dim: #a2a5b8;
+  --rk-accent: #f1fa8c;
+  --rk-ok: #50fa7b;
+  --rk-warn: #ffb86c;
+  --rk-bad: #ff5555;
+  --rk-info: #8be9fd;
 }
