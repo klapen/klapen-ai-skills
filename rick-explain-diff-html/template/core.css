@@ -430,9 +430,10 @@ body::before {
 
 #chart-canvas svg {
   width: 100%;
-  height: 100%;
+  height: auto;       /* let the viewBox aspect ratio drive computed height */
   min-height: 340px;
   display: block;
+  overflow: visible;  /* tolerate a couple pixels of labels near the edge */
 }
 
 .chart-controls {

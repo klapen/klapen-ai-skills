@@ -106,9 +106,10 @@ Payload contract:
   - `sequence` → `{ actors: [string], messages: [{from, to, label, side?: "before"|"after"}] }`
   - `sankey` → `{ nodes: [{name}], flows: [{source, target, value, kind?: "before"|"after"}] }`
     (source/target are integer indices into `nodes`.)
-- `quiz` — array of exactly 5 items, each `{question, options: [4 strings], correct: 0-3, feedback: [4 strings]}`.
+- `quiz` — array of exactly **4** items, each `{question, options: [4 strings], correct: 0-3, feedback: [4 strings]}`.
   - **Option strings must NOT include letter prefixes** ("A. ", "B) ", etc.). The template's JS prepends `A.`, `B.`, `C.`, `D.` automatically. If you accidentally include a leading letter+punct, it is stripped defensively — but the canonical form is prefix-free.
   - **Distractors must be plausible.** All four options should sound like real engineering choices — approaches a competent developer might have taken. No jokes, no absurdist wrong answers, no options that are obviously silly. The wrong answers should be technically-flavored, similar-length, similar-tone. Test whether the reader actually understood the *specific* design choice this MR made, not whether they can spot the joke. Rick's snark goes in the *feedback strings*, not in the options themselves. Aim for questions where a distracted senior engineer could plausibly pick any of the four — only careful reading of the diff surfaces the right answer.
+  - **Distribute the correct-answer positions evenly.** With 4 questions and 4 option slots, the `correct` index MUST hit each of A/B/C/D exactly once across the quiz — one correct at position 0, one at 1, one at 2, one at 3 (any permutation). This makes it impossible to game the quiz by pattern-matching position. When you reorder options to place the correct answer at the target slot, reorder the `feedback` array in lockstep (`feedback[i]` pairs with `options[i]`) and update `correct` accordingly.
 
 Pick `chart.type` based on what best explains the diff:
 - Dependency shifts between modules → `force`
@@ -148,7 +149,10 @@ Prose guidance:
   before the broad background, then a narrower explanation of the
   broken/before state.
 - **core_logic** — Narrative that pairs with the SVG diagram. Explain the
-  core shift using toy data and stark analogies.
+  core shift using toy data and stark analogies. The diagram is rendered
+  **above** this prose fragment in the final HTML, so if you reference it
+  positionally use "above" (e.g., "Look at the diagram above — that's the
+  post-MR flow"), never "below".
 - **walkthrough** — Grouped code-change walkthrough. Wrap comparable
   before/after snippets in `<div data-toggle>` with two
   `<div class="toggle-pane" data-label="Before|After">` children
