@@ -517,7 +517,7 @@ def cmd_render(args):
     boot_lines = read_text(ASSETS_DIR / "flourishes" / "boot-log.txt").splitlines()
     quip_lines = read_text(ASSETS_DIR / "flourishes" / "footer-quips.txt").splitlines()
 
-    boot_sample = "\n".join(random.sample([l for l in boot_lines if l.strip()], k=min(5, len(boot_lines))))
+    boot_sample = "\n".join(random.sample([l for l in boot_lines if l.strip()], k=min(3, len(boot_lines))))
     footer_sample = "  //  ".join(random.sample([l for l in quip_lines if l.strip()], k=min(2, len(quip_lines))))
 
     # Assemble template

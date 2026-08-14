@@ -263,7 +263,7 @@ body::before {
   border-left: 1px solid rgba(255,255,255,0.09);
   padding-left: 18px;
 }
-.rk-hero__boot div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; animation: rk-bootin 0.4s ease-out both; }
+.rk-hero__boot div { flex: 0 0 auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; animation: rk-bootin 0.4s ease-out both; }
 .rk-hero__boot .is-warn { color: var(--rk-warn); }
 .rk-hero__collapse {
   align-self: center;
