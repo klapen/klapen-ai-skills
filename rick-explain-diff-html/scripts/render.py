@@ -524,6 +524,7 @@ def cmd_render(args):
     tpl = read_text(TEMPLATE_DIR / "base.html")
     subs = {
         "PR_SLUG": slug,
+        "LANG": args.lang,
         "THEME_CSS": read_text(theme),
         "CORE_CSS": read_text(TEMPLATE_DIR / "core.css"),
         "CHROME_TOP": read_text(chrome),
@@ -589,6 +590,8 @@ def build_parser():
     pr.add_argument("--theme", default=None, help="Force a specific theme (stem name).")
     pr.add_argument("--chrome", default=None, help="Force a specific OS chrome (stem name).")
     pr.add_argument("--seed", type=int, default=None, help="Reproducible RNG seed.")
+    pr.add_argument("--lang", default="en", choices=["en", "es", "pt"],
+                    help="Content language baked into <html lang=...>. Payload prose must be authored in this language. Defaults to English.")
     pr.add_argument("--no-open", action="store_true", help="Skip auto-opening the browser.")
     pr.set_defaults(func=cmd_render)
 

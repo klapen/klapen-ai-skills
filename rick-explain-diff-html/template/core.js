@@ -101,15 +101,22 @@
         if (LANGS.indexOf(q) >= 0) return q;
       }
     } catch (e) {}
-    // 2. saved preference from a previous session
+    // 2. saved preference from a previous session (only set when user
+    //    explicitly clicked the pill — auto-detected values are never
+    //    persisted, so a share-a-report-in-PT default isn't overridden
+    //    by a stale localStorage from an unrelated report)
     try {
       var saved = localStorage.getItem('rk.lang');
       if (saved && LANGS.indexOf(saved) >= 0) return saved;
     } catch (e) {}
-    // 3. browser locale
+    // 3. `<html lang="X">` baked in at render time (renderer's --lang flag)
+    var baked = (document.documentElement.lang || '').toLowerCase().slice(0, 2);
+    if (LANGS.indexOf(baked) >= 0) return baked;
+    // 4. browser locale
     var nav = (navigator.language || navigator.userLanguage || 'en').toLowerCase();
     if (nav.indexOf('es') === 0) return 'es';
     if (nav.indexOf('pt') === 0) return 'pt';
+    // 5. fallback
     return 'en';
   }
 
@@ -125,10 +132,16 @@
     return str;
   }
 
-  function applyLang(lang) {
+  function applyLang(lang, persist) {
     if (LANGS.indexOf(lang) < 0) lang = 'en';
     CURRENT_LANG = lang;
-    try { localStorage.setItem('rk.lang', lang); } catch (e) {}
+    // Only persist to localStorage when the caller flagged this as an
+    // EXPLICIT user preference (pill click). Auto-detection results
+    // never write, so a rendered-with-lang report keeps its default
+    // for future readers.
+    if (persist) {
+      try { localStorage.setItem('rk.lang', lang); } catch (e) {}
+    }
     document.documentElement.lang = lang;
     // Static text nodes marked with data-i18n
     $$('[data-i18n]').forEach(function (node) {
@@ -167,7 +180,7 @@
       b.type = 'button';
       b.textContent = l.toUpperCase();
       b.setAttribute('data-lang', l);
-      b.addEventListener('click', function () { applyLang(l); });
+      b.addEventListener('click', function () { applyLang(l, true); });
       pill.appendChild(b);
     });
     document.body.appendChild(pill);

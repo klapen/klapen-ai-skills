@@ -3,8 +3,10 @@ name: rick-explain-diff-html
 description: >
   Use when the user asks for a rich, interactive, single-file HTML explanation
   of a code change, diff, branch, or PR/MR — styled as "RickOS v137.0" with
-  Rick Sanchez narration. Trigger phrases include: `/rick-explain-diff-html`,
-  "Rick explain this branch", "Rick's take on <URL>", "Rick, look at this diff".
+  Rick Sanchez narration. Trigger phrases include: `/rick-explain-diff-html
+  [<target>] [<lang>]`, "Rick explain this branch", "Rick's take on <URL>",
+  "Rick, look at this diff". Optional language argument (`en` | `es` | `pt`)
+  makes Rick write the entire report in that language; defaults to English.
 metadata:
   version: 0.2.0
   author: klapen
@@ -250,12 +252,47 @@ Optional flags:
   `rickos-v137`, `portal-terminal`, `council-hud`, `space-cruiser-bridge`.
 - `--seed <int>` — reproducible RNG seed (controls banner/theme/chrome pick
   and boot-log/footer-quip sampling).
+- `--lang <en|es|pt>` — content language. Bakes `<html lang="…">` and
+  becomes the report's default UI language when the reader hasn't set a
+  preference. Defaults to `en`. **You must author the payload and section
+  prose in this language when it isn't English** — see the Language
+  section below.
 - `--no-open` — skip auto-opening the browser.
 
 The script writes to `/tmp/YYYY-MM-DD-explanation-<slug>.html` and opens it
 in the user's default browser (macOS: `open`, Linux: `xdg-open`,
 Windows: `os.startfile`). The path is printed on stdout so it's visible
 even if auto-open fails.
+
+## Language
+
+If the trigger includes a language code (`/rick-explain-diff-html <target> pt`,
+"Rick, in Portuguese, explain this MR", etc.), write everything Rick says
+in that language:
+
+- **Payload prose:** `pr_meta.title` (keep the original — it's PR metadata),
+  `risk.items[].name`/`note`, `shape.note`, all `chart.data` labels
+  (arrows/actors are the reader's language), every `files[].note` and
+  `.callout`, `look_here[]` `label`/`note`, `quiz[].question`/`options`/
+  `feedback`, `concerns[].text`.
+- **Section fragments:** both `summary` and `core_logic` in the target
+  language.
+
+Rick's voice adapts: keep the arrogant-perfectionist tone, the burps
+(`*urp*`) and stutters (`L-listen up.`) work in any language.
+Keep code identifiers, function names, and Rick-canon references
+(Cronenberg, Mr. Meeseeks, etc.) in the original form — you're
+translating narration, not proper nouns.
+
+Static UI (section headers, buttons, "Rick flags this ·", chrome brand
+strings, the language pill itself) is handled by `core.js` at runtime.
+Don't spend tokens translating those — they auto-switch when the reader
+clicks EN/ES/PT.
+
+Then call `render.py render` with `--lang es|pt` so `<html lang>` is set
+correctly and the report opens in that language by default.
+
+If no language is specified, default to English for everything.
 
 ## Report structure
 

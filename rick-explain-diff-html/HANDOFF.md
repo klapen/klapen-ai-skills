@@ -57,13 +57,27 @@ python3 rick-explain-diff-html/scripts/render.py render \
     --payload  /tmp/rick-payload-<slug>.json \
     --sections /tmp/rick-sections-<slug>.html \
     --diff     /tmp/rick-diff-<slug>.diff \
-    [--theme <name>] [--chrome <name>] [--seed <int>] [--no-open]
+    [--theme <name>] [--chrome <name>] [--seed <int>] [--lang en|es|pt] [--no-open]
 ```
 
 Output: `/tmp/YYYY-MM-DD-explanation-<slug>.html`.
 
-**Trigger phrases:** `/rick-explain-diff-html [target]` or natural language
-("Rick explain this branch", "Rick's take on <URL>").
+**Trigger phrases:** `/rick-explain-diff-html [target] [lang]` or natural
+language ("Rick explain this branch", "Rick's take on <URL>",
+"Rick, en español, explica este MR"). The optional `lang` is `en`, `es`,
+or `pt` — defaults to English.
+
+**Language handling.** When a non-English lang is requested, write the
+entire payload prose in that language: risk item names/notes, shape
+note, chart labels, file notes and callouts, look_here items, quiz
+Q/options/feedback, concerns, plus both section fragments (`summary`,
+`core_logic`). Keep code identifiers, function names, and Rick-canon
+references (Cronenberg, Mr. Meeseeks) untranslated. Rick's voice —
+arrogant, condescending, stutters, `*urp*` — carries over into ES/PT
+just fine. Then pass `--lang <code>` to `render.py render` so
+`<html lang>` matches. Static UI (section headers, buttons, chrome
+brand strings, "Rick flags this ·") auto-switches at runtime and does
+NOT need to be in the payload.
 
 ## Payload contract (Claude's output)
 
