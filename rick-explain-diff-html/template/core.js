@@ -67,7 +67,26 @@
                               pt: '… mais {n} linhas omitidas — veja o diff completo no seu repo.' },
     'quiz.rank':            { en: 'RANK',               es: 'RANGO',              pt: 'RANK' },
     'quiz.score':           { en: 'Score',              es: 'Puntuación',         pt: 'Pontuação' },
-    'lang.pill_title':      { en: 'Language',           es: 'Idioma',             pt: 'Idioma' }
+    'lang.pill_title':      { en: 'Language',           es: 'Idioma',             pt: 'Idioma' },
+    // Fun Rick-canon brand strings that DO get localised — each language
+    // gets its own "canonical" home dimension for playful effect.
+    'brand.dimension':      { en: 'Dimension C-137',    es: 'Dimensión ES-137',   pt: 'Dimensão PT-137' },
+    'brand.council':        { en: 'council of ricks',   es: 'consejo de ricks',   pt: 'conselho de ricks' },
+    'brand.tribunal':       { en: 'tribunal in session', es: 'tribunal en sesión', pt: 'tribunal em sessão' },
+    'brand.portal_gun_os':  { en: 'portal gun os',      es: 'sistema pistola portal', pt: 'sistema arma portal' },
+    'brand.cruiser_deck':   { en: 'cruiser · deck 4',   es: 'crucero · cubierta 4', pt: 'cruzador · convés 4' },
+    'brand.fluid':          { en: 'fluid',              es: 'fluido',             pt: 'fluido' },
+    'brand.portal_fluid':   { en: 'Portal fluid',       es: 'Fluido portal',      pt: 'Fluido portal' },
+    'cruiser.readout':      { en: 'bridge readout',     es: 'lectura del puente', pt: 'leitura da ponte' },
+    'cruiser.hull':         { en: 'hull nominal',       es: 'casco nominal',      pt: 'casco nominal' },
+    'cruiser.shields':      { en: 'shields 74%',        es: 'escudos 74%',        pt: 'escudos 74%' },
+    'cruiser.crew':         { en: 'crew 1 (asleep)',    es: 'tripulación 1 (dormida)', pt: 'tripulação 1 (dormindo)' },
+    'cruiser.eta':          { en: 'eta review · 12 min', es: 'eta revisión · 12 min', pt: 'eta revisão · 12 min' },
+    'chrome.hud_title':     { en: 'Toggle HUD overlay', es: 'Alternar HUD',       pt: 'Alternar HUD' },
+    'chrome.crt_title':     { en: 'Toggle CRT effects', es: 'Alternar efectos CRT', pt: 'Alternar efeitos CRT' },
+    'chrome.goop_title':    { en: 'Toggle portal goop overlay', es: 'Alternar goop portal', pt: 'Alternar goop portal' },
+    'chrome.viewscreen_title': { en: 'Toggle viewscreen effects', es: 'Alternar visor', pt: 'Alternar visor' },
+    'chrome.panic_title':   { en: 'Do not press this', es: 'No lo presiones',    pt: 'Não aperte isso' }
   };
 
   var CURRENT_LANG = 'en';
