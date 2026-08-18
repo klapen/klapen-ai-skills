@@ -600,6 +600,39 @@ body::before {
 .rk-verdict-btn.is-active.is-comment { background: var(--rk-info); color: var(--rk-deep); }
 .rk-verdict-line { margin-top: 12px; padding: 10px 12px; background: var(--rk-deep); border-left: 2px solid var(--rk-ok); font-size: 12.5px; line-height: 1.55; color: var(--rk-ok); }
 
+/* ---- Language toggle (fixed pill) ---- */
+.rk-lang {
+  position: fixed;
+  bottom: 14px;
+  right: 14px;
+  z-index: 200;
+  display: inline-flex;
+  padding: 3px;
+  background: var(--rk-deep);
+  border: 1px solid rgba(255,255,255,0.14);
+  border-radius: 999px;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.35);
+  font-family: inherit;
+}
+.rk-lang button {
+  background: transparent;
+  border: 0;
+  color: var(--rk-dim);
+  font: inherit;
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  padding: 4px 10px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 120ms, color 120ms;
+}
+.rk-lang button:hover { color: var(--rk-text); }
+.rk-lang button.is-active {
+  background: var(--rk-accent);
+  color: var(--rk-deep);
+  font-weight: 700;
+}
+
 /* ---- Footer ---- */
 .rk-footer {
   display: flex; flex-wrap: wrap; gap: 8px 20px; justify-content: space-between;

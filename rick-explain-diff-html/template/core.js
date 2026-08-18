@@ -25,6 +25,135 @@
     catch (e) { console.error('RickOS: payload JSON parse failed', e); return null; }
   }
 
+  // ------------------------- i18n (static UI only) -------------------------
+  // Payload prose stays in the language it was authored in. The dictionary
+  // below covers only chrome / labels / dynamic UI strings. Rick-canon
+  // references (rank names, "RickOS", "Dimension C-137") stay in English.
+  var LANGS = ['en', 'es', 'pt'];
+  var I18N = {
+    'nav.summary':          { en: 'Summary',            es: 'Resumen',            pt: 'Resumo' },
+    'nav.risk':             { en: 'Risk',               es: 'Riesgo',             pt: 'Risco' },
+    'nav.shape':            { en: 'Shape',              es: 'Forma',              pt: 'Forma' },
+    'nav.flow':             { en: 'Flow',               es: 'Flujo',              pt: 'Fluxo' },
+    'nav.files':            { en: 'Files',              es: 'Archivos',           pt: 'Arquivos' },
+    'nav.quiz':             { en: 'Quiz',               es: 'Cuestionario',       pt: 'Questionário' },
+    'section.risk':         { en: 'Risk breakdown',     es: 'Desglose de riesgo', pt: 'Análise de risco' },
+    'section.shape':        { en: 'Shape of the diff',  es: 'Forma del diff',     pt: 'Forma do diff' },
+    'section.flow':         { en: 'Flow',               es: 'Flujo',              pt: 'Fluxo' },
+    'section.flow_sub':     { en: 'the shift this diff makes',  es: 'el cambio que hace este diff',  pt: 'a mudança que este diff faz' },
+    'section.files':        { en: 'File by file',       es: 'Archivo por archivo', pt: 'Arquivo por arquivo' },
+    'section.files_sub':    { en: 'annotated diff',     es: 'diff anotado',       pt: 'diff anotado' },
+    'section.quiz':         { en: 'Comprehension check', es: 'Verificación de comprensión', pt: 'Verificação de compreensão' },
+    'section.quiz_sub':     { en: '— optional, 4 questions', es: '— opcional, 4 preguntas', pt: '— opcional, 4 perguntas' },
+    'label.look_here':      { en: 'Look here first',    es: 'Mira esto primero',  pt: 'Veja isto primeiro' },
+    'label.concerns':       { en: 'Open concerns from this report', es: 'Preocupaciones abiertas de este reporte', pt: 'Preocupações em aberto deste relatório' },
+    'label.your_call':      { en: 'Your call',          es: 'Tu decisión',        pt: 'Sua decisão' },
+    'button.expand_all':    { en: 'Expand all',         es: 'Expandir todo',      pt: 'Expandir tudo' },
+    'button.collapse_all':  { en: 'Collapse all',       es: 'Colapsar todo',      pt: 'Recolher tudo' },
+    'button.approve':       { en: 'Approve',            es: 'Aprobar',            pt: 'Aprovar' },
+    'button.changes':       { en: 'Request changes',    es: 'Pedir cambios',      pt: 'Solicitar mudanças' },
+    'button.comment':       { en: 'Comment only',       es: 'Solo comentar',      pt: 'Só comentar' },
+    'hero.hide':            { en: 'hide',               es: 'ocultar',            pt: 'ocultar' },
+    'hero.show':            { en: 'show banner',        es: 'mostrar banner',     pt: 'mostrar banner' },
+    'shape.legend_add':     { en: 'all additions',      es: 'solo adiciones',     pt: 'só adições' },
+    'shape.legend_mix':     { en: 'mixed edit',         es: 'edición mixta',      pt: 'edição mista' },
+    'shape.legend_del':     { en: 'mostly removed',     es: 'sobre todo eliminado', pt: 'sobretudo removido' },
+    'shape.intro':          { en: "Area = changed lines. Colour = added vs. removed. Click a tile to jump to that file's diff.",
+                              es: 'Área = líneas cambiadas. Color = añadido vs. eliminado. Haz clic en una casilla para saltar al diff de ese archivo.',
+                              pt: 'Área = linhas alteradas. Cor = adicionado vs. removido. Clique em um bloco para pular para o diff daquele arquivo.' },
+    'files.callout_tag':    { en: 'Rick flags this · ', es: 'Rick marca esto · ', pt: 'Rick sinaliza isto · ' },
+    'files.more_lines':     { en: '… {n} more lines omitted — see the full diff in your repo.',
+                              es: '… {n} líneas más omitidas — mira el diff completo en tu repo.',
+                              pt: '… mais {n} linhas omitidas — veja o diff completo no seu repo.' },
+    'quiz.rank':            { en: 'RANK',               es: 'RANGO',              pt: 'RANK' },
+    'quiz.score':           { en: 'Score',              es: 'Puntuación',         pt: 'Pontuação' },
+    'lang.pill_title':      { en: 'Language',           es: 'Idioma',             pt: 'Idioma' }
+  };
+
+  var CURRENT_LANG = 'en';
+
+  function detectLang() {
+    // 1. explicit override via `?lang=es|pt|en` — handy for sharing a
+    //    pre-localised URL and for headless testing.
+    try {
+      var m = (location.search || '').match(/[?&]lang=([a-zA-Z-]+)/);
+      if (m) {
+        var q = m[1].toLowerCase().slice(0, 2);
+        if (LANGS.indexOf(q) >= 0) return q;
+      }
+    } catch (e) {}
+    // 2. saved preference from a previous session
+    try {
+      var saved = localStorage.getItem('rk.lang');
+      if (saved && LANGS.indexOf(saved) >= 0) return saved;
+    } catch (e) {}
+    // 3. browser locale
+    var nav = (navigator.language || navigator.userLanguage || 'en').toLowerCase();
+    if (nav.indexOf('es') === 0) return 'es';
+    if (nav.indexOf('pt') === 0) return 'pt';
+    return 'en';
+  }
+
+  function T(key, params) {
+    var entry = I18N[key];
+    if (!entry) return key;
+    var str = entry[CURRENT_LANG] || entry.en || key;
+    if (params) {
+      Object.keys(params).forEach(function (k) {
+        str = str.split('{' + k + '}').join(String(params[k]));
+      });
+    }
+    return str;
+  }
+
+  function applyLang(lang) {
+    if (LANGS.indexOf(lang) < 0) lang = 'en';
+    CURRENT_LANG = lang;
+    try { localStorage.setItem('rk.lang', lang); } catch (e) {}
+    document.documentElement.lang = lang;
+    // Static text nodes marked with data-i18n
+    $$('[data-i18n]').forEach(function (node) {
+      var key = node.getAttribute('data-i18n');
+      var t = T(key);
+      if (t) node.textContent = t;
+    });
+    // Dynamic text refresh hooks — sections re-render bits that need it
+    $$('[data-i18n-title]').forEach(function (node) {
+      var key = node.getAttribute('data-i18n-title');
+      var t = T(key);
+      if (t) node.title = t;
+    });
+    // Runtime-parameterised strings (e.g. "N more lines omitted") carry the
+    // key on data-i18n-runtime and a numeric param on data-i18n-n.
+    $$('[data-i18n-runtime]').forEach(function (node) {
+      var key = node.getAttribute('data-i18n-runtime');
+      var n = node.getAttribute('data-i18n-n');
+      node.textContent = T(key, { n: n });
+    });
+    // Update the pill's active state
+    $$('.rk-lang button').forEach(function (b) {
+      b.classList.toggle('is-active', b.getAttribute('data-lang') === lang);
+    });
+    // Ask consumers to refresh anything they rendered directly (like the
+    // "N more lines omitted" text that carries a runtime number).
+    document.dispatchEvent(new CustomEvent('rk:lang-change', { detail: { lang: lang } }));
+  }
+
+  function initLangToggle() {
+    var pill = el('div', 'rk-lang');
+    pill.setAttribute('role', 'group');
+    pill.setAttribute('aria-label', T('lang.pill_title'));
+    LANGS.forEach(function (l) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.textContent = l.toUpperCase();
+      b.setAttribute('data-lang', l);
+      b.addEventListener('click', function () { applyLang(l); });
+      pill.appendChild(b);
+    });
+    document.body.appendChild(pill);
+  }
+
   // ------------------------- Chrome -------------------------
   function initChrome(prMeta) {
     var meta = $$('[data-pr-meta]');
@@ -236,7 +365,12 @@
       row.appendChild(text);
       container.appendChild(row);
     });
-    if (truncated) container.appendChild(el('div', 'rk-file__truncated', '… ' + truncated + ' more lines omitted — see the full diff in your repo.'));
+    if (truncated) {
+      var tr = el('div', 'rk-file__truncated', T('files.more_lines', { n: truncated }));
+      tr.setAttribute('data-i18n-runtime', 'files.more_lines');
+      tr.setAttribute('data-i18n-n', String(truncated));
+      container.appendChild(tr);
+    }
   }
 
   function initFiles(files) {
@@ -269,7 +403,8 @@
       // it's the most important thing about a flagged file.
       if (f.callout) {
         var calloutEl = el('div', 'rk-file__callout');
-        var tag = el('span', 'rk-file__callout-tag', 'Rick flags this · ');
+        var tag = el('span', 'rk-file__callout-tag', T('files.callout_tag'));
+        tag.setAttribute('data-i18n', 'files.callout_tag');
         calloutEl.appendChild(tag);
         calloutEl.appendChild(document.createTextNode(f.callout));
         card.appendChild(calloutEl);
@@ -536,5 +671,11 @@
 
     initToggles();
     initHighlight();
+
+    // Language toggle: build the pill, apply the detected/saved language.
+    // Runs last so every rendered node above has already picked up its
+    // data-i18n hooks.
+    initLangToggle();
+    applyLang(detectLang());
   });
 })();

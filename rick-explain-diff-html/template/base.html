@@ -23,12 +23,12 @@
     <div class="rk-hero__full">
       <div class="rk-hero__banner">{{BANNER}}</div>
       <div class="rk-hero__boot" id="rk-boot-log" hidden>{{BOOT_LOG}}</div>
-      <button type="button" class="rk-hero__collapse" id="rk-hero-collapse-btn" title="Hide the decorative strip">hide &#9650;</button>
+      <button type="button" class="rk-hero__collapse" id="rk-hero-collapse-btn" title="Hide the decorative strip"><span data-i18n="hero.hide">hide</span> &#9650;</button>
     </div>
     <div class="rk-hero__tail">
       <span class="rk-hero__tail-dot">&#9642;</span>
       <span class="rk-hero__tail-text" id="rk-hero-tail-text"></span>
-      <button type="button" class="rk-hero__tail-btn" id="rk-hero-expand-btn">show banner &#9660;</button>
+      <button type="button" class="rk-hero__tail-btn" id="rk-hero-expand-btn"><span data-i18n="hero.show">show banner</span> &#9660;</button>
     </div>
   </div>
 </div>
@@ -50,7 +50,7 @@
         {{SECTION_SUMMARY}}
       </div>
       <div class="rk-summary__lookhere-col">
-        <div class="rk-summary__label">Look here first</div>
+        <div class="rk-summary__label" data-i18n="label.look_here">Look here first</div>
         <div class="rk-lookhere" id="rk-lookhere"></div>
       </div>
     </div>
@@ -60,7 +60,7 @@
   <section class="rk-section" id="s-risk" data-screen-label="Risk">
     <div class="rk-section__head">
       <span class="rk-section__num">01</span>
-      <h2 id="rk-risk-heading">Risk breakdown</h2>
+      <h2 id="rk-risk-heading" data-i18n="section.risk">Risk breakdown</h2>
     </div>
     <div class="rk-risk-list" id="rk-risk-list"></div>
   </section>
@@ -69,16 +69,16 @@
   <section class="rk-section" id="s-shape" data-screen-label="Shape of the diff" hidden>
     <div class="rk-section__head">
       <span class="rk-section__num">02</span>
-      <h2>Shape of the diff &mdash; <span class="rk-section__sub" id="rk-shape-sub"></span></h2>
+      <h2><span data-i18n="section.shape">Shape of the diff</span> &mdash; <span class="rk-section__sub" id="rk-shape-sub"></span></h2>
     </div>
     <div class="rk-shape-grid">
       <div class="rk-treemap" id="rk-treemap-canvas"></div>
       <div>
-        <p style="margin:0 0 12px; font-size:13.5px; line-height:1.6; color:var(--rk-dim);">Area = changed lines. Colour = added vs. removed. Click a tile to jump to that file's diff.</p>
+        <p style="margin:0 0 12px; font-size:13.5px; line-height:1.6; color:var(--rk-dim);" data-i18n="shape.intro">Area = changed lines. Colour = added vs. removed. Click a tile to jump to that file's diff.</p>
         <div class="rk-shape-legend">
-          <div><span class="swatch is-ok"></span>all additions</div>
-          <div><span class="swatch is-warn"></span>mixed edit</div>
-          <div><span class="swatch is-bad"></span>mostly removed</div>
+          <div><span class="swatch is-ok"></span><span data-i18n="shape.legend_add">all additions</span></div>
+          <div><span class="swatch is-warn"></span><span data-i18n="shape.legend_mix">mixed edit</span></div>
+          <div><span class="swatch is-bad"></span><span data-i18n="shape.legend_del">mostly removed</span></div>
         </div>
         <div class="rk-shape-note" id="rk-shape-note"></div>
       </div>
@@ -89,7 +89,7 @@
   <section class="rk-section" id="s-flow" data-screen-label="Flow">
     <div class="rk-section__head">
       <span class="rk-section__num">03</span>
-      <h2>Flow &mdash; <span class="rk-section__sub">the shift this diff makes</span></h2>
+      <h2><span data-i18n="section.flow">Flow</span> &mdash; <span class="rk-section__sub" data-i18n="section.flow_sub">the shift this diff makes</span></h2>
     </div>
     <div class="rk-diagram" id="chart-canvas" aria-label="Interactive diagram"></div>
     <div class="rk-section-body" style="margin-top:16px;">
@@ -101,8 +101,8 @@
   <section class="rk-section" id="s-files" data-screen-label="Files">
     <div class="rk-section__head">
       <span class="rk-section__num">04</span>
-      <h2>File by file &mdash; <span class="rk-section__sub">annotated diff</span></h2>
-      <button type="button" class="rk-files__toggle-all" id="rk-files-toggle-all">Expand all</button>
+      <h2><span data-i18n="section.files">File by file</span> &mdash; <span class="rk-section__sub" data-i18n="section.files_sub">annotated diff</span></h2>
+      <button type="button" class="rk-files__toggle-all" id="rk-files-toggle-all" data-i18n="button.expand_all">Expand all</button>
     </div>
     <div class="rk-files" id="rk-files"></div>
   </section>
@@ -111,7 +111,7 @@
   <section class="rk-section" id="s-quiz" data-screen-label="Quiz">
     <div class="rk-section__head">
       <span class="rk-section__num">05</span>
-      <h2>Comprehension check <span class="rk-section__sub" style="font-size:15px;">&mdash; optional, 4 questions</span></h2>
+      <h2><span data-i18n="section.quiz">Comprehension check</span> <span class="rk-section__sub" style="font-size:15px;" data-i18n="section.quiz_sub">&mdash; optional, 4 questions</span></h2>
     </div>
     <div id="quiz-container" class="quiz-container"></div>
     <div id="quiz-result" class="quiz-result" hidden></div>
@@ -121,15 +121,15 @@
   <section class="rk-section rk-section--verdict" id="s-verdict" data-screen-label="Verdict">
     <div class="rk-verdict-grid">
       <div>
-        <div class="rk-summary__label">Open concerns from this report</div>
+        <div class="rk-summary__label" data-i18n="label.concerns">Open concerns from this report</div>
         <div class="rk-concerns" id="rk-concerns"></div>
       </div>
       <div>
-        <div class="rk-summary__label">Your call</div>
+        <div class="rk-summary__label" data-i18n="label.your_call">Your call</div>
         <div class="rk-verdict-buttons">
-          <button type="button" class="rk-verdict-btn is-approve" data-verdict="approve">Approve</button>
-          <button type="button" class="rk-verdict-btn is-changes" data-verdict="changes">Request changes</button>
-          <button type="button" class="rk-verdict-btn is-comment" data-verdict="comment">Comment only</button>
+          <button type="button" class="rk-verdict-btn is-approve" data-verdict="approve" data-i18n="button.approve">Approve</button>
+          <button type="button" class="rk-verdict-btn is-changes" data-verdict="changes" data-i18n="button.changes">Request changes</button>
+          <button type="button" class="rk-verdict-btn is-comment" data-verdict="comment" data-i18n="button.comment">Comment only</button>
         </div>
         <div class="rk-verdict-line" id="rk-verdict-line" hidden></div>
       </div>
