@@ -11,18 +11,27 @@ where applicable.
 | --- | --- |
 | [`rick-explain-diff-html`](rick-explain-diff-html/) | Generates a rich, interactive, single-file HTML report explaining a code change, narrated by Rick Sanchez inside a "RickOS v137.0" alien-OS UI. Renders `git diff`, GitHub PR URLs, or GitLab MR URLs. |
 
-## Using a skill
+## Installing
 
-Claude Code discovers skills in `~/.claude/skills/`. To make a skill from
-this repo available:
+Claude Code discovers skills in `~/.claude/skills/`. Clone this repo
+anywhere on your machine, then symlink (or copy) the skill folders you
+want to enable:
 
 ```bash
-# Option A — symlink (recommended; updates as you pull the repo)
-ln -s ~/work/personal/klapen-ai-skills/<skill-name> ~/.claude/skills/<skill-name>
+# 1. Clone somewhere on your machine
+git clone https://github.com/klapen/klapen-ai-skills.git
+cd klapen-ai-skills
 
-# Option B — copy
+# 2a. Symlink (recommended — picks up changes when you `git pull`)
+ln -s "$PWD/<skill-name>" ~/.claude/skills/<skill-name>
+
+# 2b. Or copy (freezes the version you have at that point)
 cp -r <skill-name> ~/.claude/skills/<skill-name>
 ```
+
+Repeat step 2 for each skill you want. Requirements are per-skill and
+documented in each skill's `SKILL.md` (this repo's skills need `python3`
+and, where relevant, `gh` / `glab` for GitHub / GitLab MR access).
 
 Then in a Claude Code session, invoke the skill via its slash command or a
 natural-language trigger phrase. Each skill's `SKILL.md` documents its own

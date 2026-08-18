@@ -3,7 +3,7 @@
 Short, self-contained brief for a Claude (or other agent) session picking
 this skill up cold. Paste this into a new session alongside the task.
 
-**Repo:** `github.com/klapen/klapen-ai-skills` (checkout: `~/work/personal/klapen-ai-skills`)
+**Repo:** `github.com/klapen/klapen-ai-skills` (installed at `~/.claude/skills/rick-explain-diff-html/` after symlinking per the repo README).
 **Path:** `rick-explain-diff-html/`
 **Authoritative spec:** [`SKILL.md`](SKILL.md) &mdash; defer to it on any conflict with this brief.
 
@@ -91,9 +91,10 @@ Output: `/tmp/YYYY-MM-DD-explanation-<slug>.html`.
     JS prepends them.
   - Distractors must be **plausible** engineering choices; no jokes in
     options. Rick's snark goes in `feedback`.
-  - `correct` MUST hit each of A/B/C/D **exactly once** across the 4
-    questions (one per position). Reorder `feedback` in lockstep when
-    reordering `options`.
+  - **Option order in the payload doesn't matter.** `core.js` shuffles
+    each item's options on every page load (Fisher-Yates, with
+    `feedback` and `correct` re-anchored in lockstep). Put the correct
+    answer wherever it reads naturally.
   - `file`/`where` are optional but encouraged &mdash; renders an
     evidence link into the Files section.
 - `concerns` &mdash; **optional**, 0-N `{severity: "HIGH"|"MEDIUM"|"LOW", text, file?, where?}`.
@@ -154,8 +155,9 @@ risk bars (`payload.risk.items`), so gauge widgets have no role anymore.
 - Don't skip `--diff` in Phase 3 &mdash; it's required, and it's the
   `diff_path` printed by Phase 1's `collect`, not something Claude invents.
 - Don't emit letter-prefixed quiz options.
-- Don't concentrate correct-answer positions &mdash; must be A/B/C/D
-  one-each across the 4 questions.
+- Don't waste tokens re-ordering quiz options for position balance &mdash;
+  `core.js` shuffles A/B/C/D on every page load. Write options in
+  whatever order reads naturally.
 - Don't reference "diagram below" &mdash; the layout puts the diagram
   above the core_logic prose.
 - Don't write a `files[]` entry for every changed file just to be thorough

@@ -43,7 +43,7 @@ Run the renderer's `collect` subcommand to resolve the target into a diff
 plus optional PR/MR metadata:
 
 ```bash
-python3 ~/work/personal/klapen-skils/rick-explain-diff-html/scripts/render.py collect \
+python3 ~/.claude/skills/rick-explain-diff-html/scripts/render.py collect \
     --target "<branch | A..B | https://github.com/... | https://gitlab.../-/merge_requests/N>"
 ```
 
@@ -235,7 +235,7 @@ Run the renderer's `render` subcommand. `--diff` is required — it's the
 `diff_path` that Phase 1's `collect` printed.
 
 ```bash
-python3 ~/work/personal/klapen-skils/rick-explain-diff-html/scripts/render.py render \
+python3 ~/.claude/skills/rick-explain-diff-html/scripts/render.py render \
     --payload /tmp/rick-payload-<slug>.json \
     --sections /tmp/rick-sections-<slug>.html \
     --diff /tmp/rick-diff-<slug>.diff
