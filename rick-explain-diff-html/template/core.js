@@ -336,13 +336,36 @@
     { min: 100, name: 'Rick-Adjacent (Impossible)',     comment: "You cheated or you're me. Either way, get out of my dimension." }
   ];
 
+  // Fisher-Yates on the option indices, returning a copy of the quiz item
+  // with options + feedback permuted in lockstep and `correct` re-anchored.
+  // Runs on every page load, so consecutive readers never see the same
+  // A/B/C/D arrangement — pattern-matching by position is impossible.
+  function shuffleQuizItem(q) {
+    var opts = Array.isArray(q.options) ? q.options : [];
+    var fb = Array.isArray(q.feedback) ? q.feedback : [];
+    var idx = opts.map(function (_, i) { return i; });
+    for (var i = idx.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var t = idx[i]; idx[i] = idx[j]; idx[j] = t;
+    }
+    return {
+      question: q.question,
+      options: idx.map(function (i) { return opts[i]; }),
+      feedback: idx.map(function (i) { return fb[i]; }),
+      correct: idx.indexOf(Number(q.correct)),
+      file: q.file,
+      where: q.where
+    };
+  }
+
   function initQuiz(quiz) {
     var wrap = $('#quiz-container');
     if (!wrap || !Array.isArray(quiz)) return;
 
     var answered = 0, correct = 0;
 
-    quiz.forEach(function (q, qi) {
+    quiz.forEach(function (rawQ, qi) {
+      var q = shuffleQuizItem(rawQ);
       var qEl = el('div', 'quiz-question');
 
       var prompt = el('div', 'q-prompt');

@@ -173,9 +173,11 @@ Payload contract, field by field:
     prepends them.
   - Distractors must be **plausible** engineering choices; no jokes in
     options. Rick's snark goes in `feedback`.
-  - `correct` MUST hit each of A/B/C/D **exactly once** across the 4
-    questions (one per position). Reorder `feedback` in lockstep when
-    reordering `options`.
+  - **Option order in the payload doesn't matter.** `core.js` shuffles
+    each item's options on every page load (Fisher-Yates over the 4
+    slots, with `feedback` and `correct` re-anchored in lockstep). Put
+    the correct answer wherever it reads naturally; the reader will see
+    it in a different slot each time.
 - `concerns` — **optional**, 0–N items: `{severity, text, file?, where?}`.
   `severity` ∈ `HIGH|MEDIUM|LOW`. These drive the Verdict section's "Open
   concerns" list. The Approve/Request-changes/Comment buttons next to it are
