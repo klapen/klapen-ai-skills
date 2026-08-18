@@ -264,14 +264,14 @@
 
       if (f.note) card.appendChild(el('div', 'rk-file__note', f.note));
 
-      // Rick's flag goes ABOVE the diff so it isn't buried under hundreds of code lines.
-      var calloutEl = null;
+      // Rick's flag goes ABOVE the diff so it isn't buried under hundreds of
+      // code lines, and stays visible even when the file card is collapsed —
+      // it's the most important thing about a flagged file.
       if (f.callout) {
-        calloutEl = el('div', 'rk-file__callout');
+        var calloutEl = el('div', 'rk-file__callout');
         var tag = el('span', 'rk-file__callout-tag', 'Rick flags this · ');
         calloutEl.appendChild(tag);
         calloutEl.appendChild(document.createTextNode(f.callout));
-        calloutEl.hidden = !f.open;
         card.appendChild(calloutEl);
       }
 
@@ -284,7 +284,6 @@
         f.open = open;
         caret.textContent = open ? '▾' : '▸';
         linesWrap.hidden = !open;
-        if (calloutEl) calloutEl.hidden = !open;
       }
       head.addEventListener('click', function () { setOpen(!f.open); });
       cards[f.path] = { setOpen: setOpen, card: card };
