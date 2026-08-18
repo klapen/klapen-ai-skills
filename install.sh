@@ -19,6 +19,96 @@ set -euo pipefail
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DEFAULT_TARGET="${CLAUDE_SKILLS_DIR:-$HOME/.claude/skills}"
 
+# -------- pretty output (only when stdout is a tty) --------
+if [[ -t 1 ]] && [[ "${NO_COLOR:-}" == "" ]]; then
+  C_RESET=$'\033[0m'
+  C_BOLD=$'\033[1m'
+  C_DIM=$'\033[2m'
+  C_YEL=$'\033[38;5;214m'    # gruvbox-ish yellow
+  C_GRN=$'\033[38;5;142m'    # gruvbox-ish green
+  C_RED=$'\033[38;5;167m'
+  C_CYAN=$'\033[38;5;108m'
+  C_GREY=$'\033[38;5;245m'
+else
+  C_RESET=; C_BOLD=; C_DIM=; C_YEL=; C_GRN=; C_RED=; C_CYAN=; C_GREY=
+fi
+
+# Typewriter-print: streams a line char by char. Falls back to a plain
+# echo when animations are disabled (non-tty, --no-anim, or NO_ANIM env).
+FANCY=1
+[[ ! -t 1 ]] && FANCY=0
+[[ "${NO_ANIM:-}" != "" ]] && FANCY=0
+
+type_line() {
+  local text="$1"
+  local delay="${2:-0.008}"
+  if (( FANCY )); then
+    local i
+    for (( i=0; i<${#text}; i++ )); do
+      printf '%s' "${text:$i:1}"
+      # sleep in sub-shell to avoid slowing down non-fancy path
+      sleep "$delay" 2>/dev/null || true
+    done
+    printf '\n'
+  else
+    printf '%s\n' "$text"
+  fi
+}
+
+# Header banner — pixel-block motif that echoes the klapen logo (block
+# mosaic in a circle) on the left, wordmark on the right. A single
+# left rail keeps alignment trivial regardless of ANSI escape widths.
+banner() {
+  local Y="$C_YEL" G="$C_GRN" D="$C_DIM" R="$C_RESET" B="$C_BOLD"
+  local rail="${D}┃${R}"
+  printf '\n'
+  printf '  %s\n'                                    "$rail"
+  printf '  %s    %s██  ██%s\n'                      "$rail" "$Y" "$R"
+  printf '  %s  %s██%s            %s%sklapen%s  ·  %sai-skills%s\n' \
+    "$rail" "$Y" "$R" "$B" "$Y" "$R" "$G" "$R"
+  printf '  %s    %s██      ██%s\n'                  "$rail" "$Y" "$R"
+  printf '  %s  %s██  ██%s        %sClaude Code skill installer%s\n' \
+    "$rail" "$Y" "$R" "$C_GREY" "$R"
+  printf '  %s    %s██  ██%s\n'                      "$rail" "$Y" "$R"
+  printf '  %s        %s██%s        %sgithub.com/klapen/klapen-ai-skills%s\n' \
+    "$rail" "$Y" "$R" "$C_GREY" "$R"
+  printf '  %s  %s██  ██%s\n'                        "$rail" "$Y" "$R"
+  printf '  %s\n'                                    "$rail"
+  printf '\n'
+}
+
+# small step marker used inside the loop
+step()   { printf '  %s→%s %s\n' "$C_YEL" "$C_RESET" "$1"; }
+ok()     { printf '  %s✓%s %s\n' "$C_GRN" "$C_RESET" "$1"; }
+warn()   { printf '  %s!%s %s\n' "$C_RED" "$C_RESET" "$1"; }
+
+# Spinner: run a command in the background while an animated dot cycle
+# plays on the same line. Falls back to a plain echo when non-tty.
+with_spinner() {
+  local label="$1"; shift
+  if (( ! FANCY )); then
+    printf '  ...  %s\n' "$label"
+    "$@"
+    return $?
+  fi
+  local frames=('⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏')
+  local i=0
+  "$@" &
+  local pid=$!
+  # tput cursor hide/show if available
+  command -v tput >/dev/null && tput civis 2>/dev/null || true
+  while kill -0 "$pid" 2>/dev/null; do
+    printf '\r  %s%s%s  %s' "$C_YEL" "${frames[i++ % ${#frames[@]}]}" "$C_RESET" "$label"
+    sleep 0.08
+  done
+  wait "$pid"
+  local rc=$?
+  # clear the line
+  printf '\r\033[K'
+  command -v tput >/dev/null && tput cnorm 2>/dev/null || true
+  return $rc
+}
+
 # -------- flag parsing --------
 TARGET=""
 METHOD=""
@@ -39,6 +129,7 @@ Options:
   --copy            Full copy (portable; won't reflect future \`git pull\`s)
   --all             Install every skill found in this repo
   --force           Replace existing entries without prompting
+  --no-anim         Disable colours + animations (also honoured via NO_COLOR / NO_ANIM env)
   -h, --help        Show this help
 EOF
 }
@@ -50,11 +141,14 @@ while [[ "${1:-}" != "" ]]; do
     --copy)    METHOD="copy"; shift ;;
     --all)     INSTALL_ALL=1; shift ;;
     --force)   FORCE=1; shift ;;
+    --no-anim|--plain) FANCY=0; shift ;;
     -h|--help) usage; exit 0 ;;
     --*)       echo "Unknown option: $1" >&2; usage >&2; exit 2 ;;
     *)         REQUESTED+=("$1"); shift ;;
   esac
 done
+
+banner
 
 # -------- discover skills --------
 declare -a SKILLS
@@ -134,23 +228,23 @@ case "$METHOD" in
 esac
 
 # -------- install --------
-echo
-echo "Installing into: $TARGET"
-echo "Method:          $METHOD"
-echo
+printf '\n  %sinstalling into:%s %s\n' "$C_GREY" "$C_RESET" "$TARGET"
+printf '  %smethod:%s          %s\n\n' "$C_GREY" "$C_RESET" "$METHOD"
 
 for skill in "${TO_INSTALL[@]}"; do
   src="$REPO_DIR/$skill"
   dst="$TARGET/$skill"
 
+  step "$C_BOLD$skill$C_RESET"
+
   if [[ -e "$dst" || -L "$dst" ]]; then
     if (( FORCE )); then
       rm -rf "$dst"
     else
-      read -rp "  $dst exists. Replace? [y/N] " ans
+      read -rp "    $dst exists. Replace? [y/N] " ans
       case "$ans" in
         y|Y|yes|YES) rm -rf "$dst" ;;
-        *) echo "  skipped $skill"; continue ;;
+        *) warn "skipped $skill"; continue ;;
       esac
     fi
   fi
@@ -160,17 +254,18 @@ for skill in "${TO_INSTALL[@]}"; do
     if ln -s "$src" "$dst" 2>/dev/null; then
       :
     else
-      echo "  symlink failed (Windows / permissions?), falling back to copy..."
+      warn "symlink failed (Windows / permissions?), falling back to copy…"
       cp -R "$src" "$dst"
       installed_via="copy (fallback)"
     fi
   else
-    cp -R "$src" "$dst"
+    with_spinner "copying $skill…" cp -R "$src" "$dst"
   fi
 
-  echo "  ✓ $skill  →  $dst  ($installed_via)"
+  ok "$skill  ${C_DIM}→${C_RESET}  $dst  ${C_DIM}(${installed_via})${C_RESET}"
 done
 
-echo
-echo "Done. In Claude Code, invoke the installed skill(s) by their slash-command"
-echo "trigger or by referencing them in natural language (see each skill's SKILL.md)."
+printf '\n  %s┃%s  %s✓%s  %sDone.%s  %s*urp*%s\n' \
+  "$C_DIM" "$C_RESET" "$C_GRN" "$C_RESET" "$C_BOLD" "$C_RESET" "$C_DIM" "$C_RESET"
+printf '  %s┃%s     invoke via slash-command or natural language.\n' "$C_DIM" "$C_RESET"
+printf '  %s┃%s     see each skill'"'"'s SKILL.md for trigger phrases.\n\n' "$C_DIM" "$C_RESET"
