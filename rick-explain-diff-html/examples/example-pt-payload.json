@@ -1,0 +1,151 @@
+{
+  "pr_slug": "example-cache-through-pt",
+  "pr_meta": {
+    "title": "Adicionar camada Redis cache-through em /widgets com fallback LRU em memória",
+    "branch": "feat/widgets-cache-through",
+    "base": "main",
+    "author": "m.smith",
+    "opened": "há 2 dias",
+    "commits": 6
+  },
+  "risk": {
+    "composite": 42,
+    "label": "médio",
+    "items": [
+      {"name": "Raio de impacto", "score": "3/5", "pct": 60, "tone": "warn", "note": "um endpoint em produção, um punhado de linhas existentes tocadas."},
+      {"name": "Cobertura de testes", "score": "4/5", "pct": 82, "tone": "ok", "note": "os quatro ramos do cache estão testados, inclusive o de Redis fora do ar."},
+      {"name": "Migração", "score": "1/5", "pct": 18, "tone": "ok", "note": "sem mudança de schema, sem backfill, chaves versionadas."},
+      {"name": "Dependências", "score": "2/5", "pct": 36, "tone": "ok", "note": "uma nova dependência já usada em outro lugar do monorepo."},
+      {"name": "Rollback", "score": "2/5", "pct": 34, "tone": "ok", "note": "a feature é aditiva; reverter é um commit, o cache expira sozinho."},
+      {"name": "Observabilidade", "score": "4/5", "pct": 78, "tone": "bad", "note": "nenhuma métrica de hit-ratio, nenhum log no fallback de Redis fora do ar. O ponto fraco."}
+    ]
+  },
+  "shape": {
+    "note": "Dois terços deste PR são um arquivo novo e seus testes. Só um punhado de linhas em handlers.py toca código que já rodava em produção."
+  },
+  "chart": {
+    "type": "sequence",
+    "data": {
+      "actors": ["Cliente", "Serviço", "Cache", "Banco"],
+      "messages": [
+        {"from": "Cliente", "to": "Serviço", "label": "GET /widgets/{id}"},
+        {"from": "Serviço", "to": "Cache", "label": "get('widget:{id}')"},
+        {"from": "Cache", "to": "Serviço", "label": "miss (ou hit)"},
+        {"from": "Serviço", "to": "Banco", "label": "SELECT * FROM widgets WHERE id=?"},
+        {"from": "Banco", "to": "Serviço", "label": "linha"},
+        {"from": "Serviço", "to": "Cache", "label": "set('widget:{id}', linha, ttl=300)"},
+        {"from": "Serviço", "to": "Cliente", "label": "200 OK  { widget }"}
+      ]
+    }
+  },
+  "files": [
+    {
+      "path": "services/widgets/cache.py",
+      "note": "A feature inteira. Uma classe, Redis + LRUCache injetados, sem globais. get() é o único método com um ramo que vale discussão.",
+      "callout": "Num erro do Redis você devolve o valor do LRU sem métrica e sem log. Quando o Redis morrer às 3h da manhã, ninguém vai descobrir por este caminho.",
+      "open": true
+    },
+    {
+      "path": "services/widgets/handlers.py",
+      "note": "O único caminho de código em produção que muda de comportamento. O cache é consultado antes do repositório; um miss ainda custa um round-trip completo ao banco.",
+      "callout": "404s não são cacheados. Um id inexistente muito quente bate no Postgres pra sempre — exatamente o padrão de tráfego que este PR existe pra parar.",
+      "open": true
+    },
+    {
+      "path": "config/settings.py",
+      "note": "Quatro settings com env-prefix. Defaults razoáveis, um deles duplicado no call site."
+    },
+    {
+      "path": "tests/test_cache_through.py",
+      "note": "Quatro testes unitários. Cobrem hit, miss+TTL, fallback Redis-down e evicção de payload corrompido — os quatro ramos que importam."
+    },
+    {
+      "path": "requirements.txt",
+      "note": "Uma dependência: redis 5.0.x, cliente async, já vendored em outro lugar do monorepo."
+    }
+  ],
+  "look_here": [
+    {"file": "services/widgets/cache.py", "label": "cache.py · caminho de fallback do get()", "note": "Fail-open em erros do Redis. Confirme que você quer leituras que toleram dados velhos.", "tone": "bad"},
+    {"file": "services/widgets/handlers.py", "label": "handlers.py · cacheamento de 404", "note": "Misses não têm cache negativo — um id inexistente muito quente bate no banco a cada requisição.", "tone": "warn"},
+    {"file": "config/settings.py", "label": "settings.py · ttl=300 default", "note": "Também hard-coded no call site em handlers.py. Escolha um."}
+  ],
+  "quiz": [
+    {
+      "question": "Por que o novo middleware de cache faz fallback para um LRU em memória quando o Redis está indisponível, em vez de propagar o erro?",
+      "file": "services/widgets/cache.py",
+      "where": "cache.py:20",
+      "options": [
+        "O cache é tratado como otimização, não como fonte de verdade. Perder o Redis brevemente deve degradar latência, não disponibilidade — então o middleware serve silenciosamente do LRU (ou direto do banco em miss) em vez de retornar 5xx aos chamadores.",
+        "O middleware trata erros do Redis como bugs e faz short-circuit para 503 imediatamente, deixando o chamador retentar contra uma réplica saudável.",
+        "O middleware roteia writes pro Redis e reads pro LRU sob todas as condições, então uma queda do Redis só afeta o caminho de write.",
+        "O LRU é um cache descartável usado só em testes; produção sempre propaga erros do Redis."
+      ],
+      "correct": 0,
+      "feedback": [
+        "Correto. *urp* O cache é uma camada de latência. Perdê-lo degrada velocidade, não corretude — disponibilidade vence.",
+        "Errado. É o *oposto* do design. 5xx num soluço do Redis derrubaria o endpoint inteiro.",
+        "Errado. Reads e writes batem no Redis primeiro; o LRU é fallback, não split-brain.",
+        "Errado. O LRU é um fallback de produção de primeira classe, não um cache só-de-teste."
+      ]
+    },
+    {
+      "question": "O formato da chave do cache é 'widget:{id}:{schema_version}'. Por que incluir schema_version na chave em vez de fazer um flush por bump de versão no deploy?",
+      "file": "services/widgets/cache.py",
+      "where": "cache.py:16",
+      "options": [
+        "Porque o Redis não suporta invalidação atômica por prefixo, então um flush no deploy teria que iterar chaves e poderia perder writes em voo.",
+        "Versionar o namespace da chave faz entradas de schema antigo e novo coexistirem durante um rolling deploy — pods antigos continuam lendo chaves v1, pods novos escrevem v2, e não há stampede de aquecimento do cache no cutover.",
+        "O sufixo de versão protege contra uma corrida onde dois chamadores tentam popular o mesmo slot do cache com payloads de formato diferente.",
+        "É pura conveniência de debug — o sufixo de versão facilita inspecionar uma chave e saber qual release a escreveu."
+      ],
+      "correct": 1,
+      "feedback": [
+        "Errado. O Redis tem SCAN + DEL — o flush é factível, só evitado pelo motivo da coexistência.",
+        "Correto. Namespaces de cache são o jeito barato de rodar duas versões de schema simultaneamente num rolling deploy sem stampede de cutover.",
+        "Errado. O sufixo de versão não protege writes — ele particiona o keyspace. Corridas de populate ainda precisam de lock.",
+        "Errado. Ergonomia de debug é um bônus, não o motivo."
+      ]
+    },
+    {
+      "question": "Quando o middleware acerta o Redis com sucesso mas o Redis devolve um valor que falha na validação Pydantic, o que ele faz?",
+      "file": "services/widgets/cache.py",
+      "where": "cache.py:25",
+      "options": [
+        "Trata o blob cacheado como autoritativo, loga um warning, e devolve como está — confiando no caminho de write pra manter o cache limpo.",
+        "Levanta 500 pro chamador, na teoria de que um cache corrompido significa um incidente ativo que não deve ser silenciado.",
+        "Ignora o valor corrompido, deleta a chave, e cai pro banco — tratando falha de validação como um cache miss com evicção agressiva.",
+        "Repara o valor no lugar fazendo round-trip pelo modo `model_validate_strings` do modelo e reescreve a forma corrigida de volta no Redis."
+      ],
+      "correct": 2,
+      "feedback": [
+        "Errado. Devolver dados corrompidos só propagaria o bug pros chamadores. O middleware é mais defensivo que isso.",
+        "Errado. Entradas de cache corrompidas geralmente são vazamento de schema antigo, não incidentes que valem paginar alguém.",
+        "Correto. Trata-como-miss + evict. O banco é a fonte de verdade; o cache pega um write fresco desse fallback.",
+        "Errado. Não existe um caminho de reparo no lugar. O middleware não tenta adivinhar a forma certa a partir de uma quebrada."
+      ]
+    },
+    {
+      "question": "O novo teste test_cache_miss_populates_ttl_from_config afirma que a chamada SET carrega um kwarg TTL. Por que essa checagem é load-bearing e não só um nice-to-have?",
+      "file": "tests/test_cache_through.py",
+      "where": "test_cache_through.py:88",
+      "options": [
+        "Guarda a promessa das release notes de que o TTL é configurável, pra QA poder grepar isso em regressão.",
+        "Exercita o parâmetro ex= do cliente redis-py, cuja assinatura mudou entre versões — o teste falharia cedo se o pin desviar.",
+        "É uma checagem estilística: o style guide do projeto diz que toda chamada SET deve carregar TTL.",
+        "Sem o TTL, entradas do cache vivem pra sempre e o esquema de coexistência do schema_version quebra — o teste força a invariante de que nenhuma entrada de cache sobrevive à sua versão de schema."
+      ],
+      "correct": 3,
+      "feedback": [
+        "Errado. QA não grepa código de teste procurando release notes. Testes não servem pra isso.",
+        "Errado. Não é o motivo real. Uma deriva de pin seria pega em import time, não por essa asserção.",
+        "Errado. Style guides não precisam de cobertura de teste comportamental — precisam de linter.",
+        "Correto. TTL é o mecanismo de aplicação da invariante do namespace versionado. Sem ele, chaves v1 assombrariam o cache pra sempre e a propriedade de coexistência colapsa."
+      ]
+    }
+  ],
+  "concerns": [
+    {"severity": "MEDIUM", "text": "Sem métrica nem log no fallback Redis-down. Se o Redis cair de madrugada, o middleware serve tranquilo do LRU (ou do banco) e nenhum humano descobre pela telemetria deste caminho.", "file": "services/widgets/cache.py"},
+    {"severity": "MEDIUM", "text": "404s não têm cache negativo. Um id inexistente muito quente bate no Postgres a cada requisição — exatamente a forma de tráfego que este PR pretende parar.", "file": "services/widgets/handlers.py"},
+    {"severity": "LOW", "text": "ttl=300 aparece hard-coded no call site em handlers.py mesmo com o default no settings. Escolha uma fonte de verdade e apague a outra.", "file": "services/widgets/handlers.py"}
+  ]
+}

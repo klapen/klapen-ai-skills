@@ -1,0 +1,29 @@
+<!-- SECTION: summary -->
+<p>O-olha aqui. Isto é um <em>relatório demo</em> &mdash; o assunto é um PR completamente fictício que adiciona uma camada Redis cache-through a um endpoint <code>/widgets</code>, com um LRU em memória como fallback quando o Redis está indisponível. Todo o código, respostas do quiz e análise abaixo se referem a essa feature inventada, não a nada real.</p>
+<div class="callout">Pule se seu QI passa da temperatura ambiente.</div>
+<p>Uma camada <em>cache-through</em> é a cola entre um serviço e seu store de trás lento: numa leitura, checa o cache primeiro, e só cai pro banco em miss. Writes atualizam os dois. Antes deste PR fictício, o endpoint lia direto do banco toda vez, sem cache nenhum &mdash; tudo bem a 10 QPS, não tudo bem a 10K QPS.</p>
+<p>Agora as leituras checam o Redis antes do banco. As chaves de cache carregam uma versão de schema pra dois deploys poderem compartilhar um Redis sem stampede de cutover. Se o Redis está inalcançável, o middleware serve de um LRU em memória limitado em vez de levantar &mdash; o cache é uma otimização, nunca fonte de verdade.</p>
+
+<!-- SECTION: core_logic -->
+<p>Três preocupações estão amarradas acima: um cliente Redis pro cache primário, um LRU em memória pro caminho de fallback quando o Redis está fora, e um pequeno resolver que os mantém consistentes. A sequência acima mostra o caminho de leitura; caminhos de write (não diagramados) sempre populam o Redis primeiro, depois o LRU.</p>
+<pre><code class="language-python">class CacheThroughMiddleware:
+    def __init__(self, redis: Redis, lru: LRUCache, schema_version: str) -> None:
+        self.redis = redis
+        self.lru = lru
+        self.schema_version = schema_version
+
+    async def get(self, widget_id: str) -> Widget | None:
+        key = f"widget:{widget_id}:{self.schema_version}"
+        try:
+            raw = await self.redis.get(key)
+        except RedisConnectionError:
+            return self.lru.get(key)
+        if raw is None:
+            return None
+        try:
+            return Widget.model_validate_json(raw)
+        except ValidationError:
+            # Payload corrompido: trata como miss e evita agressivamente.
+            await self.redis.delete(key)
+            return None</code></pre>
+<p>O sufixo <code>schema_version</code> no formato da chave está fazendo trabalho de verdade: deixa versões de schema antiga e nova coexistirem durante um rolling deploy sem stampede de aquecimento no cutover. Veja a seção de arquivos abaixo pro diff anotado, incluindo o ramo fail-open e o TTL duplicado que Rick fica sinalizando.</p>

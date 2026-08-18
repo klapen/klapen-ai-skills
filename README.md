@@ -46,19 +46,37 @@ trigger patterns and inputs.
 or, in plain language:
 
 > Rick, explain this branch.
+> Rick, en español, explica este MR https://…
+> Rick, in Portuguese, review https://…
 
-The rendered example report lives at
-[`rick-explain-diff-html/examples/example.html`](rick-explain-diff-html/examples/example.html)
-— open it in a browser to see what a report looks like. The payload and
-section fragments that generated it are alongside
-(`example-payload.json`, `example-sections.html`) so you can regenerate it:
+An optional language argument (`en` / `es` / `pt`) makes Rick write the
+whole report in that language — payload prose, quiz, verdict, and all.
+Default is English.
+
+Rendered example reports live in
+[`rick-explain-diff-html/examples/`](rick-explain-diff-html/examples/):
+
+- [`example.html`](rick-explain-diff-html/examples/example.html) — English
+- [`example-pt.html`](rick-explain-diff-html/examples/example-pt.html) — Portuguese
+
+Each has its payload + sections + diff alongside so you can regenerate:
 
 ```bash
+# English (default lang)
 python3 rick-explain-diff-html/scripts/render.py render \
     --payload  rick-explain-diff-html/examples/example-payload.json \
     --sections rick-explain-diff-html/examples/example-sections.html \
+    --diff     rick-explain-diff-html/examples/example.diff \
     --theme gruvbox-dark --chrome rickos-v137 --seed 42 \
     --slug example --no-open
+
+# Portuguese
+python3 rick-explain-diff-html/scripts/render.py render \
+    --payload  rick-explain-diff-html/examples/example-pt-payload.json \
+    --sections rick-explain-diff-html/examples/example-pt-sections.html \
+    --diff     rick-explain-diff-html/examples/example.diff \
+    --theme gruvbox-dark --chrome rickos-v137 --seed 42 \
+    --lang pt --slug example-pt --no-open
 ```
 
 ## Repository layout

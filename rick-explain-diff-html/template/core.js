@@ -92,31 +92,11 @@
   var CURRENT_LANG = 'en';
 
   function detectLang() {
-    // 1. explicit override via `?lang=es|pt|en` — handy for sharing a
-    //    pre-localised URL and for headless testing.
-    try {
-      var m = (location.search || '').match(/[?&]lang=([a-zA-Z-]+)/);
-      if (m) {
-        var q = m[1].toLowerCase().slice(0, 2);
-        if (LANGS.indexOf(q) >= 0) return q;
-      }
-    } catch (e) {}
-    // 2. saved preference from a previous session (only set when user
-    //    explicitly clicked the pill — auto-detected values are never
-    //    persisted, so a share-a-report-in-PT default isn't overridden
-    //    by a stale localStorage from an unrelated report)
-    try {
-      var saved = localStorage.getItem('rk.lang');
-      if (saved && LANGS.indexOf(saved) >= 0) return saved;
-    } catch (e) {}
-    // 3. `<html lang="X">` baked in at render time (renderer's --lang flag)
+    // Language is chosen at generation time via `render.py --lang` and
+    // baked into `<html lang="X">`. There's no runtime toggle anymore —
+    // each report is a single-language artefact.
     var baked = (document.documentElement.lang || '').toLowerCase().slice(0, 2);
     if (LANGS.indexOf(baked) >= 0) return baked;
-    // 4. browser locale
-    var nav = (navigator.language || navigator.userLanguage || 'en').toLowerCase();
-    if (nav.indexOf('es') === 0) return 'es';
-    if (nav.indexOf('pt') === 0) return 'pt';
-    // 5. fallback
     return 'en';
   }
 
@@ -132,16 +112,9 @@
     return str;
   }
 
-  function applyLang(lang, persist) {
+  function applyLang(lang) {
     if (LANGS.indexOf(lang) < 0) lang = 'en';
     CURRENT_LANG = lang;
-    // Only persist to localStorage when the caller flagged this as an
-    // EXPLICIT user preference (pill click). Auto-detection results
-    // never write, so a rendered-with-lang report keeps its default
-    // for future readers.
-    if (persist) {
-      try { localStorage.setItem('rk.lang', lang); } catch (e) {}
-    }
     document.documentElement.lang = lang;
     // Static text nodes marked with data-i18n
     $$('[data-i18n]').forEach(function (node) {
@@ -162,28 +135,6 @@
       var n = node.getAttribute('data-i18n-n');
       node.textContent = T(key, { n: n });
     });
-    // Update the pill's active state
-    $$('.rk-lang button').forEach(function (b) {
-      b.classList.toggle('is-active', b.getAttribute('data-lang') === lang);
-    });
-    // Ask consumers to refresh anything they rendered directly (like the
-    // "N more lines omitted" text that carries a runtime number).
-    document.dispatchEvent(new CustomEvent('rk:lang-change', { detail: { lang: lang } }));
-  }
-
-  function initLangToggle() {
-    var pill = el('div', 'rk-lang');
-    pill.setAttribute('role', 'group');
-    pill.setAttribute('aria-label', T('lang.pill_title'));
-    LANGS.forEach(function (l) {
-      var b = document.createElement('button');
-      b.type = 'button';
-      b.textContent = l.toUpperCase();
-      b.setAttribute('data-lang', l);
-      b.addEventListener('click', function () { applyLang(l, true); });
-      pill.appendChild(b);
-    });
-    document.body.appendChild(pill);
   }
 
   // ------------------------- Chrome -------------------------
@@ -704,10 +655,8 @@
     initToggles();
     initHighlight();
 
-    // Language toggle: build the pill, apply the detected/saved language.
-    // Runs last so every rendered node above has already picked up its
-    // data-i18n hooks.
-    initLangToggle();
+    // Apply the baked-in language to all static UI. Runs last so every
+    // rendered node above has already picked up its data-i18n hooks.
     applyLang(detectLang());
   });
 })();
