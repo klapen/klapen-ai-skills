@@ -13,29 +13,98 @@ where applicable.
 
 ## Installing
 
-Claude Code discovers skills in `~/.claude/skills/`. Clone this repo
-anywhere on your machine, then symlink (or copy) the skill folders you
-want to enable:
+Claude Code discovers skills in `~/.claude/skills/` (or whatever
+`CLAUDE_SKILLS_DIR` is set to). Clone this repo and run `./install.sh`
+— it scans the repo for skills, asks which ones you want, where they
+should live, and whether to install by symlink or by copy.
 
 ```bash
-# 1. Clone somewhere on your machine
 git clone https://github.com/klapen/klapen-ai-skills.git
 cd klapen-ai-skills
-
-# 2a. Symlink (recommended — picks up changes when you `git pull`)
-ln -s "$PWD/<skill-name>" ~/.claude/skills/<skill-name>
-
-# 2b. Or copy (freezes the version you have at that point)
-cp -r <skill-name> ~/.claude/skills/<skill-name>
+./install.sh
 ```
 
-Repeat step 2 for each skill you want. Requirements are per-skill and
-documented in each skill's `SKILL.md` (this repo's skills need `python3`
-and, where relevant, `gh` / `glab` for GitHub / GitLab MR access).
+### Interactive flow
 
-Then in a Claude Code session, invoke the skill via its slash command or a
-natural-language trigger phrase. Each skill's `SKILL.md` documents its own
-trigger patterns and inputs.
+Running `./install.sh` with no arguments prints something like:
+
+```
+Skills available in this repo:
+  1) rick-explain-diff-html
+  a) all
+  q) quit
+Pick one or more (comma / space separated) [a]:
+Install into [/Users/you/.claude/skills]:
+Install method — symlink or copy [symlink]:
+```
+
+Press Enter at each prompt to accept the default, or type an answer.
+For the skill picker you can enter `a` (all), a single index (`1`),
+several indices (`1, 3`), or `q` to abort.
+
+### Non-interactive flags
+
+Skip prompts entirely by passing the answers on the command line:
+
+```bash
+./install.sh --all --symlink                        # every skill, symlinked
+./install.sh rick-explain-diff-html --copy          # one skill by name, copied
+./install.sh --all --target /custom/skills --copy   # custom target dir + copy
+./install.sh --all --force                          # replace existing without asking
+```
+
+Full option list:
+
+| Flag | Meaning |
+| --- | --- |
+| `SKILL_NAME [SKILL_NAME…]` | Positional. Install these specific skills by folder name. |
+| `--all` | Install every skill found in the repo. |
+| `--target DIR` | Install into `DIR` instead of `~/.claude/skills`. Env var `CLAUDE_SKILLS_DIR` is honoured as an alternative default. |
+| `--symlink` | Force symlink mode (see below). |
+| `--copy` | Force full-copy mode. |
+| `--force` | If an entry already exists at the target, replace it without prompting. Without `--force`, the installer asks before overwriting. |
+| `-h`, `--help` | Print help. |
+
+### Symlink vs copy
+
+- **Symlink (default).** Creates `~/.claude/skills/<skill> → /path/to/klapen-ai-skills/<skill>`. Any `git pull` on the repo checkout immediately reflects in the installed skill — no reinstall needed. Works on macOS, Linux, WSL.
+- **Copy.** Copies the whole skill folder. Portable, self-contained, but frozen — you have to re-run `./install.sh` after `git pull` to pick up updates.
+
+On **Windows / Git Bash** `ln -s` sometimes silently fails without Developer Mode. If you asked for `--symlink` and the `ln` call errors, the installer prints a notice and automatically falls back to a full copy for that skill. If you want the copy behaviour up front, pass `--copy`.
+
+### Requirements
+
+Requirements are per-skill and documented in each skill's `SKILL.md`.
+For everything in this repo you need at minimum:
+
+- Bash (macOS / Linux / WSL / Git Bash on Windows)
+- `python3` on `PATH`
+- Optional: `gh` (GitHub CLI) and/or `glab` (GitLab CLI) for the skills that resolve PR/MR URLs
+
+### Updating
+
+```bash
+cd klapen-ai-skills
+git pull
+# If you installed by symlink: nothing else to do.
+# If you installed by copy: re-run the installer to overwrite.
+./install.sh --all --force
+```
+
+### Uninstalling
+
+Since installed skills are either a symlink or a folder inside your
+skills directory, remove them the usual way:
+
+```bash
+rm -rf ~/.claude/skills/<skill-name>          # copy or symlink; both cases
+```
+
+### Using a skill
+
+Once installed, invoke a skill from a Claude Code session via its
+slash-command trigger or a natural-language phrase. Each skill's
+`SKILL.md` lists its own trigger patterns and inputs.
 
 ### Example: rick-explain-diff-html
 
