@@ -19,7 +19,11 @@ function buildFixtureGraph(config = loadConfig()) {
 
 describe("assembleGraph — hierarchy", () => {
   const graph = buildFixtureGraph();
-  const byPath = new Map(graph.nodes.map((n) => [n.relativePath, n]));
+  const byPath = new Map(
+    graph.nodes
+      .filter((n) => n.kind === "repository" || n.kind === "folder" || n.kind === "file")
+      .map((n) => [n.relativePath, n])
+  );
 
   it("creates a repository root and nested folder nodes", () => {
     expect(byPath.get(".")?.kind).toBe("repository");

@@ -104,17 +104,6 @@ export function assembleGraph(
   // parenting the method under the file instead of the class. Registering every entity's
   // id first, then resolving parentId in a second pass, makes the graph's parentId chain
   // correct regardless of entity emission order.
-  //
-  // Entity nodes carry `relativePath#qualifiedName` (not the bare file relativePath) in
-  // their `relativePath` field. RawEntity.relativePath is literally the containing file's
-  // relative path (see typescript.ts/python.ts), so every entity in a file shares that
-  // exact string. If entity nodes reused it verbatim, they'd collide with their own file
-  // node's relativePath: a file with any entities would have several `nodes` entries
-  // sharing one relativePath, and relativePath-keyed lookups over `nodes` (e.g.
-  // `new Map(nodes.map(n => [n.relativePath, n]))`, or `nodes.find(n => n.relativePath === x)`)
-  // would resolve to whichever entity happened to be first/last, not the file — silently
-  // wrong regardless of push order. Suffixing with qualifiedName keeps every node's
-  // relativePath unique while still tracing back to the file it lives in.
   const entityIdByQualifiedName = new Map<string, string>();
   for (const result of languageResults) {
     for (const entity of result.entities) {
@@ -141,7 +130,7 @@ export function assembleGraph(
         parentId,
         name: entity.name,
         qualifiedName: entity.qualifiedName,
-        relativePath: `${entity.relativePath}#${entity.qualifiedName}`,
+        relativePath: entity.relativePath,
         kind: entity.kind,
         loc: entity.loc,
       });
