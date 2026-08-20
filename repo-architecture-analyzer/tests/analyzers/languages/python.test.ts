@@ -18,11 +18,18 @@ describe("analyzePythonFiles", () => {
     expect(names).toContain("main");
   });
 
-  it("computes a line count and start/end lines for a multi-line class", () => {
+  it("computes accurate line counts and start/end lines for all entities", () => {
+    const double = result.entities.find((e) => e.qualifiedName === "double");
+    expect(double).toMatchObject({ startLine: 1, endLine: 2, loc: 2, language: "python" });
+
     const formatter = result.entities.find((e) => e.qualifiedName === "Formatter");
-    expect(formatter?.loc).toBeGreaterThan(1);
-    expect(formatter?.endLine).toBeGreaterThan(formatter!.startLine);
-    expect(formatter?.language).toBe("python");
+    expect(formatter).toMatchObject({ startLine: 5, endLine: 9, loc: 5, language: "python" });
+
+    const render = result.entities.find((e) => e.qualifiedName === "Formatter.render");
+    expect(render).toMatchObject({ startLine: 6, endLine: 9, loc: 4, language: "python" });
+
+    const main = result.entities.find((e) => e.qualifiedName === "main");
+    expect(main).toMatchObject({ startLine: 4, endLine: 7, loc: 4, language: "python" });
   });
 
   it("resolves a same-directory module import", () => {

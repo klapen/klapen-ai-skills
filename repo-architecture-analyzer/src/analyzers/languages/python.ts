@@ -24,10 +24,12 @@ function analyzePythonSource(
   relativePath: string,
   source: string
 ): { entities: RawEntity[]; imports: RawImport[] } {
-  const lines = source.split("\n");
+  const rawLines = source.split("\n");
+  const lines = rawLines[rawLines.length - 1] === "" ? rawLines.slice(0, -1) : rawLines;
   const entities: RawEntity[] = [];
   const imports: RawImport[] = [];
   const stack: StackEntry[] = [];
+  let lastContentLine = 0;
 
   const closeEntitiesDownTo = (threshold: number, endLineExclusive: number) => {
     while (stack.length > 0 && stack[stack.length - 1].indent >= threshold) {
@@ -48,11 +50,14 @@ function analyzePythonSource(
 
   for (let i = 0; i < lines.length; i += 1) {
     const line = lines[i];
-    if (line.trim() === "" || line.trim().startsWith("#")) continue;
-    const indent = indentWidth(line);
+    if (line.trim() === "") continue;
 
-    // Any open def/class whose own indent is >= this line's indent has had its body end.
-    closeEntitiesDownTo(indent, i + 1);
+    const indent = indentWidth(line);
+    closeEntitiesDownTo(indent, lastContentLine + 1);
+
+    lastContentLine = i + 1;
+
+    if (line.trim().startsWith("#")) continue;
 
     const defMatch = line.match(DEF_RE);
     if (defMatch) {
@@ -81,7 +86,7 @@ function analyzePythonSource(
     }
   }
 
-  closeEntitiesDownTo(0, lines.length + 1);
+  closeEntitiesDownTo(0, lastContentLine + 1);
   return { entities, imports };
 }
 
