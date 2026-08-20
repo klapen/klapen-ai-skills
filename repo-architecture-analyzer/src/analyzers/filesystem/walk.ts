@@ -71,8 +71,19 @@ function loadIgnore(repoRoot: string, config: AnalyzerConfig): Ignore {
   return ig;
 }
 
+function loadPruneIgnore(repoRoot: string, config: AnalyzerConfig): Ignore {
+  const ig = ignore();
+  const gitignorePath = path.join(repoRoot, ".gitignore");
+  if (fs.existsSync(gitignorePath)) {
+    ig.add(fs.readFileSync(gitignorePath, "utf8"));
+  }
+  ig.add(config.exclude.map((p) => p.replace(/\/\*\*$/, "")));
+  return ig;
+}
+
 export function walkRepository(repoRoot: string, config: AnalyzerConfig): WalkedFile[] {
   const ig = loadIgnore(repoRoot, config);
+  const pruneIg = loadPruneIgnore(repoRoot, config);
   const results: WalkedFile[] = [];
 
   function visit(dirAbs: string): void {
@@ -83,7 +94,9 @@ export function walkRepository(repoRoot: string, config: AnalyzerConfig): Walked
       if (ig.ignores(checkPath)) continue;
 
       if (entry.isDirectory()) {
-        visit(abs);
+        if (!pruneIg.ignores(rel)) {
+          visit(abs);
+        }
       } else if (entry.isFile()) {
         results.push({
           absolutePath: abs,

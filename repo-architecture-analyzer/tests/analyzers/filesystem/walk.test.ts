@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -48,6 +48,28 @@ describe("walkRepository — exclusions", () => {
     expect(paths).toContain("keep.ts");
     expect(paths).not.toContain("node_modules/left-pad/index.js");
     expect(paths).not.toContain("secret.local.ts");
+
+    fs.rmSync(tmp, { recursive: true, force: true });
+  });
+
+  it("prunes directories before recursing into them", () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "repo-arch-prune-"));
+    fs.mkdirSync(path.join(tmp, "node_modules", "pkg"), { recursive: true });
+    fs.mkdirSync(path.join(tmp, "src"), { recursive: true });
+    fs.writeFileSync(path.join(tmp, "node_modules", "pkg", "index.js"), "module.exports = {};");
+    fs.writeFileSync(path.join(tmp, "src", "main.ts"), "export const x = 1;");
+
+    const readdirSpy = vi.spyOn(fs, "readdirSync");
+    const files = walkRepository(tmp, loadConfig());
+    readdirSpy.mockRestore();
+
+    const readdirCalls = readdirSpy.mock.calls.map((call) => call[0]);
+    const nodeModulesPath = path.join(tmp, "node_modules");
+    const reachedNodeModules = readdirCalls.some((p) => p === nodeModulesPath);
+
+    expect(reachedNodeModules).toBe(false);
+    expect(files.some((f) => f.relativePath === "src/main.ts")).toBe(true);
+    expect(files.some((f) => f.relativePath.startsWith("node_modules"))).toBe(false);
 
     fs.rmSync(tmp, { recursive: true, force: true });
   });
