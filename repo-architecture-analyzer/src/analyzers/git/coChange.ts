@@ -14,7 +14,7 @@ function isLockfile(relativePath: string, patterns: string[]): boolean {
 }
 
 function pairKey(a: string, b: string): string {
-  return [a, b].sort().join(" ");
+  return [a, b].sort().join("\0");
 }
 
 export function computeCoChange(repoRoot: string, config: GitConfig): CoChangePair[] {
@@ -70,7 +70,7 @@ export function computeCoChange(repoRoot: string, config: GitConfig): CoChangePa
   const pairs: CoChangePair[] = [];
   for (const [key, jointCommits] of jointCountByPair) {
     if (jointCommits < config.coChangeMinimumCommits) continue;
-    const [fileA, fileB] = key.split(" ");
+    const [fileA, fileB] = key.split("\0");
     const denom = Math.max(commitCountByFile.get(fileA) ?? 1, commitCountByFile.get(fileB) ?? 1);
     const confidence = jointCommits / denom;
     if (confidence < config.coChangeMinimumConfidence) continue;

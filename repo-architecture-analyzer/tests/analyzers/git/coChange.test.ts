@@ -40,4 +40,26 @@ describe("computeCoChange", () => {
 
     expect(pairs).toHaveLength(0);
   });
+
+  it("correctly handles files with spaces in their names", () => {
+    repo = createTempGitRepo();
+    for (let i = 0; i < 3; i += 1) {
+      repo.commit(
+        { "my file.ts": `v${i}`, "other.ts": `v${i}` },
+        { message: `iterate ${i}`, date: `2026-01-0${i + 1}T00:00:00Z` }
+      );
+    }
+
+    const config = { ...loadConfig().git, coChangeMinimumCommits: 2, coChangeMinimumConfidence: 0.5 };
+    const pairs = computeCoChange(repo.root, config);
+
+    const pair = pairs.find(
+      (p) => [p.fileA, p.fileB].includes("my file.ts") && [p.fileA, p.fileB].includes("other.ts")
+    );
+    expect(pair).toBeDefined();
+    expect(pair!.fileA).toBe("my file.ts");
+    expect(pair!.fileB).toBe("other.ts");
+    expect(pair!.commits).toBe(3);
+    expect(pair!.confidence).toBeCloseTo(1);
+  });
 });
