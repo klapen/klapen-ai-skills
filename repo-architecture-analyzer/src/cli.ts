@@ -44,6 +44,26 @@ export function parseArgs(argv: string[]): CliArgs {
   return args;
 }
 
+// This module is bundled to CJS (bin/analyze.js) via esbuild for standalone
+// distribution, but also runs unbundled as an ESM file under vitest. esbuild
+// empties `import.meta.url` when targeting CJS output, so both path
+// resolution and main-module detection below prefer the CJS-native globals
+// (`__dirname` / `require.main`) when they're actually present, and fall
+// back to `import.meta.url` in the ESM (test) context.
+function resolveReportRuntimePath(): string {
+  if (typeof __dirname !== "undefined") {
+    return path.join(__dirname, "../bin/report-runtime.js");
+  }
+  return fileURLToPath(new URL("../bin/report-runtime.js", import.meta.url));
+}
+
+function detectIsMainModule(): boolean {
+  if (typeof require !== "undefined" && typeof module !== "undefined") {
+    return require.main === module;
+  }
+  return import.meta.url === `file://${process.argv[1]}`;
+}
+
 function slugify(name: string): string {
   return name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "repo";
 }
@@ -69,7 +89,7 @@ export function main(argv: string[] = process.argv.slice(2)): void {
 
   const data = runAnalysis(args.repo, config, { noCache: args.noCache, force: args.force });
 
-  const reportRuntimePath = fileURLToPath(new URL("../bin/report-runtime.js", import.meta.url));
+  const reportRuntimePath = resolveReportRuntimePath();
   const reportRuntimeJs = fs.readFileSync(reportRuntimePath, "utf8");
   const html = buildReportHtml(data, { reportRuntimeJs });
 
@@ -94,7 +114,6 @@ export function main(argv: string[] = process.argv.slice(2)): void {
   }
 }
 
-const isMainModule = import.meta.url === `file://${process.argv[1]}`;
-if (isMainModule) {
+if (detectIsMainModule()) {
   main();
 }
