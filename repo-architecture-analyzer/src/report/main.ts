@@ -32,7 +32,17 @@ function renderInspector(container: HTMLElement, data: RepositoryData, nodeId: s
   for (const [label, value] of rows) {
     const row = document.createElement("div");
     row.className = "rk-inspector__row";
-    row.innerHTML = `<span class="rk-inspector__label">${label}</span><span class="rk-inspector__value">${value}</span>`;
+    const labelSpan = document.createElement("span");
+    labelSpan.className = "rk-inspector__label";
+    labelSpan.textContent = label;
+    const valueSpan = document.createElement("span");
+    valueSpan.className = "rk-inspector__value";
+    // Use textContent (not innerHTML) — `value` includes node fields (e.g. relativePath) drawn
+    // straight from the analyzed repository, which may be untrusted. Any field value must never
+    // be parsed as markup.
+    valueSpan.textContent = value;
+    row.appendChild(labelSpan);
+    row.appendChild(valueSpan);
     container.appendChild(row);
   }
 }
