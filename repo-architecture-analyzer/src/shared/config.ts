@@ -19,8 +19,15 @@ export function mergeConfig(
   return {
     sourceRoots: overrides.sourceRoots ?? base.sourceRoots,
     testRoots: overrides.testRoots ?? base.testRoots,
+    // `include` replaces wholesale when supplied (its default of ["**/*"] is a sentinel meaning
+    // "no allowlist restriction"; a real --include narrows it to specific globs, which additive
+    // union with "**/*" could never do). `exclude`, by contrast, is additive: its defaults
+    // (.git, node_modules, vendor, dist, build, ...) are a safety guarantee — replacing them
+    // wholesale on any --exclude use would re-enable walking .git internals, node_modules, etc.
+    // This exclude guarantee is also enforced independently in walk.ts (exclude is checked
+    // before any include allowlist), so a permissive --include can never defeat it either.
     include: overrides.include ?? base.include,
-    exclude: overrides.exclude ?? base.exclude,
+    exclude: overrides.exclude && overrides.exclude.length > 0 ? [...base.exclude, ...overrides.exclude] : base.exclude,
     layers: overrides.layers ?? base.layers,
     git: { ...base.git, ...overrides.git },
     risk: { ...base.risk, ...overrides.risk },

@@ -28,9 +28,26 @@ describe("loadConfig", () => {
 });
 
 describe("mergeConfig", () => {
-  it("replaces array fields wholesale rather than concatenating", () => {
+  it("replaces `include` wholesale rather than concatenating", () => {
+    const base = loadConfig();
+    const merged = mergeConfig(base, { include: ["src/**"] });
+    expect(merged.include).toEqual(["src/**"]);
+  });
+
+  it("adds CLI-supplied excludes to the default exclude list instead of replacing it", () => {
     const base = loadConfig();
     const merged = mergeConfig(base, { exclude: ["**/only-this/**"] });
-    expect(merged.exclude).toEqual(["**/only-this/**"]);
+    expect(merged.exclude).toContain("**/only-this/**");
+    // The safety-critical defaults must still be present — a user passing --exclude must never
+    // silently re-enable walking .git internals or node_modules.
+    expect(merged.exclude).toContain("**/.git/**");
+    expect(merged.exclude).toContain("**/node_modules/**");
+    expect(merged.exclude).toEqual([...base.exclude, "**/only-this/**"]);
+  });
+
+  it("leaves exclude untouched when no override is given", () => {
+    const base = loadConfig();
+    const merged = mergeConfig(base, {});
+    expect(merged.exclude).toEqual(base.exclude);
   });
 });

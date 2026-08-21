@@ -1,3 +1,19 @@
+---
+name: repo-architecture-analyzer
+description: >
+  Use when the user asks to analyze a repository's architecture, structure,
+  dependencies, static metrics, or Git history, or to find architecture
+  hotspots/risk areas — renders a single self-contained interactive HTML
+  report (D3.js) covering a repo map, a dependency matrix, and a hotspots
+  view. Trigger phrases include: `/repo-architecture-analyzer [path]
+  [options]`, "analyze this repo's architecture", "show me the dependency
+  structure", "find architecture hotspots". Defaults to the current repo
+  when no path is given.
+metadata:
+  version: 0.1.0
+  author: klapen
+---
+
 # repo-architecture-analyzer
 
 Analyzes a repository's structure, dependencies, static metrics, and Git
@@ -74,6 +90,17 @@ is wrong — most warnings are informational (e.g. "no git history").
 - **Everything else:** appears in the file tree and git-history metrics
   only. `metadata.parserCoverage.skipped` counts these files honestly —
   never claim full coverage for a repo with a lot of `skipped`.
+- **Whole-language failure:** a parse error in any single file currently
+  discards that whole language's entities/imports for the run (there's no
+  per-file isolation yet); `metadata.parserCoverage.failed` reflects this
+  honestly when it happens — treat a non-zero `failed` as "this language's
+  results are missing for this run," not as a small/partial gap.
+- **TypeScript/JavaScript entity extraction currently covers
+  `class`/`interface`/`function`/`method` declarations only** —
+  arrow-function exports (`export const foo = () => ...`) and re-exports
+  (`export ... from`) are not yet extracted as entities, so files relying
+  heavily on that style may show lower complexity/risk than their actual
+  code warrants.
 
 ## Report contents (v1)
 
