@@ -26,3 +26,10 @@ Thumbs.db
 
 # Rendered outputs (skill test artifacts belong under /tmp, not here)
 /tmp-render/
+
+# Node.js (repo-architecture-analyzer dev toolchain; bin/*.js build outputs ARE committed)
+node_modules/
+dist/
+
+# Subagent-driven-development scratch workspace (ledgers, briefs, review packages)
+.superpowers/

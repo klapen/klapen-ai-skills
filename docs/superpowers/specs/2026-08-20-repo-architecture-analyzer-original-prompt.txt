@@ -1,0 +1,1065 @@
+# Reusable D3 Repository Architecture Analyzer
+
+You are a senior software architect, static-analysis engineer, and D3.js visualization developer working inside an existing Git repository.
+
+Your task is to inspect the repository and build a **reusable, local architecture-analysis tool** that extracts structural and historical information from the codebase and generates an interactive, self-contained HTML report using D3.js.
+
+Do not stop at recommendations, pseudocode, or a prototype. Implement the tool, run it against the current repository, validate the generated output, and leave clear commands so it can be rerun later as the repository evolves.
+
+## Primary objective
+
+Create a pipeline with two clearly separated responsibilities:
+
+1. **Repository analysis**
+
+   * Inspect source code, folders, files, classes, modules, dependencies, metrics, and Git history.
+   * Produce deterministic, machine-readable JSON data.
+
+2. **Report generation**
+
+   * Read the generated JSON.
+   * Produce a self-contained interactive HTML report using D3.js.
+   * Embed the latest data into the final HTML so the report can be opened directly with `file://` without requiring a server.
+
+The user must be able to regenerate the analysis and report later with one command.
+
+The desired workflow is:
+
+```bash
+cd tools/repo-architecture
+npm install
+npm run refresh -- --repo ../.. --snapshot
+```
+
+The command must:
+
+1. Analyze the repository.
+2. Generate or update the JSON dataset.
+3. Optionally save a timestamped snapshot.
+4. Compare the new result with the previous snapshot when available.
+5. Build the final HTML report.
+6. Print the output paths and a concise analysis summary.
+
+## Safety and repository constraints
+
+Before making changes:
+
+1. Inspect the repository structure, existing build system, languages, frameworks, package managers, and Git status.
+2. Do not overwrite or discard existing user changes.
+3. Do not modify production application code unless absolutely necessary.
+4. Place the implementation under:
+
+```text
+tools/repo-architecture/
+```
+
+5. Do not commit changes.
+6. Do not upload source code, metrics, Git information, or report data to any external service.
+7. Do not include source-code contents in the generated JSON by default.
+8. Avoid storing author email addresses. Prefer author counts or anonymized identifiers.
+9. Respect `.gitignore`, while allowing configuration overrides.
+10. Exclude generated, vendored, binary, minified, dependency, and build-output directories by default.
+
+Typical default exclusions should include:
+
+```text
+.git
+node_modules
+vendor
+dist
+build
+target
+coverage
+.next
+out
+bin
+obj
+.cache
+generated
+*.min.js
+```
+
+## Technology guidance
+
+Prefer implementing the analysis and report generator in TypeScript and Node.js because the visualization uses D3.js.
+
+Use the repository’s existing package manager when practical. Otherwise, create an isolated `package.json` and lockfile inside `tools/repo-architecture/`.
+
+Use D3.js from npm and bundle it into the final report. Do not depend on a CDN.
+
+You may use a small bundler such as esbuild or Vite, but the final output must be a single self-contained HTML file.
+
+Prefer mature AST-based parsers over regular expressions.
+
+Examples include:
+
+* TypeScript Compiler API or `ts-morph` for TypeScript and JavaScript.
+* Python’s built-in `ast` module or a mature Python parser.
+* JavaParser or Tree-sitter for Java.
+* Roslyn-compatible analysis or Tree-sitter for C#.
+* Tree-sitter parsers for other supported languages.
+
+Choose parsers based on the languages actually detected in the repository.
+
+Regular expressions may be used only as a documented fallback for unsupported file types. The report must state which files were fully parsed, partially parsed, skipped, or analyzed using fallback logic.
+
+## Architecture of the tool
+
+Use a modular structure similar to:
+
+```text
+tools/repo-architecture/
+├── README.md
+├── package.json
+├── package-lock.json or equivalent
+├── tsconfig.json
+├── repo-architecture.config.json
+├── schema/
+│   └── repository-data.schema.json
+├── src/
+│   ├── cli/
+│   ├── analyzers/
+│   │   ├── filesystem/
+│   │   ├── git/
+│   │   ├── languages/
+│   │   └── metrics/
+│   ├── graph/
+│   │   ├── cycles/
+│   │   ├── communities/
+│   │   └── dependencies/
+│   ├── report/
+│   │   ├── components/
+│   │   ├── visualizations/
+│   │   ├── styles/
+│   │   └── index.ts
+│   └── shared/
+├── data/
+│   ├── latest.json
+│   ├── latest-diff.json
+│   └── snapshots/
+├── dist/
+│   └── repository-architecture.html
+├── tests/
+└── .cache/
+```
+
+This is a suggested structure. Adapt it when the repository already has conventions that should be followed.
+
+## Required CLI commands
+
+Implement these commands:
+
+```bash
+npm run analyze -- --repo <repository-path>
+npm run build-report
+npm run refresh -- --repo <repository-path>
+npm run refresh -- --repo <repository-path> --snapshot
+npm run serve
+npm test
+```
+
+Expected behavior:
+
+### `analyze`
+
+* Analyze the repository.
+* Write `data/latest.json`.
+* Validate it against the JSON schema.
+* Print summary metrics.
+* Do not build the HTML unless explicitly requested.
+
+### `build-report`
+
+* Read `data/latest.json`.
+* Read `data/latest-diff.json` when available.
+* Bundle the report.
+* Generate:
+
+```text
+dist/repository-architecture.html
+```
+
+### `refresh`
+
+* Run analysis and report generation in sequence.
+* With `--snapshot`, archive the current analysis before or after generation using a timestamp and Git SHA.
+* Compare the latest result with the previous compatible snapshot.
+* Return a nonzero exit code for genuine build or analysis failures.
+
+### `serve`
+
+* Start a minimal local static server for development.
+* The final HTML must still work without this server.
+
+Support additional useful flags where appropriate:
+
+```text
+--config <path>
+--force
+--no-cache
+--snapshot
+--compare-with <snapshot>
+--include <glob>
+--exclude <glob>
+--max-git-commits <number>
+--git-since <date-or-duration>
+--verbose
+```
+
+## Configuration
+
+Generate a documented configuration file:
+
+```text
+repo-architecture.config.json
+```
+
+It should support:
+
+* Include and exclude patterns.
+* Source roots.
+* Test roots.
+* Generated-code patterns.
+* Package or module boundaries.
+* Layer definitions.
+* Allowed layer dependencies.
+* File-size limits.
+* Git-history window.
+* Co-change thresholds.
+* Visualization thresholds.
+* Parser overrides.
+* Path aliases.
+* Monorepo workspace definitions.
+* Risk-score weights.
+
+Example shape:
+
+```json
+{
+  "sourceRoots": ["src"],
+  "testRoots": ["test", "tests", "__tests__"],
+  "include": ["src/**/*"],
+  "exclude": [
+    "**/node_modules/**",
+    "**/dist/**",
+    "**/build/**",
+    "**/coverage/**",
+    "**/*.generated.*"
+  ],
+  "layers": [
+    {
+      "name": "domain",
+      "match": ["**/domain/**"],
+      "mayDependOn": ["domain", "shared"]
+    },
+    {
+      "name": "application",
+      "match": ["**/application/**"],
+      "mayDependOn": ["application", "domain", "shared"]
+    },
+    {
+      "name": "infrastructure",
+      "match": ["**/infrastructure/**"],
+      "mayDependOn": [
+        "infrastructure",
+        "application",
+        "domain",
+        "shared"
+      ]
+    }
+  ],
+  "git": {
+    "since": "12 months ago",
+    "coChangeMinimumCommits": 3,
+    "coChangeMinimumConfidence": 0.2
+  },
+  "snapshots": {
+    "enabled": true,
+    "keep": 20
+  }
+}
+```
+
+Do not invent layer violations when no architecture rules are configured. In that case, show cross-directory and cross-package dependencies as observations rather than violations.
+
+## Data extraction requirements
+
+Analyze the repository at several granularities:
+
+```text
+repository
+workspace
+package or module
+folder
+file
+class or interface
+function or method, when practical
+```
+
+For languages without classes, use the closest meaningful entities, such as modules, structs, traits, functions, components, or namespaces.
+
+### Filesystem hierarchy
+
+Extract:
+
+* Repository hierarchy.
+* Workspaces or modules.
+* Folders.
+* Files.
+* Parent-child relationships.
+* File type and language.
+* Source, test, generated, configuration, and documentation classifications.
+
+### Code entities
+
+When supported by the detected language, extract:
+
+* Classes.
+* Interfaces.
+* Abstract classes.
+* Enums.
+* Functions.
+* Methods.
+* Components.
+* Modules.
+* Namespaces.
+* Public API symbols.
+* Inheritance and implementation relationships.
+
+### Dependency relationships
+
+At minimum, extract:
+
+* Imports.
+* Requires.
+* Includes.
+* Package dependencies.
+* Module dependencies.
+* Inheritance.
+* Interface implementation.
+* File-to-file references.
+
+Where reliable language tooling is available, also extract:
+
+* Function or method calls.
+* Constructor usage.
+* Type references.
+* Dependency-injection relationships.
+
+Classify dependency edges using types such as:
+
+```text
+import
+call
+inheritance
+implementation
+type-reference
+package-dependency
+co-change
+```
+
+Resolve aliases and relative paths where possible.
+
+Explicitly record unresolved dependencies instead of silently dropping them.
+
+### Static metrics
+
+Calculate metrics where they can be determined reliably:
+
+* Lines of code.
+* Logical statements.
+* Number of classes, methods, and functions.
+* Cyclomatic complexity.
+* Nesting depth.
+* Fan-in.
+* Fan-out.
+* Afferent coupling.
+* Efferent coupling.
+* Instability.
+* Centrality.
+* Number of direct dependents.
+* Number of transitive dependents.
+* Public API surface.
+* Test classification.
+* Coverage, only when an existing coverage artifact is available.
+* Strongly connected components.
+* Dependency cycles.
+* Cross-package dependencies.
+* Cross-layer dependencies.
+* Architecture-rule violations.
+
+Do not run an expensive full test suite merely to obtain coverage unless the repository already provides a quick, documented command and running it is safe. Prefer consuming existing LCOV, Cobertura, JaCoCo, or similar artifacts.
+
+### Git history metrics
+
+Use Git history to calculate:
+
+* Commit count per file.
+* Churn, preferably additions plus deletions.
+* Change frequency.
+* Last modification date.
+* File age.
+* Number of distinct contributors.
+* Files that frequently change together.
+* Recent hotspot movement.
+* Renames when detectable.
+* Added and deleted files between snapshots.
+
+Make the Git analysis window configurable.
+
+Co-change relationships should use documented thresholds to avoid creating a dense edge between every pair of files changed in the same commit.
+
+Ignore or down-weight bulk formatting, dependency lockfile updates, generated-code commits, merges, and unusually large commits where practical.
+
+### Risk score
+
+Calculate a documented, configurable heuristic risk score.
+
+It may combine normalized values such as:
+
+```text
+risk =
+    complexityWeight * normalizedComplexity
+  + churnWeight * normalizedChurn
+  + couplingWeight * normalizedCoupling
+  + cycleWeight * cycleParticipation
+  + coverageWeight * missingCoverage
+```
+
+The exact formula must be documented in the README and report.
+
+Label the score clearly as a heuristic, not an objective measure of code quality.
+
+## Stable data model
+
+Generate deterministic IDs so that the same unchanged entity retains the same ID between runs.
+
+A reasonable convention is:
+
+```text
+<entity-kind>:<normalized-relative-path>#<qualified-symbol-name>
+```
+
+The main dataset should contain at least:
+
+```ts
+type RepositoryData = {
+  metadata: {
+    schemaVersion: string;
+    generatedAt: string;
+    repositoryName: string;
+    repositoryRoot?: string;
+    gitCommit?: string;
+    gitBranch?: string;
+    isDirty?: boolean;
+    languages: string[];
+    analyzerVersion: string;
+    configurationHash: string;
+    parserCoverage: {
+      full: number;
+      partial: number;
+      skipped: number;
+      failed: number;
+    };
+  };
+
+  summary: {
+    files: number;
+    sourceFiles: number;
+    testFiles: number;
+    entities: number;
+    linesOfCode: number;
+    dependencyEdges: number;
+    cycles: number;
+    architectureViolations: number;
+    hotspots: number;
+  };
+
+  nodes: CodeNode[];
+  edges: CodeEdge[];
+  cycles: DependencyCycle[];
+  communities: Community[];
+  unresolvedDependencies: UnresolvedDependency[];
+  architectureRules: ArchitectureRule[];
+  warnings: AnalysisWarning[];
+};
+```
+
+Each node should support fields similar to:
+
+```ts
+type CodeNode = {
+  id: string;
+  parentId?: string;
+  name: string;
+  qualifiedName?: string;
+  relativePath: string;
+  kind:
+    | "repository"
+    | "workspace"
+    | "package"
+    | "folder"
+    | "file"
+    | "class"
+    | "interface"
+    | "function"
+    | "method"
+    | "module"
+    | "component"
+    | "other";
+
+  language?: string;
+  layer?: string;
+  packageName?: string;
+  isTest?: boolean;
+  isGenerated?: boolean;
+
+  loc?: number;
+  complexity?: number;
+  nestingDepth?: number;
+  fanIn?: number;
+  fanOut?: number;
+  instability?: number;
+  centrality?: number;
+  coverage?: number;
+
+  commitCount?: number;
+  churn?: number;
+  contributorCount?: number;
+  lastModified?: string;
+
+  cycleCount?: number;
+  riskScore?: number;
+};
+```
+
+Each edge should support fields similar to:
+
+```ts
+type CodeEdge = {
+  id: string;
+  source: string;
+  target: string;
+  type:
+    | "import"
+    | "call"
+    | "inheritance"
+    | "implementation"
+    | "type-reference"
+    | "package-dependency"
+    | "co-change";
+
+  weight: number;
+  occurrences?: number;
+  confidence?: number;
+
+  isCrossFolder?: boolean;
+  isCrossPackage?: boolean;
+  isCrossLayer?: boolean;
+  isArchitectureViolation?: boolean;
+};
+```
+
+Validate the data before building the report.
+
+## Snapshot and historical comparison
+
+Make the tool useful for repeated analysis over time.
+
+When snapshots are enabled, save datasets under:
+
+```text
+data/snapshots/
+```
+
+Use filenames containing:
+
+* UTC timestamp.
+* Short Git commit SHA.
+* Schema version.
+
+Example:
+
+```text
+2026-08-19T153000Z-a1b2c3d-v1.json
+```
+
+When a previous compatible snapshot exists, create:
+
+```text
+data/latest-diff.json
+```
+
+The diff should include:
+
+* Added files and entities.
+* Removed files and entities.
+* Renamed files when detectable.
+* Dependency edges added or removed.
+* New cycles.
+* Resolved cycles.
+* New architecture violations.
+* Resolved architecture violations.
+* Complexity changes.
+* Churn changes.
+* Risk-score changes.
+* Packages with increasing or decreasing coupling.
+* Hotspots entering or leaving the top-risk group.
+
+Display the compared timestamps and Git SHAs prominently in the report.
+
+If snapshots use an incompatible schema or configuration, warn the user and skip invalid comparisons instead of producing misleading results.
+
+## Required D3.js visualizations
+
+Build a single-page interactive report with coordinated views.
+
+The report should include a summary dashboard and the following visualizations.
+
+### 1. Repository map
+
+Implement a zoomable repository hierarchy using:
+
+* Icicle as the default view.
+* Treemap as an alternative toggle.
+
+Hierarchy:
+
+```text
+repository → workspace → folder → file → class or symbol
+```
+
+Visual encoding:
+
+* Rectangle size: lines of code or selected metric.
+* Color: risk, complexity, churn, coverage, or language.
+* Border or icon: entity type.
+* Opacity: age or recent activity.
+
+Required interactions:
+
+* Zoom into folders and packages.
+* Breadcrumb navigation.
+* Search by path, file, class, or symbol.
+* Metric selector.
+* Hover details.
+* Click to select an entity.
+* Synchronize the selection with the other visualizations.
+
+### 2. Dependency Structure Matrix
+
+Create an interactive dependency matrix at these levels:
+
+```text
+package
+folder
+file
+class, when available
+```
+
+Features:
+
+* Rows and columns represent the selected entities.
+* Cell intensity represents dependency count or weight.
+* Switch between dependency types.
+* Reorder by:
+
+  * Folder hierarchy.
+  * Package.
+  * Strongly connected component.
+  * Topological order where possible.
+  * Community.
+  * Fan-in.
+  * Fan-out.
+* Highlight dependency cycles.
+* Highlight architecture violations.
+* Show incoming and outgoing dependency details on hover or click.
+* Allow focusing on a selected package or subtree.
+
+The matrix must remain usable for large repositories by aggregating data and limiting class-level rendering until a narrower scope is selected.
+
+### 3. Hierarchical edge bundling
+
+Create a hierarchical edge-bundling view showing dependencies over the repository hierarchy.
+
+Features:
+
+* Packages or folders around the outside.
+* Files or classes as leaves.
+* Curves for dependencies.
+* Direction indicator.
+* Edge width based on weight.
+* Filters by dependency type.
+* Highlight only incoming and outgoing edges for the selected entity.
+* Aggregate by package for large repositories.
+* Allow expanding a package into files or classes.
+
+Avoid displaying every edge at full opacity by default.
+
+### 4. Logical architecture and architectural tension
+
+Create a distinctive visualization comparing:
+
+* **Declared location:** where an entity lives in the folder and package hierarchy.
+* **Observed location:** where dependency relationships place it logically.
+
+Determine observed communities using a documented graph-community or clustering algorithm.
+
+The view should provide a slider:
+
+```text
+Declared structure  [────────●────────]  Observed relationships
+```
+
+As the slider moves, entities should transition between their declared and observed positions.
+
+Keep a subtle line between both positions to represent architectural displacement.
+
+Calculate a heuristic architectural-tension score using factors such as:
+
+* Distance between declared and observed clusters.
+* Cross-package dependency ratio.
+* Cross-layer dependency ratio.
+* Churn.
+* Complexity.
+* Cycle participation.
+
+Example conceptual formula:
+
+```text
+tension =
+    normalizedStructuralDisplacement
+  * (1 + crossBoundaryDependencyRatio)
+  * (1 + normalizedChurn)
+  * (1 + normalizedComplexity)
+```
+
+Document the actual formula used.
+
+This visualization must clearly state that the observed clustering and tension score are heuristics.
+
+Use it to identify:
+
+* Files located in a package that does not match their dependency community.
+* Utility modules that actually belong to a domain area.
+* Packages containing several unrelated responsibilities.
+* Clusters spread across several folders.
+* Classes that act as unexpected architectural bridges.
+
+### 5. Hotspot view
+
+Create an interactive hotspot chart.
+
+A useful default is:
+
+```text
+X axis: churn
+Y axis: complexity
+Bubble size: fan-in or lines of code
+Bubble color: risk score
+```
+
+Features:
+
+* Log scale when needed.
+* Search and filters.
+* Labels for the highest-risk entities.
+* Click to select and synchronize with the repository map and dependency views.
+* Toggle between files, classes, and packages.
+* Show previous-snapshot position when comparison data is available.
+
+### 6. Evolution and snapshot comparison
+
+When comparison data exists, add a view showing:
+
+* Added and removed entities.
+* New and resolved cycles.
+* New and resolved architecture violations.
+* Largest complexity increases.
+* Largest coupling increases.
+* Largest risk-score changes.
+* Hotspot movement between snapshots.
+* Package-level metric deltas.
+
+The report should still work correctly when no previous snapshot is available.
+
+## Shared report interactions
+
+All views should share a common application state.
+
+Include:
+
+* Global text search.
+* Entity-type filter.
+* Language filter.
+* Package and folder filter.
+* Layer filter.
+* Production versus test toggle.
+* Dependency-type filter.
+* Minimum edge-weight threshold.
+* Risk threshold.
+* Granularity selector.
+* Incoming, outgoing, or both direction selector.
+* Reset button.
+* Clear legends.
+* Breadcrumbs.
+* Selected-entity inspector.
+* URL hash or query-state persistence when practical.
+
+Selecting an entity in one visualization should highlight it in the other visualizations.
+
+The inspector should display:
+
+* Full relative path.
+* Entity type.
+* Package and layer.
+* Metrics.
+* Incoming dependencies.
+* Outgoing dependencies.
+* Cycle membership.
+* Git activity.
+* Risk explanation.
+* Snapshot deltas.
+* Architecture-rule violations.
+* Parser-confidence or analysis limitations.
+
+Do not embed entire source files or sensitive source snippets.
+
+## Performance requirements
+
+The report must remain useful on a large repository.
+
+Implement appropriate strategies such as:
+
+* Package-level aggregation by default.
+* Progressive disclosure.
+* Lazy expansion.
+* Edge filtering.
+* Maximum initial node and edge limits.
+* Canvas rendering for dense force-like views.
+* SVG for structured views where appropriate.
+* Cached repository analysis.
+* Content-hash-based incremental parsing.
+* Precomputed graph metrics.
+* Web Workers for expensive browser-side layouts when practical.
+* Debounced search and filters.
+
+Do not render thousands of labels simultaneously.
+
+When data is aggregated or sampled, show that clearly in the UI.
+
+## Caching and incremental reruns
+
+Store cache data only under:
+
+```text
+tools/repo-architecture/.cache/
+```
+
+The analyzer should reuse cached results for unchanged files based on a reliable key such as:
+
+* Relative path.
+* Content hash.
+* Parser version.
+* Configuration hash.
+
+Provide:
+
+```text
+--force
+--no-cache
+```
+
+A normal rerun should only fully reanalyze files that changed or whose dependencies may have been affected.
+
+Do not allow stale cache data to create incorrect results. Invalidate the cache when parser versions, schema versions, configuration, or relevant analysis logic changes.
+
+## User experience and design
+
+Create a clean, professional architecture-analysis interface.
+
+Include:
+
+* Repository name.
+* Current Git branch.
+* Current commit SHA.
+* Dirty-working-tree indicator.
+* Analysis generation timestamp.
+* Snapshot comparison timestamp.
+* Parser-coverage summary.
+* Warning count.
+* Summary cards.
+* Responsive layout.
+* Accessible labels.
+* Keyboard-accessible controls.
+* Useful empty states.
+* Tooltips that explain metrics.
+* A visible legend for every chart.
+* Light and dark themes when reasonably simple to support.
+
+Avoid visual decoration that reduces analytical value.
+
+## Testing and validation
+
+Add automated tests for the most important logic:
+
+* Path normalization.
+* Stable entity IDs.
+* Dependency resolution.
+* Alias resolution.
+* Graph aggregation.
+* Strongly connected components.
+* Cycle detection.
+* Architecture-rule evaluation.
+* Git-history parsing.
+* Co-change thresholds.
+* Snapshot comparison.
+* Risk-score calculation.
+* JSON-schema validation.
+* Cache invalidation.
+
+Add at least one report smoke test that confirms:
+
+* The HTML is generated.
+* The embedded dataset is present.
+* The page initializes without JavaScript errors.
+* The primary visualizations render containers.
+* Important controls exist.
+
+Use a lightweight browser test such as Playwright only if it does not introduce unreasonable complexity.
+
+## Documentation
+
+Create a complete `README.md` that explains:
+
+1. Purpose of the tool.
+2. Supported languages.
+3. Detected languages in the current repository.
+4. Installation.
+5. One-command refresh.
+6. Analysis-only command.
+7. Report-only command.
+8. Snapshot comparison.
+9. Configuration.
+10. Architecture rules.
+11. Metrics and formulas.
+12. Risk-score formula.
+13. Architectural-tension formula.
+14. Parser coverage and limitations.
+15. Cache behavior.
+16. Large-repository recommendations.
+17. Output files.
+18. Troubleshooting.
+19. How to remove the tool cleanly.
+
+Include exact commands for the current repository.
+
+## Required implementation workflow
+
+Follow this sequence:
+
+1. Inspect the repository and Git status.
+2. Detect languages, frameworks, workspaces, source roots, tests, aliases, and build conventions.
+3. Choose appropriate parsers.
+4. Create the isolated tooling directory.
+5. Implement the reusable analyzer.
+6. Implement the stable JSON schema.
+7. Implement Git-history analysis.
+8. Implement graph metrics and cycle detection.
+9. Implement snapshots and comparison.
+10. Implement the D3.js report.
+11. Add tests.
+12. Run the tests.
+13. Run the analyzer against the current repository.
+14. Generate the final HTML.
+15. Open or smoke-test the HTML.
+16. Fix errors or broken visualizations.
+17. Verify the report is reproducible by running the refresh command again.
+18. Summarize the result.
+
+Do not ask for approval between these steps when the repository provides enough information to proceed. Make reasonable assumptions and document them.
+
+## Acceptance criteria
+
+The task is complete only when all of the following are true:
+
+* A reusable analysis tool exists under `tools/repo-architecture/`.
+* Production application code was not unnecessarily modified.
+* The analyzer uses AST-based parsing for the primary detected languages where feasible.
+* `data/latest.json` is generated and schema-valid.
+* The dataset contains repository hierarchy, dependencies, metrics, and Git information.
+* The report contains the required D3.js visualizations.
+* The final report is a self-contained HTML file.
+* The report opens directly without requiring a backend.
+* A single command refreshes both the data and report.
+* Optional timestamped snapshots are supported.
+* A previous snapshot can be compared with the latest analysis.
+* Large repositories are handled through aggregation and filtering.
+* Tests pass.
+* The tool has been run successfully on the current repository.
+* The generated report reflects the current Git commit.
+* The README contains exact rerun instructions.
+* Known parser or metric limitations are explicitly documented.
+
+## Final response format
+
+After implementation, respond with:
+
+### Summary
+
+Briefly explain what was built and what the analysis found.
+
+### Detected repository structure
+
+List:
+
+* Languages.
+* Frameworks.
+* Workspaces or modules.
+* Source roots.
+* Test roots.
+* Parser coverage.
+
+### Generated files
+
+List the important created files and directories.
+
+### Commands
+
+Provide exact copy-paste commands for:
+
+```text
+install
+refresh
+refresh with snapshot
+compare snapshots
+build report only
+serve locally
+run tests
+```
+
+### Report output
+
+Provide the exact path to:
+
+```text
+dist/repository-architecture.html
+```
+
+### Initial findings
+
+Summarize only evidence-based findings such as:
+
+* Largest modules.
+* Highest-risk hotspots.
+* Dependency cycles.
+* Cross-package dependencies.
+* Architecture violations.
+* High-tension entities.
+* Parser warnings.
+
+### Limitations
+
+State what could not be extracted reliably and why.
+
+Do not claim that a metric, parser, graph, or visualization works unless you actually ran and validated it.

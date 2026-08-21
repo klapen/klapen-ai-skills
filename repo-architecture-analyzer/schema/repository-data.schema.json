@@ -1,0 +1,151 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "repo-architecture-analyzer/repository-data.schema.json",
+  "title": "RepositoryData",
+  "type": "object",
+  "required": ["metadata", "summary", "nodes", "edges", "cycles", "communities", "unresolvedDependencies", "architectureRules", "warnings"],
+  "properties": {
+    "metadata": {
+      "type": "object",
+      "required": ["schemaVersion", "generatedAt", "repositoryName", "languages", "analyzerVersion", "configurationHash", "parserCoverage"],
+      "properties": {
+        "schemaVersion": { "type": "string" },
+        "generatedAt": { "type": "string" },
+        "repositoryName": { "type": "string" },
+        "repositoryRoot": { "type": "string" },
+        "gitCommit": { "type": "string" },
+        "gitBranch": { "type": "string" },
+        "isDirty": { "type": "boolean" },
+        "languages": { "type": "array", "items": { "type": "string" } },
+        "analyzerVersion": { "type": "string" },
+        "configurationHash": { "type": "string" },
+        "parserCoverage": {
+          "type": "object",
+          "required": ["full", "partial", "skipped", "failed"],
+          "properties": {
+            "full": { "type": "integer" },
+            "partial": { "type": "integer" },
+            "skipped": { "type": "integer" },
+            "failed": { "type": "integer" }
+          }
+        }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "required": ["files", "sourceFiles", "testFiles", "entities", "linesOfCode", "dependencyEdges", "cycles", "architectureViolations", "hotspots"],
+      "properties": {
+        "files": { "type": "integer" },
+        "sourceFiles": { "type": "integer" },
+        "testFiles": { "type": "integer" },
+        "entities": { "type": "integer" },
+        "linesOfCode": { "type": "integer" },
+        "dependencyEdges": { "type": "integer" },
+        "cycles": { "type": "integer" },
+        "architectureViolations": { "type": "integer" },
+        "hotspots": { "type": "integer" }
+      }
+    },
+    "nodes": { "type": "array", "items": { "$ref": "#/definitions/CodeNode" } },
+    "edges": { "type": "array", "items": { "$ref": "#/definitions/CodeEdge" } },
+    "cycles": { "type": "array", "items": { "$ref": "#/definitions/DependencyCycle" } },
+    "communities": { "type": "array", "items": { "$ref": "#/definitions/Community" } },
+    "unresolvedDependencies": { "type": "array", "items": { "$ref": "#/definitions/UnresolvedDependency" } },
+    "architectureRules": { "type": "array", "items": { "$ref": "#/definitions/ArchitectureRule" } },
+    "warnings": { "type": "array", "items": { "$ref": "#/definitions/AnalysisWarning" } }
+  },
+  "definitions": {
+    "CodeNode": {
+      "type": "object",
+      "required": ["id", "name", "relativePath", "kind"],
+      "properties": {
+        "id": { "type": "string" },
+        "parentId": { "type": "string" },
+        "name": { "type": "string" },
+        "qualifiedName": { "type": "string" },
+        "relativePath": { "type": "string" },
+        "kind": { "enum": ["repository", "workspace", "package", "folder", "file", "class", "interface", "function", "method", "module", "component", "other"] },
+        "language": { "type": "string" },
+        "layer": { "type": "string" },
+        "packageName": { "type": "string" },
+        "isTest": { "type": "boolean" },
+        "isGenerated": { "type": "boolean" },
+        "loc": { "type": "number" },
+        "complexity": { "type": "number" },
+        "nestingDepth": { "type": "number" },
+        "fanIn": { "type": "number" },
+        "fanOut": { "type": "number" },
+        "instability": { "type": "number" },
+        "centrality": { "type": "number" },
+        "coverage": { "type": "number" },
+        "commitCount": { "type": "number" },
+        "churn": { "type": "number" },
+        "contributorCount": { "type": "number" },
+        "lastModified": { "type": "string" },
+        "cycleCount": { "type": "number" },
+        "riskScore": { "type": "number" }
+      }
+    },
+    "CodeEdge": {
+      "type": "object",
+      "required": ["id", "source", "target", "type", "weight"],
+      "properties": {
+        "id": { "type": "string" },
+        "source": { "type": "string" },
+        "target": { "type": "string" },
+        "type": { "enum": ["import", "call", "inheritance", "implementation", "type-reference", "package-dependency", "co-change"] },
+        "weight": { "type": "number" },
+        "occurrences": { "type": "number" },
+        "confidence": { "type": "number" },
+        "isCrossFolder": { "type": "boolean" },
+        "isCrossPackage": { "type": "boolean" },
+        "isCrossLayer": { "type": "boolean" },
+        "isArchitectureViolation": { "type": "boolean" }
+      }
+    },
+    "DependencyCycle": {
+      "type": "object",
+      "required": ["id", "nodeIds"],
+      "properties": {
+        "id": { "type": "string" },
+        "nodeIds": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "Community": {
+      "type": "object",
+      "required": ["id", "nodeIds"],
+      "properties": {
+        "id": { "type": "string" },
+        "label": { "type": "string" },
+        "nodeIds": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "UnresolvedDependency": {
+      "type": "object",
+      "required": ["fromNodeId", "specifier", "reason"],
+      "properties": {
+        "fromNodeId": { "type": "string" },
+        "specifier": { "type": "string" },
+        "reason": { "type": "string" }
+      }
+    },
+    "ArchitectureRule": {
+      "type": "object",
+      "required": ["name", "match", "mayDependOn"],
+      "properties": {
+        "name": { "type": "string" },
+        "match": { "type": "array", "items": { "type": "string" } },
+        "mayDependOn": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "AnalysisWarning": {
+      "type": "object",
+      "required": ["level", "message"],
+      "properties": {
+        "level": { "enum": ["info", "warn", "error"] },
+        "message": { "type": "string" },
+        "relativePath": { "type": "string" }
+      }
+    }
+  }
+}
