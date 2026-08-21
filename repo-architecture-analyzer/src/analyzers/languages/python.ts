@@ -4,7 +4,7 @@ import { normalizeRelativePath } from "../../shared/ids";
 import type { WalkedFile } from "../filesystem/walk";
 import type { RawEntity, RawImport, LanguageAnalysisResult } from "./typescript";
 
-const DEF_RE = /^(\s*)(class|def)\s+([A-Za-z_][A-Za-z0-9_]*)/;
+const DEF_RE = /^(\s*)(?:async\s+)?(class|def)\s+([A-Za-z_][A-Za-z0-9_]*)/;
 const IMPORT_RE = /^\s*import\s+([A-Za-z_][\w.]*)/;
 const FROM_IMPORT_RE = /^\s*from\s+(\.*[\w.]*)\s+import\s+.+$/;
 

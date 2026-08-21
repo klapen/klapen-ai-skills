@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { loadConfig } from "../src/shared/config";
 import { runAnalysis } from "../src/pipeline";
 import { resolveCacheDir } from "../src/cache/store";
+import * as coChangeModule from "../src/analyzers/git/coChange";
 
 const FIXTURE_SOURCE = fileURLToPath(new URL("../examples/fixture-repo", import.meta.url));
 
@@ -71,5 +72,44 @@ describe("runAnalysis — caching", () => {
 
     expect(fs.existsSync(`${cacheDir}/cache.json`)).toBe(true);
     fs.rmSync(cacheDir, { recursive: true, force: true });
+  });
+
+  it("does not write a cache file when config.cache.enabled is false, even without --no-cache", () => {
+    const cacheDir = resolveCacheDir(FIXTURE_ROOT);
+    fs.rmSync(cacheDir, { recursive: true, force: true });
+
+    const config = { ...loadConfig(), cache: { enabled: false } };
+    runAnalysis(FIXTURE_ROOT, config, {});
+
+    expect(fs.existsSync(`${cacheDir}/cache.json`)).toBe(false);
+  });
+});
+
+describe("runAnalysis — skips co-change for non-git targets", () => {
+  it("never calls computeCoChange when the target has no .git directory", () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "repo-arch-pipeline-nogit-"));
+    fs.writeFileSync(path.join(tmp, "app.ts"), "export const x = 1;\n");
+
+    const spy = vi.spyOn(coChangeModule, "computeCoChange");
+    runAnalysis(tmp, loadConfig(), { noCache: true });
+    expect(spy).not.toHaveBeenCalled();
+
+    spy.mockRestore();
+    fs.rmSync(tmp, { recursive: true, force: true });
+  });
+});
+
+describe("runAnalysis — parserCoverage.skipped", () => {
+  it("counts source-shaped files in an unsupported language as skipped, not as full coverage", () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "repo-arch-skipped-"));
+    fs.writeFileSync(path.join(tmp, "main.go"), "package main\n\nfunc main() {}\n");
+    fs.writeFileSync(path.join(tmp, "app.ts"), "export const x = 1;\n");
+
+    const data = runAnalysis(tmp, loadConfig(), { noCache: true });
+
+    expect(data.metadata.parserCoverage.skipped).toBeGreaterThanOrEqual(1);
+    expect(data.metadata.parserCoverage.full).toBe(1);
+
+    fs.rmSync(tmp, { recursive: true, force: true });
   });
 });

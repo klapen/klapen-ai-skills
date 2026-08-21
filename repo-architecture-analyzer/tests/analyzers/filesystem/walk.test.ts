@@ -74,3 +74,54 @@ describe("walkRepository — exclusions", () => {
     fs.rmSync(tmp, { recursive: true, force: true });
   });
 });
+
+describe("walkRepository — include allowlist", () => {
+  it("only walks files matching config.include when it's set to a real allowlist", () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "repo-arch-walk-include-"));
+    fs.mkdirSync(path.join(tmp, "src"), { recursive: true });
+    fs.mkdirSync(path.join(tmp, "docs"), { recursive: true });
+    fs.writeFileSync(path.join(tmp, "src", "main.ts"), "export const x = 1;");
+    fs.writeFileSync(path.join(tmp, "docs", "notes.md"), "# notes");
+
+    const config = { ...loadConfig(), include: ["src/**"] };
+    const files = walkRepository(tmp, config);
+    const paths = files.map((f) => f.relativePath);
+
+    expect(paths).toContain("src/main.ts");
+    expect(paths).not.toContain("docs/notes.md");
+
+    fs.rmSync(tmp, { recursive: true, force: true });
+  });
+
+  it("behaves unchanged (walks everything not excluded) with the default include", () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "repo-arch-walk-include-default-"));
+    fs.mkdirSync(path.join(tmp, "src"), { recursive: true });
+    fs.mkdirSync(path.join(tmp, "docs"), { recursive: true });
+    fs.writeFileSync(path.join(tmp, "src", "main.ts"), "export const x = 1;");
+    fs.writeFileSync(path.join(tmp, "docs", "notes.md"), "# notes");
+
+    const files = walkRepository(tmp, loadConfig());
+    const paths = files.map((f) => f.relativePath);
+
+    expect(paths).toContain("src/main.ts");
+    expect(paths).toContain("docs/notes.md");
+
+    fs.rmSync(tmp, { recursive: true, force: true });
+  });
+
+  it("never re-admits an excluded file even when include is permissive", () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "repo-arch-walk-include-exclude-"));
+    fs.mkdirSync(path.join(tmp, "node_modules", "pkg"), { recursive: true });
+    fs.writeFileSync(path.join(tmp, "node_modules", "pkg", "index.js"), "module.exports = {};");
+    fs.writeFileSync(path.join(tmp, "keep.ts"), "export const x = 1;");
+
+    const config = { ...loadConfig(), include: ["**/*"] };
+    const files = walkRepository(tmp, config);
+    const paths = files.map((f) => f.relativePath);
+
+    expect(paths).toContain("keep.ts");
+    expect(paths.some((p) => p.startsWith("node_modules"))).toBe(false);
+
+    fs.rmSync(tmp, { recursive: true, force: true });
+  });
+});

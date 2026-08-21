@@ -1,4 +1,7 @@
 import { describe, it, expect } from "vitest";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { walkRepository } from "../../../src/analyzers/filesystem/walk";
 import { loadConfig } from "../../../src/shared/config";
@@ -37,5 +40,29 @@ describe("analyzeTypeScriptFiles", () => {
       (i) => i.specifier.startsWith(".") || i.resolvedRelativePath === undefined
     );
     expect(allRelative).toBe(true);
+  });
+});
+
+describe("analyzeTypeScriptFiles — relative imports with an explicit extension", () => {
+  it("resolves a bare specifier like './foo.js' or '../package.json' directly, without appending another extension", () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "repo-arch-ts-extimport-"));
+    fs.writeFileSync(path.join(tmp, "foo.js"), "export const foo = 1;\n");
+    fs.writeFileSync(path.join(tmp, "package.json"), "{}\n");
+    fs.mkdirSync(path.join(tmp, "src"));
+    fs.writeFileSync(
+      path.join(tmp, "src", "index.ts"),
+      'import { foo } from "../foo.js";\nimport pkg from "../package.json";\n'
+    );
+
+    const files = walkRepository(tmp, loadConfig());
+    const result = analyzeTypeScriptFiles(tmp, files);
+
+    const jsImport = result.imports.find((i) => i.specifier === "../foo.js");
+    expect(jsImport?.resolvedRelativePath).toBe("foo.js");
+
+    const jsonImport = result.imports.find((i) => i.specifier === "../package.json");
+    expect(jsonImport?.resolvedRelativePath).toBe("package.json");
+
+    fs.rmSync(tmp, { recursive: true, force: true });
   });
 });

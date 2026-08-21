@@ -39,6 +39,13 @@ describe("assembleGraph — hierarchy", () => {
     expect(aFile?.parentId).toBe(byPath.get("src")?.id);
   });
 
+  it("counts loc without the synthetic trailing element from a newline-terminated file", () => {
+    // src/a.ts is exactly 8 real lines, newline-terminated; a naive split("\n").length would
+    // report 9 by counting the trailing empty element after the final newline.
+    const aFile = byPath.get("src/a.ts");
+    expect(aFile?.loc).toBe(8);
+  });
+
   it("nests a method node under its class node, not directly under the file", () => {
     const helperClass = graph.nodes.find((n) => n.kind === "class" && n.qualifiedName === "Helper");
     const addMethod = graph.nodes.find((n) => n.kind === "method" && n.qualifiedName === "Helper.add");

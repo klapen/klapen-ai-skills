@@ -81,9 +81,20 @@ function loadPruneIgnore(repoRoot: string, config: AnalyzerConfig): Ignore {
   return ig;
 }
 
+// `ignore()`'s glob matcher works either as a denylist (as used above for `exclude`) or,
+// inverted, as an allowlist: a file "passes" the include filter if it matches at least one
+// of the configured include globs. The default config ships `include: ["**/*"]`, which matches
+// every path — i.e. behaves identically to having no include filter at all — so this only
+// narrows the walk when a real value has been configured.
+function loadInclude(config: AnalyzerConfig): Ignore | null {
+  if (!config.include || config.include.length === 0) return null;
+  return ignore().add(config.include);
+}
+
 export function walkRepository(repoRoot: string, config: AnalyzerConfig): WalkedFile[] {
   const ig = loadIgnore(repoRoot, config);
   const pruneIg = loadPruneIgnore(repoRoot, config);
+  const includeIg = loadInclude(config);
   const results: WalkedFile[] = [];
 
   function visit(dirAbs: string): void {
@@ -91,6 +102,8 @@ export function walkRepository(repoRoot: string, config: AnalyzerConfig): Walked
       const abs = path.join(dirAbs, entry.name);
       const rel = normalizeRelativePath(repoRoot, abs);
       const checkPath = entry.isDirectory() ? `${rel}/` : rel;
+      // exclude is always checked first and independently of include, so a permissive
+      // --include can never re-admit a file the exclude list (or .gitignore) removed.
       if (ig.ignores(checkPath)) continue;
 
       if (entry.isDirectory()) {
@@ -98,6 +111,7 @@ export function walkRepository(repoRoot: string, config: AnalyzerConfig): Walked
           visit(abs);
         }
       } else if (entry.isFile()) {
+        if (includeIg && !includeIg.ignores(rel)) continue;
         results.push({
           absolutePath: abs,
           relativePath: rel,

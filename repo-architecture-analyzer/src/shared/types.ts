@@ -156,6 +156,9 @@ export interface RiskWeights {
 }
 
 export interface AnalyzerConfig {
+  // Reserved for future use (v2) — not read anywhere in v1. The intent is to let a config
+  // scope analysis to specific top-level source directories in a monorepo, but nothing wires
+  // it up yet; `include`/`exclude` are the only filters that currently take effect.
   sourceRoots: string[];
   testRoots: string[];
   include: string[];

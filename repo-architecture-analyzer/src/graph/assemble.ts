@@ -20,7 +20,12 @@ function folderChain(relativePath: string): string[] {
 
 function countLines(absolutePath: string): number {
   try {
-    return fs.readFileSync(absolutePath, "utf8").split("\n").length;
+    // Mirrors the trailing-split trim in python.ts's analyzePythonSource: a newline-terminated
+    // file's `split("\n")` produces a synthetic trailing empty element that isn't a real line
+    // and must not be counted.
+    const rawLines = fs.readFileSync(absolutePath, "utf8").split("\n");
+    const lines = rawLines[rawLines.length - 1] === "" ? rawLines.slice(0, -1) : rawLines;
+    return lines.length;
   } catch {
     return 0;
   }

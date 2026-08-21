@@ -31,6 +31,14 @@ const EXTENSION_CANDIDATES = [".ts", ".tsx", ".js", ".jsx", "/index.ts", "/index
 function resolveRelativeImport(fromAbsDir: string, specifier: string, repoRoot: string): string | undefined {
   if (!specifier.startsWith(".")) return undefined;
   const base = path.resolve(fromAbsDir, specifier);
+  // Try the bare specifier first: an import that already carries an explicit extension
+  // (`./foo.js`, `../package.json`) — extremely common in real ESM/NodeNext TS and plain JS —
+  // never matches any of the EXTENSION_CANDIDATES suffixes below (those would check for
+  // `./foo.js.ts`, `./foo.js.js`, etc., which never exist). Only fall back to appending a
+  // candidate extension when the bare path itself doesn't resolve.
+  if (fs.existsSync(base) && fs.statSync(base).isFile()) {
+    return normalizeRelativePath(repoRoot, base);
+  }
   for (const ext of EXTENSION_CANDIDATES) {
     const candidate = base + ext;
     if (fs.existsSync(candidate)) {

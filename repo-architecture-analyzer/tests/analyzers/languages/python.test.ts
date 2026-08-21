@@ -1,4 +1,7 @@
 import { describe, it, expect } from "vitest";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { walkRepository } from "../../../src/analyzers/filesystem/walk";
 import { loadConfig } from "../../../src/shared/config";
@@ -35,5 +38,26 @@ describe("analyzePythonFiles", () => {
   it("resolves a same-directory module import", () => {
     const imp = result.imports.find((i) => i.fromRelativePath === "pyapp/main.py" && i.specifier === "helpers");
     expect(imp?.resolvedRelativePath).toBe("pyapp/helpers.py");
+  });
+});
+
+describe("analyzePythonFiles — async def", () => {
+  it("extracts an `async def` the same way as a plain `def`", () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "repo-arch-py-asyncdef-"));
+    fs.writeFileSync(
+      path.join(tmp, "svc.py"),
+      "class Service:\n    async def fetch(self):\n        return 1\n\nasync def top_level():\n    return 2\n"
+    );
+
+    const files = walkRepository(tmp, loadConfig());
+    const result = analyzePythonFiles(tmp, files);
+    const names = result.entities.map((e) => e.qualifiedName);
+
+    expect(names).toContain("Service.fetch");
+    expect(names).toContain("top_level");
+    expect(result.entities.find((e) => e.qualifiedName === "Service.fetch")?.kind).toBe("method");
+    expect(result.entities.find((e) => e.qualifiedName === "top_level")?.kind).toBe("function");
+
+    fs.rmSync(tmp, { recursive: true, force: true });
   });
 });

@@ -30,7 +30,7 @@ export function computeCoChange(repoRoot: string, config: GitConfig): CoChangePa
         "--pretty=format:@@%n",
         "--name-only",
       ],
-      { encoding: "utf8", maxBuffer: 1024 * 1024 * 64 }
+      { encoding: "utf8", maxBuffer: 1024 * 1024 * 64, stdio: ["ignore", "pipe", "ignore"] }
     );
   } catch {
     return [];
