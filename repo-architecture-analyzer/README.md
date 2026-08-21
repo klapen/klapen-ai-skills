@@ -32,7 +32,7 @@ npm test
 
 ```bash
 npm run build
-node bin/analyze.js --repo ../.. --out examples/example-report.html --no-cache
+node bin/analyze.js --repo .. --out examples/example-report.html --no-cache
 ```
 
 (Points `--repo` at the whole `klapen-ai-skills` checkout — a real repo

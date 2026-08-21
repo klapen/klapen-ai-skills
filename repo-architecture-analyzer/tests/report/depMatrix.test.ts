@@ -48,4 +48,19 @@ describe("renderDepMatrix", () => {
     const handle = renderDepMatrix(container, sampleData(), new AppState());
     expect(() => handle.setEdgeType("co-change")).not.toThrow();
   });
+
+  it("renders one column label per visible file", () => {
+    const container = document.createElement("div");
+    renderDepMatrix(container, sampleData(), new AppState());
+    expect(container.querySelectorAll("text.rk-matrix-col-label").length).toBe(2);
+  });
+
+  it("gives each cell a title tooltip naming both paths and the edge weight", () => {
+    const container = document.createElement("div");
+    renderDepMatrix(container, sampleData(), new AppState());
+    const titles = Array.from(container.querySelectorAll("rect.rk-matrix-cell title")).map((t) => t.textContent);
+    expect(titles).toHaveLength(4);
+    expect(titles).toContain("a.ts -> b.ts (weight: 3)");
+    expect(titles).toContain("a.ts -> a.ts");
+  });
 });
