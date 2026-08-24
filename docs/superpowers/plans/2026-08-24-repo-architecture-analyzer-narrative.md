@@ -361,8 +361,12 @@ describe("main — --narrative", () => {
 
     main(["--repo", FIXTURE_ROOT, "--out", outPath, "--narrative", narrativePath, "--no-cache"]);
 
+    // At this point in the plan, no template code renders the narrative visually yet (that's
+    // Task 4) — but buildReportHtml already JSON-serializes the whole `data` object (including
+    // `narrative`, once attached) into the embedded `window.__REPO_ARCH_DATA__` payload
+    // regardless, so the narrative text reaching the output HTML is verifiable now. Don't assert
+    // `id="rk-narrative"` here — that element doesn't exist until Task 4 and belongs to its tests.
     const html = fs.readFileSync(outPath, "utf8");
-    expect(html).toContain('id="rk-narrative"');
     expect(html).toContain("A tiny fixture repo.");
   });
 
@@ -532,8 +536,10 @@ describe("main — --render-only", () => {
 
     main(["--render-only", "--data", dataPath, "--narrative", narrativePath, "--out", outPath]);
 
+    // Same reasoning as Task 2's equivalent test: assert against the embedded JSON payload, not
+    // an `id="rk-narrative"` element — that markup doesn't exist until Task 4.
     const html = fs.readFileSync(outPath, "utf8");
-    expect(html).toContain('id="rk-narrative"');
+    expect(html).toContain("A tiny fixture repo.");
   });
 
   it("throws when --data is missing", () => {
