@@ -1,45 +1,30 @@
-export type ViewId = "overview" | "graph" | "symbols" | "map" | "matrix" | "hotspots";
-export type GraphLevel = "file" | "folder";
-export type EdgeType = "import" | "co-change";
-export type ColorBy = "folder" | "risk";
-export type MapMetric = "loc" | "riskScore" | "complexity" | "churn";
-export type MapLayout = "icicle" | "treemap";
-export type MatrixOrder = "hierarchy" | "fanIn" | "risk";
-
 export interface AppFilters {
   search: string;
+  entityType: string | null;
+  language: string | null;
+  packageName: string | null;
   showTests: boolean;
-  hideIsolated: boolean;
+  minEdgeWeight: number;
   minRisk: number;
 }
 
 const DEFAULT_FILTERS: AppFilters = {
   search: "",
+  entityType: null,
+  language: null,
+  packageName: null,
   showTests: true,
-  hideIsolated: true,
+  minEdgeWeight: 0,
   minRisk: 0,
 };
 
 export type Listener = () => void;
 
 export class AppState {
-  view: ViewId;
   selectedNodeId: string | null = null;
   filters: AppFilters = { ...DEFAULT_FILTERS };
-  level: GraphLevel = "file";
-  edgeType: EdgeType = "import";
-  colorBy: ColorBy = "folder";
-  metric: MapMetric = "loc";
-  mapLayout: MapLayout = "icicle";
-  order: MatrixOrder = "hierarchy";
-  symFile: string | null = null;
-  logScale = false;
 
   private listeners = new Set<Listener>();
-
-  constructor(defaultView: ViewId = "graph") {
-    this.view = defaultView;
-  }
 
   subscribe(listener: Listener): () => void {
     this.listeners.add(listener);
@@ -48,11 +33,6 @@ export class AppState {
 
   private notify(): void {
     for (const listener of this.listeners) listener();
-  }
-
-  setView(view: ViewId): void {
-    this.view = view;
-    this.notify();
   }
 
   select(nodeId: string | null): void {
@@ -65,46 +45,6 @@ export class AppState {
     this.notify();
   }
 
-  setLevel(level: GraphLevel): void {
-    this.level = level;
-    this.notify();
-  }
-
-  setEdgeType(edgeType: EdgeType): void {
-    this.edgeType = edgeType;
-    this.notify();
-  }
-
-  setColorBy(colorBy: ColorBy): void {
-    this.colorBy = colorBy;
-    this.notify();
-  }
-
-  setMetric(metric: MapMetric): void {
-    this.metric = metric;
-    this.notify();
-  }
-
-  setMapLayout(layout: MapLayout): void {
-    this.mapLayout = layout;
-    this.notify();
-  }
-
-  setOrder(order: MatrixOrder): void {
-    this.order = order;
-    this.notify();
-  }
-
-  setSymFile(id: string | null): void {
-    this.symFile = id;
-    this.notify();
-  }
-
-  setLogScale(enabled: boolean): void {
-    this.logScale = enabled;
-    this.notify();
-  }
-
   reset(): void {
     this.selectedNodeId = null;
     this.filters = { ...DEFAULT_FILTERS };
@@ -114,7 +54,10 @@ export class AppState {
 
 export interface FilterableNode {
   name: string;
-  relativePath?: string;
+  qualifiedName?: string;
+  kind: string;
+  language?: string;
+  packageName?: string;
   isTest?: boolean;
   riskScore?: number;
 }
@@ -122,9 +65,12 @@ export interface FilterableNode {
 export function matchesFilters(node: FilterableNode, filters: AppFilters): boolean {
   if (filters.search) {
     const needle = filters.search.toLowerCase();
-    const haystack = `${node.name} ${node.relativePath ?? ""}`.toLowerCase();
+    const haystack = `${node.name} ${node.qualifiedName ?? ""}`.toLowerCase();
     if (!haystack.includes(needle)) return false;
   }
+  if (filters.entityType && node.kind !== filters.entityType) return false;
+  if (filters.language && node.language !== filters.language) return false;
+  if (filters.packageName && node.packageName !== filters.packageName) return false;
   if (!filters.showTests && node.isTest) return false;
   if (filters.minRisk > 0 && (node.riskScore ?? 0) < filters.minRisk) return false;
   return true;
