@@ -26,7 +26,7 @@ describe("bin/analyze.js — standalone bundle", () => {
     expect(fs.existsSync(outPath)).toBe(true);
   });
 
-  it("produces a report with the embedded dataset, all three view containers, and no script errors on load", () => {
+  it("produces a report with the embedded dataset, all four chart containers, and no script errors on load", () => {
     const html = fs.readFileSync(outPath, "utf8");
     expect(html).toContain("window.__REPO_ARCH_DATA__");
 
@@ -36,10 +36,11 @@ describe("bin/analyze.js — standalone bundle", () => {
 
     const dom = new JSDOM(html, { runScripts: "dangerously", resources: "usable", virtualConsole });
 
-    expect(dom.window.document.getElementById("rk-repo-map")?.querySelector("svg")).toBeTruthy();
-    expect(dom.window.document.getElementById("rk-dep-matrix")?.querySelector("svg")).toBeTruthy();
-    expect(dom.window.document.getElementById("rk-hotspots")?.querySelector("svg")).toBeTruthy();
-    expect(dom.window.document.getElementById("rk-search")).toBeTruthy();
+    expect(dom.window.document.getElementById("c-map")?.querySelector("svg")).toBeTruthy();
+    expect(dom.window.document.getElementById("c-graph")?.querySelector("svg")).toBeTruthy();
+    expect(dom.window.document.getElementById("c-matrix")?.querySelector("svg")).toBeTruthy();
+    expect(dom.window.document.getElementById("c-hot")?.querySelector("svg")).toBeTruthy();
+    expect(dom.window.document.getElementById("toc")?.querySelector("a")).toBeTruthy();
     expect(errors).toEqual([]);
 
     dom.window.close();
@@ -66,7 +67,7 @@ describe("bin/analyze.js — render-only with narrative", () => {
     const data = JSON.parse(fs.readFileSync(dataPath, "utf8"));
     expect(data.metadata.repositoryName).toBe("fixture-repo");
     const plainHtml = fs.readFileSync(plainOutPath, "utf8");
-    expect(plainHtml).not.toContain("rk-narrative");
+    expect(plainHtml).not.toContain('"narrative":');
   });
 
   it("renders a narrated report from saved data.json without re-running analysis", () => {
@@ -92,7 +93,6 @@ describe("bin/analyze.js — render-only with narrative", () => {
     expect(JSON.parse(stdout).outputPath).toBe(narratedOutPath);
 
     const html = fs.readFileSync(narratedOutPath, "utf8");
-    expect(html).toContain('id="rk-narrative"');
     expect(html).toContain("A tiny fixture repo used for testing.");
     expect(html).toContain("a.ts and b.ts import each other, forming a cycle.");
 
@@ -100,7 +100,10 @@ describe("bin/analyze.js — render-only with narrative", () => {
     const virtualConsole = new VirtualConsole();
     virtualConsole.on("jsdomError", (err) => errors.push(err));
     const dom = new JSDOM(html, { runScripts: "dangerously", resources: "usable", virtualConsole });
-    expect(dom.window.document.getElementById("rk-narrative")).toBeTruthy();
+    // "summary" is the Executive Summary section's id — it only renders (client-side) when a
+    // narrative is attached, so its presence is the meaningful post-render check here.
+    expect(dom.window.document.getElementById("summary")).toBeTruthy();
+    expect(dom.window.document.getElementById("reading")).toBeTruthy();
     expect(errors).toEqual([]);
     dom.window.close();
   });
