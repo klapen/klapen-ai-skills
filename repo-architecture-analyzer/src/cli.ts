@@ -4,6 +4,8 @@ import { fileURLToPath } from "node:url";
 import { loadConfig, mergeConfig } from "./shared/config";
 import { runAnalysis } from "./pipeline";
 import { buildReportHtml } from "./report/template";
+import { assertRepositoryData, assertNarrativeContent } from "./shared/validate";
+import type { RepositoryData } from "./shared/types";
 
 export interface CliArgs {
   repo: string;
@@ -16,6 +18,8 @@ export interface CliArgs {
   noCache: boolean;
   force: boolean;
   verbose: boolean;
+  dataOut?: string;
+  narrative?: string;
 }
 
 export function parseArgs(argv: string[]): CliArgs {
@@ -37,6 +41,8 @@ export function parseArgs(argv: string[]): CliArgs {
       case "--no-cache": args.noCache = true; break;
       case "--force": args.force = true; break;
       case "--verbose": args.verbose = true; break;
+      case "--data-out": args.dataOut = next(); break;
+      case "--narrative": args.narrative = next(); break;
       default:
         throw new Error(`Unknown argument: ${arg}`);
     }
@@ -89,9 +95,15 @@ export function main(argv: string[] = process.argv.slice(2)): void {
 
   const data = runAnalysis(args.repo, config, { noCache: args.noCache, force: args.force });
 
+  if (args.dataOut) {
+    fs.writeFileSync(path.resolve(args.dataOut), JSON.stringify(data));
+  }
+
+  const reportData = args.narrative ? attachNarrative(data, args.narrative) : data;
+
   const reportRuntimePath = resolveReportRuntimePath();
   const reportRuntimeJs = fs.readFileSync(reportRuntimePath, "utf8");
-  const html = buildReportHtml(data, { reportRuntimeJs });
+  const html = buildReportHtml(reportData, { reportRuntimeJs });
 
   const outputPath = args.out ? path.resolve(args.out) : defaultOutputPath(data.metadata.repositoryName);
   fs.mkdirSync(path.dirname(outputPath), { recursive: true });
@@ -112,6 +124,14 @@ export function main(argv: string[] = process.argv.slice(2)): void {
   if (args.verbose) {
     for (const warning of data.warnings) console.error(`[${warning.level}] ${warning.message}`);
   }
+}
+
+function attachNarrative(data: RepositoryData, narrativePath: string): RepositoryData {
+  const raw = JSON.parse(fs.readFileSync(path.resolve(narrativePath), "utf8"));
+  assertNarrativeContent(raw);
+  const narrated: RepositoryData = { ...data, narrative: raw };
+  assertRepositoryData(narrated);
+  return narrated;
 }
 
 if (detectIsMainModule()) {
