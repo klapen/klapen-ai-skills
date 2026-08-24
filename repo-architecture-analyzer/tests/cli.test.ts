@@ -101,7 +101,6 @@ describe("main — --narrative", () => {
     main(["--repo", FIXTURE_ROOT, "--out", outPath, "--narrative", narrativePath, "--no-cache"]);
 
     const html = fs.readFileSync(outPath, "utf8");
-    expect(html).toContain('id="rk-narrative"');
     expect(html).toContain("A tiny fixture repo.");
   });
 

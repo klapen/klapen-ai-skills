@@ -28,13 +28,6 @@ export function buildReportHtml(data: RepositoryData, options: BuildReportHtmlOp
   const payload = JSON.stringify(data).replace(/</g, "\\u003c");
   const name = escapeHtml(data.metadata.repositoryName);
 
-  const narrativeSection = data.narrative
-    ? `<section class="rk-view" id="rk-narrative">
-    <h2>Narrative</h2>
-    <p>${escapeHtml(data.narrative.summary)}</p>
-  </section>`
-    : "";
-
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -53,7 +46,6 @@ export function buildReportHtml(data: RepositoryData, options: BuildReportHtmlOp
   <button id="rk-reset" type="button">Reset</button>
 </header>
 <main>
-  ${narrativeSection}
   <section class="rk-view">
     <h2>Repo map</h2>
     <div class="rk-controls">
