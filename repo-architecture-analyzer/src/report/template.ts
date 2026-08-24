@@ -1,4 +1,4 @@
-import type { RepositoryData } from "../shared/types";
+import type { RepositoryData, NarrativeContent } from "../shared/types";
 
 export interface BuildReportHtmlOptions {
   reportRuntimeJs: string;
@@ -19,14 +19,49 @@ section.rk-view h2 { margin-top:0; font-size:14px; text-transform:uppercase; let
 .rk-matrix-cell--violation { stroke: var(--rk-bad); stroke-width: 2px; }
 `;
 
+const NARRATIVE_CSS = `
+.rk-narrative__list { margin:8px 0 16px; padding-left:20px; }
+.rk-narrative__list li { margin-bottom:4px; }
+.rk-view-narrative { color:var(--rk-dim); font-size:13px; margin:0 0 12px; }
+`;
+
 function escapeHtml(value: string): string {
   const map: Record<string, string> = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
   return value.replace(/[&<>"']/g, (char) => map[char]);
 }
 
+function renderKeyInsights(insights: string[]): string {
+  return `<ul class="rk-narrative__list">${insights.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>`;
+}
+
+function renderReadingList(items: NarrativeContent["readingList"]): string {
+  return `<ul class="rk-narrative__list">${items
+    .map((item) => `<li><code>${escapeHtml(item.path)}</code> — ${escapeHtml(item.reason)}</li>`)
+    .join("")}</ul>`;
+}
+
+function renderNarrativeBanner(narrative?: NarrativeContent): string {
+  if (!narrative) return "";
+  return `
+  <section class="rk-view rk-narrative" id="rk-narrative">
+    <h2>Walkthrough</h2>
+    <p id="rk-narrative-summary">${escapeHtml(narrative.summary)}</p>
+    <h3>Key insights</h3>
+    <div id="rk-narrative-insights">${renderKeyInsights(narrative.keyInsights)}</div>
+    <h3>Where to start reading</h3>
+    <div id="rk-narrative-reading-list">${renderReadingList(narrative.readingList)}</div>
+  </section>`;
+}
+
+function renderViewNarrative(id: string, text: string | undefined): string {
+  if (!text) return "";
+  return `<p class="rk-view-narrative" id="${id}">${escapeHtml(text)}</p>`;
+}
+
 export function buildReportHtml(data: RepositoryData, options: BuildReportHtmlOptions): string {
   const payload = JSON.stringify(data).replace(/</g, "\\u003c");
   const name = escapeHtml(data.metadata.repositoryName);
+  const css = REPORT_CSS + (data.narrative ? NARRATIVE_CSS : "");
 
   return `<!doctype html>
 <html lang="en">
@@ -34,7 +69,7 @@ export function buildReportHtml(data: RepositoryData, options: BuildReportHtmlOp
 <meta charset="utf-8" />
 <title>${name} — Architecture Report</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<style>${REPORT_CSS}</style>
+<style>${css}</style>
 </head>
 <body>
 <header class="rk-topbar">
@@ -46,8 +81,10 @@ export function buildReportHtml(data: RepositoryData, options: BuildReportHtmlOp
   <button id="rk-reset" type="button">Reset</button>
 </header>
 <main>
+  ${renderNarrativeBanner(data.narrative)}
   <section class="rk-view">
     <h2>Repo map</h2>
+    ${renderViewNarrative("rk-narrative-repo-map", data.narrative?.views.repoMap)}
     <div class="rk-controls">
       <select id="rk-layout-toggle"><option value="icicle">Icicle</option><option value="treemap">Treemap</option></select>
       <select id="rk-metric-select">
@@ -61,6 +98,7 @@ export function buildReportHtml(data: RepositoryData, options: BuildReportHtmlOp
   </section>
   <section class="rk-view">
     <h2>Dependency matrix</h2>
+    ${renderViewNarrative("rk-narrative-dep-matrix", data.narrative?.views.depMatrix)}
     <div class="rk-controls">
       <select id="rk-edge-type-select"><option value="import">Imports</option><option value="co-change">Co-change</option></select>
       <select id="rk-order-select"><option value="hierarchy">Hierarchy</option><option value="fanIn">Fan-in</option></select>
@@ -69,6 +107,7 @@ export function buildReportHtml(data: RepositoryData, options: BuildReportHtmlOp
   </section>
   <section class="rk-view">
     <h2>Hotspots</h2>
+    ${renderViewNarrative("rk-narrative-hotspots", data.narrative?.views.hotspots)}
     <div class="rk-controls">
       <label><input id="rk-logscale-checkbox" type="checkbox" /> log scale</label>
     </div>

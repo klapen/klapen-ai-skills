@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { buildReportHtml } from "../../src/report/template";
-import type { RepositoryData } from "../../src/shared/types";
+import type { RepositoryData, NarrativeContent } from "../../src/shared/types";
 
 function minimalData(): RepositoryData {
   return {
@@ -46,5 +46,48 @@ describe("buildReportHtml", () => {
     data.metadata.repositoryName = "</script><script>evil()</script>";
     const html = buildReportHtml(data, { reportRuntimeJs: "" });
     expect(html).not.toContain("</script><script>evil()</script>");
+  });
+});
+
+function narrativeFixture(): NarrativeContent {
+  return {
+    summary: "A small TypeScript service with one entry point.",
+    keyInsights: ["src/index.ts has the highest fan-in of any file."],
+    readingList: [{ path: "src/index.ts", reason: "Main entry point." }],
+    views: {
+      repoMap: "The map is dominated by src/.",
+      depMatrix: "No cycles were found.",
+      hotspots: "No file crosses the risk threshold.",
+    },
+  };
+}
+
+describe("buildReportHtml — narrative", () => {
+  it("renders nothing narrative-related when data.narrative is absent", () => {
+    const html = buildReportHtml(minimalData(), { reportRuntimeJs: "" });
+    expect(html).not.toContain("rk-narrative");
+  });
+
+  it("renders the narrative banner and per-view narrative paragraphs when present", () => {
+    const data = minimalData();
+    data.narrative = narrativeFixture();
+    const html = buildReportHtml(data, { reportRuntimeJs: "" });
+    expect(html).toContain('id="rk-narrative"');
+    expect(html).toContain("A small TypeScript service with one entry point.");
+    expect(html).toContain("src/index.ts has the highest fan-in of any file.");
+    expect(html).toContain("Main entry point.");
+    expect(html).toContain('id="rk-narrative-repo-map"');
+    expect(html).toContain("The map is dominated by src/.");
+    expect(html).toContain('id="rk-narrative-dep-matrix"');
+    expect(html).toContain('id="rk-narrative-hotspots"');
+  });
+
+  it("escapes HTML-unsafe characters in narrative text", () => {
+    const data = minimalData();
+    data.narrative = narrativeFixture();
+    data.narrative.summary = "<script>evil()</script>";
+    const html = buildReportHtml(data, { reportRuntimeJs: "" });
+    expect(html).not.toContain("<script>evil()</script>");
+    expect(html).toContain("&lt;script&gt;");
   });
 });
