@@ -16,8 +16,10 @@ for the narrative walkthrough layer built on top of it.
 Generates a single self-contained interactive HTML report analyzing a
 repository's architecture: structure, dependencies, static metrics
 (complexity, coupling, cycles), git history (churn, contributors,
-co-change), and a heuristic risk score — rendered as 3 coordinated D3
-views (repo map, dependency matrix, hotspots).
+co-change), and a heuristic risk score — rendered as an Architecture
+Explorer: a nav-based app shell (search, filters, detail/inspector panel)
+switching between 6 views (overview, dependency graph, symbols, repo map,
+matrix, hotspots), ported from a design built in Claude Design.
 
 ## Design goal (non-negotiable for the hard data; narrative is the one exception)
 

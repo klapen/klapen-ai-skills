@@ -169,13 +169,27 @@ If you skip this flow entirely, the report is still complete and correct
   heavily on that style may show lower complexity/risk than their actual
   code warrants.
 
-## Report contents (v1)
+## Report contents
 
-Three coordinated D3 views: **repo map** (icicle/treemap by folder →
-file), **dependency matrix** (file-level import/co-change grid), and
-**hotspots** (churn × complexity bubble chart). Shared search/filter
-controls and a click-to-inspect panel tie all three together. Edge
-bundling, the architectural-tension view, and snapshot/history
+An interactive Architecture Explorer, not a static page: a left sidebar
+(view nav, search, filters, repo stats), a main canvas (per-view toolbar
+plus the active visualization), and a right-hand detail/inspector panel
+that populates when you click any node in any view. One view renders at a
+time; switching is instant. Six views:
+
+- **Overview** — narrative summary, key insights, and reading list. Only
+  appears in the nav when a narrative is attached; every other view works
+  identically with or without one.
+- **Dependency graph** — force-directed node-link view of imports (or
+  co-change edges), file- or folder-level.
+- **Symbols** — per-file bubble chart of parsed classes/functions/methods,
+  sized by LOC, coloured by complexity.
+- **Repo map** — icicle/treemap by folder → file.
+- **Matrix** — file-level import/co-change grid, orderable by path,
+  fan-in, or risk.
+- **Hotspots** — churn × complexity bubble chart, optional log scale.
+
+Edge bundling, the architectural-tension view, and snapshot/history
 comparison are **not built** — v2 backlog, not missing features to
 apologize for.
 
