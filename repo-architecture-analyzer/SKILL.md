@@ -5,10 +5,14 @@ description: >
   dependencies, static metrics, or Git history, or to find architecture
   hotspots/risk areas — renders a single self-contained interactive HTML
   report (D3.js) covering a repo map, a dependency matrix, and a hotspots
-  view. Trigger phrases include: `/repo-architecture-analyzer [path]
-  [options]`, "analyze this repo's architecture", "show me the dependency
-  structure", "find architecture hotspots". Defaults to the current repo
-  when no path is given.
+  view. Also use when the user wants an AI-authored narrative walkthrough,
+  key insights, or a reading list on top of that report — e.g. "what
+  should I read first" in this repo. Trigger phrases include:
+  `/repo-architecture-analyzer [path] [options]`, "analyze this repo's
+  architecture", "show me the dependency structure", "find architecture
+  hotspots", "give me a walkthrough of this repo", "what should I read
+  first", "what are the key insights". Defaults to the current repo when
+  no path is given.
 metadata:
   version: 0.1.0
   author: klapen
@@ -21,7 +25,9 @@ history, and renders a single self-contained interactive HTML report
 (D3.js): what's big, what depends on what, and what's risky.
 
 **Authoritative spec:** `docs/superpowers/specs/2026-08-20-repo-architecture-analyzer-design.md`
-in the source repo has the full design rationale; this file is the
+in the source repo has the full design rationale, and
+`docs/superpowers/specs/2026-08-24-repo-architecture-analyzer-narrative-design.md`
+covers the narrative walkthrough layer built on top of it; this file is the
 operational contract for running the skill.
 
 ## Trigger phrases
@@ -30,6 +36,10 @@ operational contract for running the skill.
 "analyze this repo's architecture", "show me the dependency structure",
 "find architecture hotspots". Defaults to the current repo when no path
 is given.
+
+Also triggers the optional narrative walkthrough flow (below) on phrases
+like "give me a walkthrough of this repo", "what should I read first",
+"what are the key insights", or "narrate this repo's architecture".
 
 ## How this skill works (read this before anything else)
 
@@ -132,7 +142,10 @@ baseline command:
    node <skill-dir>/bin/analyze.js --render-only --data <data-path> --narrative <narrative-path> --out <report-path>
    ```
    This overwrites `<report-path>` with the narrated version and does not
-   re-run analysis.
+   re-run analysis. Step 3 does not print a fresh JSON summary (just
+   `{ "outputPath": ... }`) — reuse the digest already printed by step 1
+   for the chat digest, since the hard-data numbers are unchanged by
+   attaching a narrative.
 
 If you skip this flow entirely, the report is still complete and correct
 — narrative is additive, never required.
@@ -173,6 +186,9 @@ apologize for.
   the optional `narrative.json` above, and only its prose fields.
 - Don't write narrative content you can't ground in `<data-path>` — every
   claim needs a real file path, score, or cycle behind it.
+- Don't quote a file's actual contents/snippets in narrative text —
+  describe it by path and by computed metrics only, same rule as the rest
+  of this skill's output.
 - Don't claim `hotspots`/`cycles`/`architectureViolations` numbers mean
   something is broken — they're heuristics; frame findings as
   observations, matching the report's own "heuristic, not a quality

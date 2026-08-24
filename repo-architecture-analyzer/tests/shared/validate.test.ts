@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { validateRepositoryData } from "../../src/shared/validate";
 import type { RepositoryData } from "../../src/shared/types";
+import narrativeSchema from "../../schema/narrative.schema.json";
+import repositoryDataSchema from "../../schema/repository-data.schema.json";
 
 function minimalData(): RepositoryData {
   return {
@@ -66,5 +68,22 @@ describe("validateRepositoryData", () => {
     };
     const result = validateRepositoryData(data);
     expect(result.valid).toBe(true);
+  });
+});
+
+describe("narrative.schema.json vs. repository-data.schema.json's NarrativeContent definition", () => {
+  it("keep the same required fields", () => {
+    const repoDefinition = (repositoryDataSchema as any).definitions.NarrativeContent;
+    expect(narrativeSchema.required).toEqual(repoDefinition.required);
+  });
+
+  it("keep the same top-level property names", () => {
+    const repoDefinition = (repositoryDataSchema as any).definitions.NarrativeContent;
+    expect(Object.keys(narrativeSchema.properties)).toEqual(Object.keys(repoDefinition.properties));
+  });
+
+  it("keep the same required fields under views", () => {
+    const repoDefinition = (repositoryDataSchema as any).definitions.NarrativeContent;
+    expect(narrativeSchema.properties.views.required).toEqual(repoDefinition.properties.views.required);
   });
 });

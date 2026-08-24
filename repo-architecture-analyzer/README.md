@@ -35,6 +35,10 @@ npm run build
 node bin/analyze.js --repo .. --out examples/example-report.html --no-cache
 ```
 
+This overwrites `examples/example-report.html` with a graphs-only version,
+stripping any narrative previously shipped in that file with no warning —
+use the narrative recipe below instead if you want to keep the narrative.
+
 (Points `--repo` at the whole `klapen-ai-skills` checkout — a real repo
 with real git history, so the example demonstrates non-trivial churn and
 hotspot data instead of the intentionally tiny `examples/fixture-repo/`.)
@@ -52,5 +56,7 @@ node bin/analyze.js --render-only --data /tmp/data.json --narrative /tmp/narrati
 ## Architecture
 
 See `docs/superpowers/specs/2026-08-20-repo-architecture-analyzer-design.md`
-in the repo root for the full design rationale, and `SKILL.md` for the
-operational contract Claude follows when invoking this skill.
+in the repo root for the full design rationale,
+`docs/superpowers/specs/2026-08-24-repo-architecture-analyzer-narrative-design.md`
+for the narrative walkthrough layer built on top of it, and `SKILL.md` for
+the operational contract Claude follows when invoking this skill.

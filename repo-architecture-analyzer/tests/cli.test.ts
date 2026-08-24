@@ -76,6 +76,93 @@ describe("main — --data-out", () => {
     expect(data.metadata.repositoryName).toBe("fixture-repo");
     expect(data.narrative).toBeUndefined();
   });
+
+  it("still writes a narrative-free --data-out file even when --narrative is also passed", () => {
+    const outPath = path.join(os.tmpdir(), `repo-arch-cli-out-narr-${Date.now()}.html`);
+    const dataPath = path.join(os.tmpdir(), `repo-arch-cli-data-narr-${Date.now()}.json`);
+    const narrativePath = path.join(os.tmpdir(), `repo-arch-cli-data-narr-narrative-${Date.now()}.json`);
+    outputs.push(outPath, dataPath, narrativePath);
+    fs.writeFileSync(
+      narrativePath,
+      JSON.stringify({
+        summary: "A tiny fixture repo.",
+        keyInsights: ["ok"],
+        readingList: [{ path: "a.ts", reason: "ok" }],
+        views: { repoMap: "x", depMatrix: "x", hotspots: "x" },
+      })
+    );
+
+    main([
+      "--repo",
+      FIXTURE_ROOT,
+      "--out",
+      outPath,
+      "--data-out",
+      dataPath,
+      "--narrative",
+      narrativePath,
+      "--no-cache",
+    ]);
+
+    const data = JSON.parse(fs.readFileSync(dataPath, "utf8"));
+    expect(data.narrative).toBeUndefined();
+
+    const html = fs.readFileSync(outPath, "utf8");
+    expect(html).toContain("A tiny fixture repo.");
+  });
+
+  it("creates a missing nested parent directory for --data-out", () => {
+    const outPath = path.join(os.tmpdir(), `repo-arch-cli-mkdir-out-${Date.now()}.html`);
+    const rootDir = path.join(os.tmpdir(), `repo-arch-cli-mkdir-${Date.now()}`);
+    const dataPath = path.join(rootDir, "nested", "deeper", "data.json");
+    outputs.push(outPath);
+
+    expect(fs.existsSync(rootDir)).toBe(false);
+
+    try {
+      main(["--repo", FIXTURE_ROOT, "--out", outPath, "--data-out", dataPath, "--no-cache"]);
+      expect(fs.existsSync(dataPath)).toBe(true);
+    } finally {
+      fs.rmSync(rootDir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("parseArgs — missing flag values", () => {
+  it("throws when --narrative is the last argument with no value", () => {
+    expect(() => parseArgs(["--narrative"])).toThrow(/Missing value/);
+  });
+
+  it("throws when --data-out is the last argument with no value", () => {
+    expect(() => parseArgs(["--data-out"])).toThrow(/Missing value/);
+  });
+});
+
+describe("main — output determinism between direct render and data-out/render-only round trip", () => {
+  const outputs: string[] = [];
+  afterEach(() => {
+    for (const f of outputs.splice(0)) fs.rmSync(f, { force: true });
+  });
+
+  function stripGeneratedAt(html: string): string {
+    return html.replace(/"generatedAt":"[^"]*"/g, '"generatedAt":"<normalized>"');
+  }
+
+  it("produces byte-identical HTML (ignoring generatedAt) via a direct render and a data-out + render-only round trip", () => {
+    const directPath = path.join(os.tmpdir(), `repo-arch-cli-determinism-direct-${Date.now()}.html`);
+    const throwawayPath = path.join(os.tmpdir(), `repo-arch-cli-determinism-throwaway-${Date.now()}.html`);
+    const dataPath = path.join(os.tmpdir(), `repo-arch-cli-determinism-data-${Date.now()}.json`);
+    const roundTripPath = path.join(os.tmpdir(), `repo-arch-cli-determinism-roundtrip-${Date.now()}.html`);
+    outputs.push(directPath, throwawayPath, dataPath, roundTripPath);
+
+    main(["--repo", FIXTURE_ROOT, "--out", directPath, "--no-cache"]);
+    main(["--repo", FIXTURE_ROOT, "--out", throwawayPath, "--data-out", dataPath, "--no-cache"]);
+    main(["--render-only", "--data", dataPath, "--out", roundTripPath]);
+
+    const directHtml = stripGeneratedAt(fs.readFileSync(directPath, "utf8"));
+    const roundTripHtml = stripGeneratedAt(fs.readFileSync(roundTripPath, "utf8"));
+    expect(roundTripHtml).toBe(directHtml);
+  });
 });
 
 describe("main — --narrative", () => {

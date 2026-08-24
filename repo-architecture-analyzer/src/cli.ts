@@ -5,7 +5,7 @@ import { loadConfig, mergeConfig } from "./shared/config";
 import { runAnalysis } from "./pipeline";
 import { buildReportHtml } from "./report/template";
 import { assertRepositoryData, assertNarrativeContent } from "./shared/validate";
-import type { RepositoryData } from "./shared/types";
+import type { RepositoryData, NarrativeContent } from "./shared/types";
 
 export interface CliArgs {
   repo: string;
@@ -30,6 +30,7 @@ export function parseArgs(argv: string[]): CliArgs {
     const arg = argv[i];
     const next = (): string => {
       i += 1;
+      if (argv[i] === undefined) throw new Error(`Missing value for ${arg}`);
       return argv[i];
     };
     switch (arg) {
@@ -92,6 +93,11 @@ export function main(argv: string[] = process.argv.slice(2)): void {
     return;
   }
 
+  // Validate the narrative (if any) before running the potentially expensive analysis, so a
+  // malformed narrative file fails in milliseconds instead of after a full analysis run whose
+  // output would otherwise be thrown away.
+  const narrative = args.narrative ? readNarrative(args.narrative) : undefined;
+
   const baseConfig = loadConfig(args.config);
   const config = mergeConfig(baseConfig, {
     include: args.include,
@@ -106,10 +112,12 @@ export function main(argv: string[] = process.argv.slice(2)): void {
   const data = runAnalysis(args.repo, config, { noCache: args.noCache, force: args.force });
 
   if (args.dataOut) {
-    fs.writeFileSync(path.resolve(args.dataOut), JSON.stringify(data));
+    const dataOutPath = path.resolve(args.dataOut);
+    fs.mkdirSync(path.dirname(dataOutPath), { recursive: true });
+    fs.writeFileSync(dataOutPath, JSON.stringify(data));
   }
 
-  const reportData = args.narrative ? attachNarrative(data, args.narrative) : data;
+  const reportData = narrative ? mergeNarrative(data, narrative) : data;
 
   const reportRuntimePath = resolveReportRuntimePath();
   const reportRuntimeJs = fs.readFileSync(reportRuntimePath, "utf8");
@@ -136,12 +144,20 @@ export function main(argv: string[] = process.argv.slice(2)): void {
   }
 }
 
-function attachNarrative(data: RepositoryData, narrativePath: string): RepositoryData {
+function readNarrative(narrativePath: string): NarrativeContent {
   const raw = JSON.parse(fs.readFileSync(path.resolve(narrativePath), "utf8"));
   assertNarrativeContent(raw);
-  const narrated: RepositoryData = { ...data, narrative: raw };
+  return raw as NarrativeContent;
+}
+
+function mergeNarrative(data: RepositoryData, narrative: NarrativeContent): RepositoryData {
+  const narrated: RepositoryData = { ...data, narrative };
   assertRepositoryData(narrated);
   return narrated;
+}
+
+function attachNarrative(data: RepositoryData, narrativePath: string): RepositoryData {
+  return mergeNarrative(data, readNarrative(narrativePath));
 }
 
 function runRenderOnly(args: CliArgs): void {

@@ -22,6 +22,8 @@ section.rk-view h2 { margin-top:0; font-size:14px; text-transform:uppercase; let
 const NARRATIVE_CSS = `
 .rk-narrative__list { margin:8px 0 16px; padding-left:20px; }
 .rk-narrative__list li { margin-bottom:4px; }
+.rk-narrative__list code { font-size:12px; }
+.rk-narrative h3 { font-size:13px; color:var(--rk-text); margin:12px 0 4px; }
 .rk-view-narrative { color:var(--rk-dim); font-size:13px; margin:0 0 12px; }
 `;
 

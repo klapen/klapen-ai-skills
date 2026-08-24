@@ -7,7 +7,9 @@ picking this skill up cold.
 **Path:** `repo-architecture-analyzer/`
 **Authoritative spec:** [`SKILL.md`](SKILL.md) for operating the skill;
 [`docs/superpowers/specs/2026-08-20-repo-architecture-analyzer-design.md`](../docs/superpowers/specs/2026-08-20-repo-architecture-analyzer-design.md)
-for design rationale and the v2 backlog.
+for design rationale and the v2 backlog, and
+[`docs/superpowers/specs/2026-08-24-repo-architecture-analyzer-narrative-design.md`](../docs/superpowers/specs/2026-08-24-repo-architecture-analyzer-narrative-design.md)
+for the narrative walkthrough layer built on top of it.
 
 ## Purpose
 
