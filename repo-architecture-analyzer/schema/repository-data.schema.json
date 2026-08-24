@@ -52,7 +52,8 @@
     "communities": { "type": "array", "items": { "$ref": "#/definitions/Community" } },
     "unresolvedDependencies": { "type": "array", "items": { "$ref": "#/definitions/UnresolvedDependency" } },
     "architectureRules": { "type": "array", "items": { "$ref": "#/definitions/ArchitectureRule" } },
-    "warnings": { "type": "array", "items": { "$ref": "#/definitions/AnalysisWarning" } }
+    "warnings": { "type": "array", "items": { "$ref": "#/definitions/AnalysisWarning" } },
+    "narrative": { "$ref": "#/definitions/NarrativeContent" }
   },
   "definitions": {
     "CodeNode": {
@@ -145,6 +146,32 @@
         "level": { "enum": ["info", "warn", "error"] },
         "message": { "type": "string" },
         "relativePath": { "type": "string" }
+      }
+    },
+    "NarrativeContent": {
+      "type": "object",
+      "required": ["summary", "keyInsights", "readingList", "views"],
+      "properties": {
+        "summary": { "type": "string", "minLength": 1 },
+        "keyInsights": { "type": "array", "items": { "type": "string", "minLength": 1 }, "minItems": 1 },
+        "readingList": { "type": "array", "items": { "$ref": "#/definitions/ReadingListItem" }, "minItems": 1 },
+        "views": {
+          "type": "object",
+          "required": ["repoMap", "depMatrix", "hotspots"],
+          "properties": {
+            "repoMap": { "type": "string", "minLength": 1 },
+            "depMatrix": { "type": "string", "minLength": 1 },
+            "hotspots": { "type": "string", "minLength": 1 }
+          }
+        }
+      }
+    },
+    "ReadingListItem": {
+      "type": "object",
+      "required": ["path", "reason"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "reason": { "type": "string", "minLength": 1 }
       }
     }
   }

@@ -55,4 +55,16 @@ describe("validateRepositoryData", () => {
     const result = validateRepositoryData(data);
     expect(result.valid).toBe(false);
   });
+
+  it("accepts a document with a narrative attached", () => {
+    const data = minimalData() as any;
+    data.narrative = {
+      summary: "x",
+      keyInsights: ["x"],
+      readingList: [{ path: "a", reason: "b" }],
+      views: { repoMap: "x", depMatrix: "x", hotspots: "x" },
+    };
+    const result = validateRepositoryData(data);
+    expect(result.valid).toBe(true);
+  });
 });

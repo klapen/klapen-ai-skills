@@ -125,6 +125,22 @@ export interface RepositorySummary {
   hotspots: number;
 }
 
+export interface ReadingListItem {
+  path: string;
+  reason: string;
+}
+
+export interface NarrativeContent {
+  summary: string;
+  keyInsights: string[];
+  readingList: ReadingListItem[];
+  views: {
+    repoMap: string;
+    depMatrix: string;
+    hotspots: string;
+  };
+}
+
 export interface RepositoryData {
   metadata: RepositoryMetadata;
   summary: RepositorySummary;
@@ -135,6 +151,7 @@ export interface RepositoryData {
   unresolvedDependencies: UnresolvedDependency[];
   architectureRules: ArchitectureRule[];
   warnings: AnalysisWarning[];
+  narrative?: NarrativeContent;
 }
 
 export interface GitConfig {
