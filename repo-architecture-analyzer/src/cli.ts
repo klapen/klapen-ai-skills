@@ -20,10 +20,12 @@ export interface CliArgs {
   verbose: boolean;
   dataOut?: string;
   narrative?: string;
+  renderOnly: boolean;
+  data?: string;
 }
 
 export function parseArgs(argv: string[]): CliArgs {
-  const args: CliArgs = { repo: process.cwd(), noCache: false, force: false, verbose: false };
+  const args: CliArgs = { repo: process.cwd(), noCache: false, force: false, verbose: false, renderOnly: false };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     const next = (): string => {
@@ -43,6 +45,8 @@ export function parseArgs(argv: string[]): CliArgs {
       case "--verbose": args.verbose = true; break;
       case "--data-out": args.dataOut = next(); break;
       case "--narrative": args.narrative = next(); break;
+      case "--render-only": args.renderOnly = true; break;
+      case "--data": args.data = next(); break;
       default:
         throw new Error(`Unknown argument: ${arg}`);
     }
@@ -82,6 +86,12 @@ function defaultOutputPath(repoName: string): string {
 
 export function main(argv: string[] = process.argv.slice(2)): void {
   const args = parseArgs(argv);
+
+  if (args.renderOnly) {
+    runRenderOnly(args);
+    return;
+  }
+
   const baseConfig = loadConfig(args.config);
   const config = mergeConfig(baseConfig, {
     include: args.include,
@@ -132,6 +142,25 @@ function attachNarrative(data: RepositoryData, narrativePath: string): Repositor
   const narrated: RepositoryData = { ...data, narrative: raw };
   assertRepositoryData(narrated);
   return narrated;
+}
+
+function runRenderOnly(args: CliArgs): void {
+  if (!args.data) throw new Error("--render-only requires --data <path>");
+  if (!args.out) throw new Error("--render-only requires --out <path>");
+
+  const raw = JSON.parse(fs.readFileSync(path.resolve(args.data), "utf8"));
+  assertRepositoryData(raw);
+  const data = args.narrative ? attachNarrative(raw as RepositoryData, args.narrative) : (raw as RepositoryData);
+
+  const reportRuntimePath = resolveReportRuntimePath();
+  const reportRuntimeJs = fs.readFileSync(reportRuntimePath, "utf8");
+  const html = buildReportHtml(data, { reportRuntimeJs });
+
+  const outputPath = path.resolve(args.out);
+  fs.mkdirSync(path.dirname(outputPath), { recursive: true });
+  fs.writeFileSync(outputPath, html);
+
+  console.log(JSON.stringify({ outputPath }, null, 2));
 }
 
 if (detectIsMainModule()) {

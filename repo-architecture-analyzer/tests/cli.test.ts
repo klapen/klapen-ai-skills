@@ -115,3 +115,67 @@ describe("main — --narrative", () => {
     ).toThrow(/failed schema validation/);
   });
 });
+
+describe("parseArgs — render-only flags", () => {
+  it("parses --render-only and --data", () => {
+    const args = parseArgs(["--render-only", "--data", "/tmp/data.json"]);
+    expect(args.renderOnly).toBe(true);
+    expect(args.data).toBe("/tmp/data.json");
+  });
+});
+
+describe("main — --render-only", () => {
+  const outputs: string[] = [];
+  afterEach(() => {
+    for (const f of outputs.splice(0)) fs.rmSync(f, { force: true });
+  });
+
+  it("renders a report from a saved data.json without re-running analysis", () => {
+    const dataPath = path.join(os.tmpdir(), `repo-arch-render-data-${Date.now()}.json`);
+    const throwawayPath = path.join(os.tmpdir(), `repo-arch-render-throwaway-${Date.now()}.html`);
+    const outPath = path.join(os.tmpdir(), `repo-arch-render-out-${Date.now()}.html`);
+    outputs.push(dataPath, throwawayPath, outPath);
+
+    main(["--repo", FIXTURE_ROOT, "--out", throwawayPath, "--data-out", dataPath, "--no-cache"]);
+    main(["--render-only", "--data", dataPath, "--out", outPath]);
+
+    expect(fs.existsSync(outPath)).toBe(true);
+    const html = fs.readFileSync(outPath, "utf8");
+    expect(html).toContain("window.__REPO_ARCH_DATA__");
+    expect(html).not.toContain("rk-narrative");
+  });
+
+  it("attaches narrative when --narrative is also passed", () => {
+    const dataPath = path.join(os.tmpdir(), `repo-arch-render-narr-data-${Date.now()}.json`);
+    const throwawayPath = path.join(os.tmpdir(), `repo-arch-render-narr-throwaway-${Date.now()}.html`);
+    const narrativePath = path.join(os.tmpdir(), `repo-arch-render-narr-narrative-${Date.now()}.json`);
+    const outPath = path.join(os.tmpdir(), `repo-arch-render-narr-out-${Date.now()}.html`);
+    outputs.push(dataPath, throwawayPath, narrativePath, outPath);
+
+    main(["--repo", FIXTURE_ROOT, "--out", throwawayPath, "--data-out", dataPath, "--no-cache"]);
+    fs.writeFileSync(
+      narrativePath,
+      JSON.stringify({
+        summary: "A tiny fixture repo.",
+        keyInsights: ["ok"],
+        readingList: [{ path: "a.ts", reason: "ok" }],
+        views: { repoMap: "x", depMatrix: "x", hotspots: "x" },
+      })
+    );
+
+    main(["--render-only", "--data", dataPath, "--narrative", narrativePath, "--out", outPath]);
+
+    // Same reasoning as Task 2's equivalent test: assert against the embedded JSON payload, not
+    // an `id="rk-narrative"` element — that markup doesn't exist until Task 4.
+    const html = fs.readFileSync(outPath, "utf8");
+    expect(html).toContain("A tiny fixture repo.");
+  });
+
+  it("throws when --data is missing", () => {
+    expect(() => main(["--render-only", "--out", "/tmp/x.html"])).toThrow(/requires --data/);
+  });
+
+  it("throws when --out is missing", () => {
+    expect(() => main(["--render-only", "--data", "/tmp/whatever.json"])).toThrow(/requires --out/);
+  });
+});
