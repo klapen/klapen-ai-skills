@@ -2,6 +2,7 @@
 import { describe, it, expect } from "vitest";
 import { renderRepoMap } from "../../src/report/repoMap";
 import { AppState } from "../../src/report/state";
+import { makeViewContext } from "./viewTestHelpers";
 import type { RepositoryData } from "../../src/shared/types";
 
 function sampleData(): RepositoryData {
@@ -22,34 +23,49 @@ function sampleData(): RepositoryData {
   };
 }
 
-describe("renderRepoMap", () => {
+function fileRects(container: HTMLElement): SVGRectElement[] {
+  return Array.from(container.querySelectorAll<SVGRectElement>('rect[data-node^="file:"]'));
+}
+
+describe("renderRepoMap (icicle, default layout)", () => {
   it("renders one rect per visible file node", () => {
-    const container = document.createElement("div");
-    renderRepoMap(container, sampleData(), new AppState());
-    expect(container.querySelectorAll("g.rk-cell rect").length).toBe(2);
+    const ctx = makeViewContext(sampleData());
+    renderRepoMap(ctx);
+    expect(fileRects(ctx.stage).length).toBe(2);
   });
 
-  it("re-renders and hides nodes that no longer match an active filter", () => {
-    const container = document.createElement("div");
+  it("hides nodes that no longer match an active filter", () => {
     const state = new AppState();
-    renderRepoMap(container, sampleData(), state);
     state.setFilter("minRisk", 50);
-    expect(container.querySelectorAll("g.rk-cell rect").length).toBe(1);
+    const ctx = makeViewContext(sampleData(), state);
+    renderRepoMap(ctx);
+    expect(fileRects(ctx.stage).length).toBe(1);
   });
 
-  it("clicking a cell selects its node id in shared state", () => {
-    const container = document.createElement("div");
+  it("clicking a leaf cell selects its node id in shared state", () => {
     const state = new AppState();
-    renderRepoMap(container, sampleData(), state);
-    const firstRect = container.querySelector("g.rk-cell rect") as SVGRectElement;
-    firstRect.dispatchEvent(new Event("click", { bubbles: true }));
-    expect(state.selectedNodeId).not.toBeNull();
+    const ctx = makeViewContext(sampleData(), state);
+    renderRepoMap(ctx);
+    fileRects(ctx.stage)[0].dispatchEvent(new Event("click", { bubbles: true }));
+    expect(state.selectedNodeId).toBe("file:src/a.ts");
   });
 
-  it("switching layout re-renders without throwing", () => {
-    const container = document.createElement("div");
-    const handle = renderRepoMap(container, sampleData(), new AppState());
-    expect(() => handle.setLayout("treemap")).not.toThrow();
-    expect(container.querySelectorAll("g.rk-cell rect").length).toBe(2);
+  it("marks the selected node's stroke distinctly", () => {
+    const state = new AppState();
+    state.select("file:src/a.ts");
+    const ctx = makeViewContext(sampleData(), state);
+    renderRepoMap(ctx);
+    const rect = ctx.stage.querySelector('rect[data-node="file:src/a.ts"]');
+    expect(rect?.getAttribute("stroke")).toBe("#fff");
+  });
+});
+
+describe("renderRepoMap (treemap layout)", () => {
+  it("renders without throwing and produces one rect per visible file", () => {
+    const state = new AppState();
+    state.setMapLayout("treemap");
+    const ctx = makeViewContext(sampleData(), state);
+    expect(() => renderRepoMap(ctx)).not.toThrow();
+    expect(fileRects(ctx.stage).length).toBe(2);
   });
 });

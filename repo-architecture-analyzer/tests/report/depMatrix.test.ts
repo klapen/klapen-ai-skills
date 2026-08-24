@@ -2,6 +2,7 @@
 import { describe, it, expect } from "vitest";
 import { renderDepMatrix } from "../../src/report/depMatrix";
 import { AppState } from "../../src/report/state";
+import { makeViewContext } from "./viewTestHelpers";
 import type { RepositoryData } from "../../src/shared/types";
 
 function sampleData(): RepositoryData {
@@ -22,45 +23,64 @@ function sampleData(): RepositoryData {
 }
 
 describe("renderDepMatrix", () => {
-  it("renders one cell per row/col pair (n^2 for n visible files)", () => {
-    const container = document.createElement("div");
-    renderDepMatrix(container, sampleData(), new AppState());
-    expect(container.querySelectorAll("rect.rk-matrix-cell").length).toBe(4);
+  it("renders one cell per actual edge (not a full n^2 grid)", () => {
+    const ctx = makeViewContext(sampleData());
+    renderDepMatrix(ctx);
+    expect(ctx.stage.querySelectorAll("rect.rk-mcell").length).toBe(1);
   });
 
-  it("renders one row label per visible file", () => {
-    const container = document.createElement("div");
-    renderDepMatrix(container, sampleData(), new AppState());
-    expect(container.querySelectorAll("text.rk-matrix-row-label").length).toBe(2);
+  it("renders one row label and one column label per connected file", () => {
+    const ctx = makeViewContext(sampleData());
+    renderDepMatrix(ctx);
+    expect(ctx.stage.querySelectorAll("text.rk-mrowlabel").length).toBe(2);
+    expect(ctx.stage.querySelectorAll("text.rk-mcollabel").length).toBe(2);
   });
 
   it("clicking a cell selects the row's node id", () => {
-    const container = document.createElement("div");
     const state = new AppState();
-    renderDepMatrix(container, sampleData(), state);
-    const cell = container.querySelector("rect.rk-matrix-cell") as SVGRectElement;
+    const ctx = makeViewContext(sampleData(), state);
+    renderDepMatrix(ctx);
+    const cell = ctx.stage.querySelector("rect.rk-mcell") as SVGRectElement;
     cell.dispatchEvent(new Event("click", { bubbles: true }));
     expect(state.selectedNodeId).not.toBeNull();
   });
 
+  it("clicking a row label selects that file", () => {
+    const state = new AppState();
+    const ctx = makeViewContext(sampleData(), state);
+    renderDepMatrix(ctx);
+    const label = ctx.stage.querySelector("text.rk-mrowlabel") as SVGTextElement;
+    label.dispatchEvent(new Event("click", { bubbles: true }));
+    expect(state.selectedNodeId).toBe("file:a.ts");
+  });
+
   it("switching edge type re-renders without throwing", () => {
-    const container = document.createElement("div");
-    const handle = renderDepMatrix(container, sampleData(), new AppState());
-    expect(() => handle.setEdgeType("co-change")).not.toThrow();
+    const state = new AppState();
+    const ctx = makeViewContext(sampleData(), state);
+    renderDepMatrix(ctx);
+    state.setEdgeType("co-change");
+    expect(() => renderDepMatrix(ctx)).not.toThrow();
   });
 
-  it("renders one column label per visible file", () => {
-    const container = document.createElement("div");
-    renderDepMatrix(container, sampleData(), new AppState());
-    expect(container.querySelectorAll("text.rk-matrix-col-label").length).toBe(2);
+  it("shows an empty-state message when no files are connected", () => {
+    const data = sampleData();
+    data.edges = [];
+    const ctx = makeViewContext(data);
+    renderDepMatrix(ctx);
+    expect(ctx.stage.textContent).toContain("No connected files match the filters.");
   });
 
-  it("gives each cell a title tooltip naming both paths and the edge weight", () => {
-    const container = document.createElement("div");
-    renderDepMatrix(container, sampleData(), new AppState());
-    const titles = Array.from(container.querySelectorAll("rect.rk-matrix-cell title")).map((t) => t.textContent);
-    expect(titles).toHaveLength(4);
-    expect(titles).toContain("a.ts -> b.ts (weight: 3)");
-    expect(titles).toContain("a.ts -> a.ts");
+  it("gives each cell a tooltip via a mouseenter handler naming both paths and the weight", () => {
+    let tipHtml = "";
+    const ctx = makeViewContext(sampleData());
+    ctx.showTip = (_ev, html) => {
+      tipHtml = html;
+    };
+    renderDepMatrix(ctx);
+    const cell = ctx.stage.querySelector("rect.rk-mcell") as SVGRectElement;
+    cell.dispatchEvent(new MouseEvent("mouseenter"));
+    expect(tipHtml).toContain("a.ts");
+    expect(tipHtml).toContain("b.ts");
+    expect(tipHtml).toContain("weight");
   });
 });

@@ -229,7 +229,10 @@ describe("main — --render-only", () => {
     expect(fs.existsSync(outPath)).toBe(true);
     const html = fs.readFileSync(outPath, "utf8");
     expect(html).toContain("window.__REPO_ARCH_DATA__");
-    expect(html).not.toContain("rk-narrative");
+    // Narrative rendering is entirely client-side now (the Overview view reads `data.narrative`
+    // at runtime); the meaningful assertion is that the embedded payload itself carries no
+    // narrative field, not a search for since-removed static markup.
+    expect(html).not.toContain('"narrative":');
   });
 
   it("attaches narrative when --narrative is also passed", () => {
@@ -252,8 +255,8 @@ describe("main — --render-only", () => {
 
     main(["--render-only", "--data", dataPath, "--narrative", narrativePath, "--out", outPath]);
 
-    // Same reasoning as Task 2's equivalent test: assert against the embedded JSON payload, not
-    // an `id="rk-narrative"` element — that markup doesn't exist until Task 4.
+    // Narrative rendering is client-side (the Overview view), so assert against the embedded
+    // JSON payload rather than any static markup.
     const html = fs.readFileSync(outPath, "utf8");
     expect(html).toContain("A tiny fixture repo.");
   });

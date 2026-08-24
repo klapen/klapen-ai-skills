@@ -1,81 +1,99 @@
 import * as d3 from "d3";
-import type { RepositoryData, CodeNode } from "../shared/types";
-import { AppState, matchesFilters } from "./state";
+import { escapeHtml } from "./escape";
+import { fmt } from "./derive";
+import { matchesFilters } from "./state";
+import type { ViewContext } from "./viewContext";
 
-export interface HotspotsHandle {
-  setLogScale(enabled: boolean): void;
-}
+export function renderHotspots(ctx: ViewContext): void {
+  const { derived, state, stage, toolbar, select, showTip, hideTip, moveTip } = ctx;
 
-const TOP_LABEL_COUNT = 5;
+  toolbar.innerHTML =
+    `<span class="rk-toolbar__title">Hotspots</span>` +
+    `<label><input type="checkbox" data-k="log" ${state.logScale ? "checked" : ""} /> log scales</label>` +
+    `<span class="rk-sp"></span><span class="rk-toolbar__note">x = churn · y = complexity · size = LOC · colour = risk</span>`;
+  (toolbar.querySelector('[data-k="log"]') as HTMLInputElement).onchange = (e) => state.setLogScale((e.target as HTMLInputElement).checked);
 
-function riskColor(node: CodeNode): string {
-  const risk = node.riskScore ?? 0;
-  if (risk >= 60) return "var(--rk-bad, #e06c75)";
-  if (risk >= 30) return "var(--rk-warn, #d19a66)";
-  return "var(--rk-ok, #98c379)";
-}
+  const data = derived.files.filter((f) => matchesFilters(f, state.filters) && ((f.churn ?? 0) > 0 || (f.complexity ?? 0) > 0));
 
-export function renderHotspots(container: HTMLElement, data: RepositoryData, state: AppState): HotspotsHandle {
-  const width = 720;
-  const height = 420;
-  const margin = { top: 20, right: 20, bottom: 40, left: 50 };
-  let logScale = false;
+  stage.className = "rk-stage";
+  const w = stage.clientWidth || 900;
+  const h = stage.clientHeight || 460;
+  const svg = d3.select(stage).append("svg").attr("width", w).attr("height", h).style("display", "block");
+  const m = { l: 58, r: 30, t: 34, b: 46 };
 
-  const svg = d3
-    .select(container)
-    .append("svg")
-    .attr("viewBox", `0 0 ${width} ${height}`)
-    .attr("class", "rk-hotspots-svg");
-  const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
-  const innerWidth = width - margin.left - margin.right;
-  const innerHeight = height - margin.top - margin.bottom;
+  const x = (state.logScale ? d3.scaleLog() : d3.scaleLinear())
+    .domain(state.logScale ? [1, d3.max(data, (d) => d.churn ?? 1) || 10] : [0, d3.max(data, (d) => d.churn ?? 0) || 1])
+    .range([m.l, w - m.r]);
+  if (!state.logScale) x.nice();
+  const y = (state.logScale ? d3.scaleLog() : d3.scaleLinear())
+    .domain(state.logScale ? [1, d3.max(data, (d) => d.complexity ?? 1) || 10] : [0, d3.max(data, (d) => d.complexity ?? 0) || 1])
+    .range([h - m.b, m.t]);
+  if (!state.logScale) y.nice();
+  const r = d3
+    .scaleSqrt()
+    .domain([0, d3.max(data, (d) => d.loc ?? 1) || 1])
+    .range([3, 26]);
 
-  function render(): void {
-    const fileNodes = data.nodes.filter((n) => n.kind === "file" && matchesFilters(n, state.filters));
-
-    const churnScale = (logScale ? d3.scaleLog() : d3.scaleLinear())
-      .domain([1, Math.max(2, d3.max(fileNodes, (n) => n.churn ?? 0) ?? 1)])
-      .range([0, innerWidth])
-      .clamp(true);
-    const complexityScale = (logScale ? d3.scaleLog() : d3.scaleLinear())
-      .domain([1, Math.max(2, d3.max(fileNodes, (n) => n.complexity ?? 0) ?? 1)])
-      .range([innerHeight, 0])
-      .clamp(true);
-    const radiusScale = d3
-      .scaleSqrt()
-      .domain([0, Math.max(1, d3.max(fileNodes, (n) => n.fanIn ?? 0) ?? 1)])
-      .range([4, 20]);
-
-    const bubbles = g.selectAll<SVGCircleElement, CodeNode>("circle.rk-hotspot-bubble").data(fileNodes, (d) => d.id);
-    bubbles.exit().remove();
-
-    const mergedBubbles = bubbles.enter().append("circle").attr("class", "rk-hotspot-bubble").merge(bubbles);
-    mergedBubbles
-      .attr("cx", (d) => churnScale(Math.max(1, d.churn ?? 0)))
-      .attr("cy", (d) => complexityScale(Math.max(1, d.complexity ?? 0)))
-      .attr("r", (d) => radiusScale(d.fanIn ?? 0))
-      .style("fill", (d) => riskColor(d))
-      .style("opacity", 0.85)
-      .on("click", (_event, d) => state.select(d.id));
-
-    const topByRisk = [...fileNodes].sort((a, b) => (b.riskScore ?? 0) - (a.riskScore ?? 0)).slice(0, TOP_LABEL_COUNT);
-
-    const labels = g.selectAll<SVGTextElement, CodeNode>("text.rk-hotspot-label").data(topByRisk, (d) => d.id);
-    labels.exit().remove();
-    const mergedLabels = labels.enter().append("text").attr("class", "rk-hotspot-label").merge(labels);
-    mergedLabels
-      .attr("x", (d) => churnScale(Math.max(1, d.churn ?? 0)) + radiusScale(d.fanIn ?? 0) + 4)
-      .attr("y", (d) => complexityScale(Math.max(1, d.complexity ?? 0)))
-      .text((d) => d.name);
-  }
-
-  render();
-  state.subscribe(render);
-
-  return {
-    setLogScale(enabled) {
-      logScale = enabled;
-      render();
-    },
+  const axisStyle = (sel: d3.Selection<SVGGElement, unknown, null, undefined>): void => {
+    sel.selectAll("text").attr("fill", "#5b636e").attr("font-size", 10);
+    sel.selectAll("line,path").attr("stroke", "#232830");
   };
+  svg.append("g").attr("transform", `translate(0,${h - m.b})`).call(d3.axisBottom(x as d3.AxisScale<d3.NumberValue>).ticks(6, "~s")).call(axisStyle);
+  svg.append("g").attr("transform", `translate(${m.l},0)`).call(d3.axisLeft(y as d3.AxisScale<d3.NumberValue>).ticks(6, "~s")).call(axisStyle);
+  svg
+    .append("text")
+    .attr("x", w - m.r)
+    .attr("y", h - 8)
+    .attr("text-anchor", "end")
+    .attr("fill", "#5b636e")
+    .attr("font-size", 10)
+    .text("churn (lines changed) →");
+  svg
+    .append("text")
+    .attr("x", m.l - 8)
+    .attr("y", m.t - 12)
+    .attr("text-anchor", "end")
+    .attr("fill", "#5b636e")
+    .attr("font-size", 10)
+    .text("complexity ↑");
+
+  const g2 = svg.append("g");
+  g2.selectAll<SVGCircleElement, (typeof data)[number]>("circle")
+    .data(data)
+    .join("circle")
+    .attr("cx", (d) => x(Math.max(state.logScale ? 1 : 0, d.churn ?? 0)))
+    .attr("cy", (d) => y(Math.max(state.logScale ? 1 : 0, d.complexity ?? 0)))
+    .attr("r", (d) => r(d.loc ?? 1))
+    .attr("fill", (d) => derived.riskColor(d.riskScore ?? 0))
+    .attr("fill-opacity", 0.3)
+    .attr("stroke", (d) => (d.id === state.selectedNodeId ? "#fff" : derived.riskColor(d.riskScore ?? 0)))
+    .attr("stroke-width", (d) => (d.id === state.selectedNodeId ? 2.5 : 1.3))
+    .attr("data-node", (d) => d.id)
+    .style("cursor", "pointer")
+    .on("mouseenter", (ev, d) =>
+      showTip(
+        ev,
+        `<b>${escapeHtml(d.name)}</b><br /><span class="rk-tip__d">${escapeHtml(d.relativePath)}</span><br /><span class="rk-tip__d">risk</span> ${d.riskScore ?? 0} · <span class="rk-tip__d">churn</span> ${fmt(d.churn ?? 0)} · <span class="rk-tip__d">cx</span> ${d.complexity ?? 0} · <span class="rk-tip__d">loc</span> ${fmt(d.loc ?? 0)} · <span class="rk-tip__d">commits</span> ${d.commitCount ?? 0}`
+      )
+    )
+    .on("mousemove", (ev) => moveTip(ev))
+    .on("mouseleave", () => hideTip())
+    .on("click", (_ev, d) => select(d.id));
+
+  const labels = [...data].sort((a, b) => (b.riskScore ?? 0) - (a.riskScore ?? 0)).slice(0, 8);
+  g2.selectAll<SVGTextElement, (typeof labels)[number]>("text")
+    .data(labels)
+    .join("text")
+    .attr("x", (d) => x(Math.max(state.logScale ? 1 : 0, d.churn ?? 0)))
+    .attr("y", (d) => y(Math.max(state.logScale ? 1 : 0, d.complexity ?? 0)) - r(d.loc ?? 1) - 5)
+    .attr("text-anchor", "middle")
+    .attr("font-size", 10)
+    .attr("fill", "#9aa3af")
+    .attr("pointer-events", "none")
+    .text((d) => d.name);
+
+  const hint = document.createElement("div");
+  hint.className = "rk-hint";
+  hint.textContent = `${data.length} files with git history · top ${labels.length} by risk labelled`;
+  stage.appendChild(hint);
 }

@@ -14,41 +14,6 @@ function minimalData(): RepositoryData {
   };
 }
 
-describe("buildReportHtml", () => {
-  it("embeds the dataset as a global assignment", () => {
-    const html = buildReportHtml(minimalData(), { reportRuntimeJs: "" });
-    expect(html).toContain("window.__REPO_ARCH_DATA__ =");
-    expect(html).toContain('"repositoryName":"My Repo"');
-  });
-
-  it("inlines the provided report runtime JS verbatim", () => {
-    const html = buildReportHtml(minimalData(), { reportRuntimeJs: "console.log('marker-xyz');" });
-    expect(html).toContain("marker-xyz");
-  });
-
-  it("escapes HTML-unsafe characters in the repository name", () => {
-    const data = minimalData();
-    data.metadata.repositoryName = "<script>evil()</script>";
-    const html = buildReportHtml(data, { reportRuntimeJs: "" });
-    expect(html).not.toContain("<script>evil()</script>");
-    expect(html).toContain("&lt;script&gt;");
-  });
-
-  it("renders the three view containers and the shared controls", () => {
-    const html = buildReportHtml(minimalData(), { reportRuntimeJs: "" });
-    for (const id of ["rk-repo-map", "rk-dep-matrix", "rk-hotspots", "rk-inspector", "rk-search", "rk-reset"]) {
-      expect(html).toContain(`id="${id}"`);
-    }
-  });
-
-  it("prevents a </script> sequence inside embedded data from breaking out of the data script tag", () => {
-    const data = minimalData();
-    data.metadata.repositoryName = "</script><script>evil()</script>";
-    const html = buildReportHtml(data, { reportRuntimeJs: "" });
-    expect(html).not.toContain("</script><script>evil()</script>");
-  });
-});
-
 function narrativeFixture(): NarrativeContent {
   return {
     summary: "A small TypeScript service with one entry point.",
@@ -62,32 +27,57 @@ function narrativeFixture(): NarrativeContent {
   };
 }
 
-describe("buildReportHtml — narrative", () => {
-  it("renders nothing narrative-related when data.narrative is absent", () => {
+describe("buildReportHtml", () => {
+  it("embeds the dataset as a global assignment", () => {
     const html = buildReportHtml(minimalData(), { reportRuntimeJs: "" });
-    expect(html).not.toContain("rk-narrative");
+    expect(html).toContain("window.__REPO_ARCH_DATA__ =");
+    expect(html).toContain('"repositoryName":"My Repo"');
   });
 
-  it("renders the narrative banner and per-view narrative paragraphs when present", () => {
+  it("inlines the provided report runtime JS verbatim", () => {
+    const html = buildReportHtml(minimalData(), { reportRuntimeJs: "console.log('marker-xyz');" });
+    expect(html).toContain("marker-xyz");
+  });
+
+  it("escapes HTML-unsafe characters in the repository name shown in the <title>", () => {
+    const data = minimalData();
+    data.metadata.repositoryName = "<script>evil()</script>";
+    const html = buildReportHtml(data, { reportRuntimeJs: "" });
+    expect(html.split("<title>")[1]).not.toContain("<script>evil()</script>");
+  });
+
+  it("renders the app shell: nav container, filter controls, canvas, and detail panel", () => {
+    const html = buildReportHtml(minimalData(), { reportRuntimeJs: "" });
+    for (const id of [
+      "rk-app", "rk-nav-views", "rk-search", "rk-filter-tests", "rk-filter-isolated",
+      "rk-filter-risk", "rk-reset", "rk-toolbar", "rk-stage", "rk-detail", "rk-tip",
+    ]) {
+      expect(html).toContain(`id="${id}"`);
+    }
+  });
+
+  it("prevents a </script> sequence inside embedded data from breaking out of the data script tag", () => {
+    const data = minimalData();
+    data.metadata.repositoryName = "</script><script>evil()</script>";
+    const html = buildReportHtml(data, { reportRuntimeJs: "" });
+    expect(html).not.toContain("</script><script>evil()</script>");
+  });
+
+  it("produces the identical shell whether or not a narrative is attached — narrative rendering is entirely client-side", () => {
+    const withoutNarrative = buildReportHtml(minimalData(), { reportRuntimeJs: "" });
+    const data = minimalData();
+    data.narrative = narrativeFixture();
+    const withNarrative = buildReportHtml(data, { reportRuntimeJs: "" });
+    // Strip the embedded JSON payload (the only part expected to differ) and compare the rest.
+    const stripPayload = (html: string): string => html.replace(/window\.__REPO_ARCH_DATA__ = .*?;<\/script>/s, "");
+    expect(stripPayload(withNarrative)).toBe(stripPayload(withoutNarrative));
+  });
+
+  it("still embeds narrative content in the JSON payload when present, for the client-side Overview view to read", () => {
     const data = minimalData();
     data.narrative = narrativeFixture();
     const html = buildReportHtml(data, { reportRuntimeJs: "" });
-    expect(html).toContain('id="rk-narrative"');
     expect(html).toContain("A small TypeScript service with one entry point.");
     expect(html).toContain("src/index.ts has the highest fan-in of any file.");
-    expect(html).toContain("Main entry point.");
-    expect(html).toContain('id="rk-narrative-repo-map"');
-    expect(html).toContain("The map is dominated by src/.");
-    expect(html).toContain('id="rk-narrative-dep-matrix"');
-    expect(html).toContain('id="rk-narrative-hotspots"');
-  });
-
-  it("escapes HTML-unsafe characters in narrative text", () => {
-    const data = minimalData();
-    data.narrative = narrativeFixture();
-    data.narrative.summary = "<script>evil()</script>";
-    const html = buildReportHtml(data, { reportRuntimeJs: "" });
-    expect(html).not.toContain("<script>evil()</script>");
-    expect(html).toContain("&lt;script&gt;");
   });
 });

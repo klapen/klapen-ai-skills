@@ -2,6 +2,7 @@
 import { describe, it, expect } from "vitest";
 import { renderHotspots } from "../../src/report/hotspots";
 import { AppState } from "../../src/report/state";
+import { makeViewContext } from "./viewTestHelpers";
 import type { RepositoryData } from "../../src/shared/types";
 
 function sampleData(): RepositoryData {
@@ -21,40 +22,54 @@ function sampleData(): RepositoryData {
   };
 }
 
+function bubbles(container: HTMLElement): SVGCircleElement[] {
+  return Array.from(container.querySelectorAll<SVGCircleElement>("circle[data-node]"));
+}
+
 describe("renderHotspots", () => {
   it("renders one bubble per visible file", () => {
-    const container = document.createElement("div");
-    renderHotspots(container, sampleData(), new AppState());
-    expect(container.querySelectorAll("circle.rk-hotspot-bubble").length).toBe(3);
+    const ctx = makeViewContext(sampleData());
+    renderHotspots(ctx);
+    expect(bubbles(ctx.stage).length).toBe(3);
   });
 
   it("labels the top files by risk score", () => {
-    const container = document.createElement("div");
-    renderHotspots(container, sampleData(), new AppState());
-    const labels = Array.from(container.querySelectorAll("text.rk-hotspot-label")).map((el) => el.textContent);
+    const ctx = makeViewContext(sampleData());
+    renderHotspots(ctx);
+    const labels = Array.from(ctx.stage.querySelectorAll("text")).map((el) => el.textContent);
     expect(labels).toContain("a.ts");
   });
 
   it("clicking a bubble selects its node id", () => {
-    const container = document.createElement("div");
     const state = new AppState();
-    renderHotspots(container, sampleData(), state);
-    const bubble = container.querySelector("circle.rk-hotspot-bubble") as SVGCircleElement;
-    bubble.dispatchEvent(new Event("click", { bubbles: true }));
+    const ctx = makeViewContext(sampleData(), state);
+    renderHotspots(ctx);
+    bubbles(ctx.stage)[0].dispatchEvent(new Event("click", { bubbles: true }));
     expect(state.selectedNodeId).not.toBeNull();
   });
 
+  it("marks the selected bubble's stroke distinctly", () => {
+    const state = new AppState();
+    state.select("file:a.ts");
+    const ctx = makeViewContext(sampleData(), state);
+    renderHotspots(ctx);
+    const bubble = ctx.stage.querySelector('circle[data-node="file:a.ts"]');
+    expect(bubble?.getAttribute("stroke")).toBe("#fff");
+  });
+
   it("toggling log scale re-renders without throwing", () => {
-    const container = document.createElement("div");
-    const handle = renderHotspots(container, sampleData(), new AppState());
-    expect(() => handle.setLogScale(true)).not.toThrow();
+    const state = new AppState();
+    const ctx = makeViewContext(sampleData(), state);
+    renderHotspots(ctx);
+    state.setLogScale(true);
+    expect(() => renderHotspots(ctx)).not.toThrow();
   });
 
   it("hides bubbles filtered out by shared state", () => {
-    const container = document.createElement("div");
     const state = new AppState();
-    renderHotspots(container, sampleData(), state);
     state.setFilter("minRisk", 50);
-    expect(container.querySelectorAll("circle.rk-hotspot-bubble").length).toBe(1);
+    const ctx = makeViewContext(sampleData(), state);
+    renderHotspots(ctx);
+    expect(bubbles(ctx.stage).length).toBe(1);
   });
 });
