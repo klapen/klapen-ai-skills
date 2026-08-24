@@ -17,13 +17,15 @@ repository's architecture: structure, dependencies, static metrics
 co-change), and a heuristic risk score — rendered as 3 coordinated D3
 views (repo map, dependency matrix, hotspots).
 
-## Design goal (non-negotiable)
+## Design goal (non-negotiable for the hard data; narrative is the one exception)
 
-Everything the report needs is computed by deterministic, pre-built
-code, not by Claude. Claude runs `bin/analyze.js`, reads back a small
-JSON summary, and relays it — see SKILL.md's "How this skill works"
-section for why this skill has no payload-authoring step, unlike
-`rick-explain-diff-html`.
+The hard data — graphs, metrics, git history — is computed entirely by
+deterministic, pre-built code, never by Claude. That guarantee is
+absolute. On top of it, Claude can optionally author a short narrative
+walkthrough (`narrative.json`, merged in via `--render-only`) — the one
+part of this skill's output that's genuinely AI-authored, closer in spirit
+to `rick-explain-diff-html`. See SKILL.md's "How this skill works" and
+"Adding a narrative walkthrough" sections for the exact split.
 
 ## File layout
 
@@ -34,7 +36,9 @@ repo-architecture-analyzer/
 │   ├── analyze.js          # CLI entry point — the only thing end users run
 │   └── report-runtime.js   # browser-side D3 report, inlined into every output HTML
 ├── config/repo-architecture.default.config.json
-├── schema/repository-data.schema.json
+├── schema/
+│   ├── repository-data.schema.json
+│   └── narrative.schema.json
 ├── src/                    # TypeScript source (maintainers only — see README.md)
 ├── tests/
 └── examples/

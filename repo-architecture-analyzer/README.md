@@ -39,6 +39,16 @@ node bin/analyze.js --repo .. --out examples/example-report.html --no-cache
 with real git history, so the example demonstrates non-trivial churn and
 hotspot data instead of the intentionally tiny `examples/fixture-repo/`.)
 
+## Regenerate the example report with a narrative
+
+```bash
+npm run build
+node bin/analyze.js --repo .. --out /tmp/plain.html --data-out /tmp/data.json --no-cache
+# Read /tmp/data.json, write /tmp/narrative.json by hand following the
+# schema in schema/narrative.schema.json and SKILL.md's grounding rules.
+node bin/analyze.js --render-only --data /tmp/data.json --narrative /tmp/narrative.json --out examples/example-report.html
+```
+
 ## Architecture
 
 See `docs/superpowers/specs/2026-08-20-repo-architecture-analyzer-design.md`

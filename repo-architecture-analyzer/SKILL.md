@@ -33,12 +33,14 @@ is given.
 
 ## How this skill works (read this before anything else)
 
-Unlike most Claude Code skills, there is **no Claude-authored payload
-step** here. The entire analysis — filesystem walk, git history, TS/JS
-AST parsing via `ts-morph`, a custom Python structural parser, dependency
-graph, cycle detection, complexity/risk scoring, and the D3 report itself
-— is a single pre-built, dependency-free Node.js script
-(`bin/analyze.js` + `bin/report-runtime.js`). Claude's job is:
+The hard data — filesystem walk, git history, TS/JS AST parsing via
+`ts-morph`, a custom Python structural parser, dependency graph, cycle
+detection, complexity/risk scoring, and the D3 report rendering itself —
+is a single pre-built, dependency-free Node.js script (`bin/analyze.js` +
+`bin/report-runtime.js`). None of that is Claude-authored, and nothing in
+this section changes that.
+
+Claude's baseline job is:
 
 1. Run the bundled tool.
 2. Read back the small JSON summary it prints to stdout.
@@ -46,17 +48,28 @@ graph, cycle detection, complexity/risk scoring, and the D3 report itself
    coverage, warning count) — do not re-derive or restate the full
    graph; the report itself is the detailed view.
 
+Optionally, Claude can add a short AI-authored narrative walkthrough on
+top of the hard data — see "Adding a narrative walkthrough" below. That
+narrative is the *only* part of this skill's output that's ever
+Claude-authored; the graphs and metrics stay fully deterministic either
+way.
+
 ## Running it
 
 ```bash
 node <skill-dir>/bin/analyze.js --repo <path> [--out <path>] [--config <path>] \
   [--include <glob>]... [--exclude <glob>]... \
   [--max-git-commits <n>] [--git-since <date-or-duration>] \
-  [--no-cache] [--force] [--verbose]
+  [--no-cache] [--force] [--verbose] [--data-out <path>] [--narrative <path>]
 ```
 
 - `--repo` defaults to the current working directory.
 - `--out` defaults to `/tmp/YYYY-MM-DD-repo-architecture-<repo-slug>.html`.
+- `--data-out <path>` additionally dumps the full analysis as JSON — read
+  this (not just the stdout summary) before authoring a narrative.
+- `--narrative <path>` embeds a narrative walkthrough (see below) into the
+  rendered report. Optional; omit it and the report renders exactly as the
+  hard-data-only baseline.
 - Nothing is ever written into the target repo.
 - Requires only Node.js (`>=18`) on PATH — no `npm install`, no Python
   interpreter, no native binaries.
@@ -82,6 +95,47 @@ node <skill-dir>/bin/analyze.js --repo <path> [--out <path>] [--config <path>] \
 Use these numbers for the chat digest. If `warnings > 0`, re-run with
 `--verbose` (warnings print to stderr) before telling the user anything
 is wrong — most warnings are informational (e.g. "no git history").
+
+## Adding a narrative walkthrough (optional)
+
+If asked for a walkthrough, insights, or "what should I read first" — not
+just the raw report — run this three-step flow instead of the single
+baseline command:
+
+1. **Analyze, keeping the data:**
+   ```bash
+   node <skill-dir>/bin/analyze.js --repo <path> --out <report-path> --data-out <data-path>
+   ```
+2. **Read `<data-path>` in full** (not just the stdout summary — you need
+   real file paths, scores, and cycle members to write anything grounded).
+   Write `<narrative-path>` as JSON matching this shape:
+   ```json
+   {
+     "summary": "2-4 sentences: what kind of system this is, its main layers/modules, overall shape.",
+     "keyInsights": ["3-6 short, data-grounded observations"],
+     "readingList": [{ "path": "relative/path", "reason": "why start here" }],
+     "views": {
+       "repoMap": "1-2 sentences framing what to look for in this repo's map.",
+       "depMatrix": "1-2 sentences — e.g. name a real dense cluster or cycle.",
+       "hotspots": "1-2 sentences — e.g. name the actual top hotspot and why."
+     }
+   }
+   ```
+   **Every sentence must cite something concretely present in
+   `<data-path>`** — a real file path, a real score, a real cycle, a real
+   fan-in count. No generic filler ("this repo has good separation of
+   concerns"). Derive `readingList` from real signals in the data (highest
+   fan-in files, README/entry-point presence, highest-risk files) — never
+   guess independent of the analysis.
+3. **Render with the narrative attached:**
+   ```bash
+   node <skill-dir>/bin/analyze.js --render-only --data <data-path> --narrative <narrative-path> --out <report-path>
+   ```
+   This overwrites `<report-path>` with the narrated version and does not
+   re-run analysis.
+
+If you skip this flow entirely, the report is still complete and correct
+— narrative is additive, never required.
 
 ## Language support (v1)
 
@@ -114,7 +168,11 @@ apologize for.
 
 ## Common pitfalls
 
-- Don't try to author a payload JSON for this skill — there isn't one.
+- Don't author JSON for the hard-data graph — there's no payload step for
+  that; it's fully deterministic. The *only* thing Claude ever writes is
+  the optional `narrative.json` above, and only its prose fields.
+- Don't write narrative content you can't ground in `<data-path>` — every
+  claim needs a real file path, score, or cycle behind it.
 - Don't claim `hotspots`/`cycles`/`architectureViolations` numbers mean
   something is broken — they're heuristics; frame findings as
   observations, matching the report's own "heuristic, not a quality
