@@ -16,8 +16,11 @@ for the narrative walkthrough layer built on top of it.
 Generates a single self-contained interactive HTML report analyzing a
 repository's architecture: structure, dependencies, static metrics
 (complexity, coupling, cycles), git history (churn, contributors,
-co-change), and a heuristic risk score — rendered as 3 coordinated D3
-views (repo map, dependency matrix, hotspots).
+co-change), and a heuristic risk score — rendered as a single-scroll
+document (snapshot, composition, repo map, dependency graph, coupling &
+cycles, hidden coupling, risk & hotspots, change history, symbols),
+optionally opening with a narrative executive summary and closing with a
+reading-list section.
 
 ## Design goal (non-negotiable for the hard data; narrative is the one exception)
 

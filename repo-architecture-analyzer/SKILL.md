@@ -136,7 +136,11 @@ baseline command:
    fan-in count. No generic filler ("this repo has good separation of
    concerns"). Derive `readingList` from real signals in the data (highest
    fan-in files, README/entry-point presence, highest-risk files) — never
-   guess independent of the analysis.
+   guess independent of the analysis. `views` is still required by the
+   schema but no longer individually rendered anywhere in the current
+   report layout (a holdover from an earlier per-view-dashboard design) —
+   write it briefly and grounded like everything else, but don't spend
+   much effort on it.
 3. **Render with the narrative attached:**
    ```bash
    node <skill-dir>/bin/analyze.js --render-only --data <data-path> --narrative <narrative-path> --out <report-path>
@@ -169,15 +173,24 @@ If you skip this flow entirely, the report is still complete and correct
   heavily on that style may show lower complexity/risk than their actual
   code warrants.
 
-## Report contents (v1)
+## Report contents
 
-Three coordinated D3 views: **repo map** (icicle/treemap by folder →
-file), **dependency matrix** (file-level import/co-change grid), and
-**hotspots** (churn × complexity bubble chart). Shared search/filter
-controls and a click-to-inspect panel tie all three together. Edge
-bundling, the architectural-tension view, and snapshot/history
-comparison are **not built** — v2 backlog, not missing features to
-apologize for.
+The report is a single-scroll document, not an interactive dashboard —
+read top to bottom, with a sticky table of contents and hover tooltips on
+every chart. Sections, in order: **Snapshot** (stat grid), **Executive
+summary** and **Where to start reading** (narrative-only — see below),
+**Composition** (lines of code by module and file type), **Repo map**
+(treemap, area = lines of code), **Dependency graph** (force-directed,
+file-level imports), **Coupling & cycles** (import matrix, fan-in/fan-out
+tables, detected cycles), **Hidden coupling** (co-change pairs with no
+import between them), **Risk & hotspots** (churn × complexity scatter,
+highest-risk table), **Change history** (churn by module, most-changed
+and recently-modified files), and **Symbols** (parsed classes/functions/
+methods, most-complex-symbol table). There is no search box, filter
+controls, or click-to-inspect panel — every section explains itself in
+prose and charts respond to hover only. Edge bundling, the architectural-
+tension view, and snapshot/history comparison are **not built** — v2
+backlog, not missing features to apologize for.
 
 ## Common pitfalls
 
