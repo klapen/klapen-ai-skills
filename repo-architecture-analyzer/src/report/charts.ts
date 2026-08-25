@@ -173,6 +173,11 @@ function drawGraph(root: HTMLElement, facts: DerivedFacts, colors: ReportColorSc
   const links = facts.imports
     .filter((e) => keep.has(e.source) && keep.has(e.target))
     .map((e) => ({ source: e.source, target: e.target, key: `${e.source}|${e.target}` }));
+  const neighbors = new Map<string, Set<string>>(nodes.map((n) => [n.id, new Set<string>()]));
+  for (const l of links) {
+    neighbors.get(l.source)?.add(l.target);
+    neighbors.get(l.target)?.add(l.source);
+  }
 
   const r = d3.scaleSqrt().domain([0, d3.max(nodes, (n) => n.loc) ?? 1]).range([3.5, 19]);
   const lanes = Array.from(new Set(nodes.map((n) => n.group))).sort((a, b) => facts.groups.indexOf(a) - facts.groups.indexOf(b));
@@ -201,7 +206,7 @@ function drawGraph(root: HTMLElement, facts: DerivedFacts, colors: ReportColorSc
     .attr("fill-opacity", 0.82)
     .attr("stroke", (d) => (facts.cycleNodes.has(d.id) ? "#ff6b6b" : "#0a0b0d"))
     .attr("stroke-width", (d) => (facts.cycleNodes.has(d.id) ? 2 : 1))
-    .style("cursor", "grab");
+    .style("cursor", "pointer");
   const labelled = nodes
     .slice()
     .sort((a, b) => ((b.file.fanIn ?? 0) + r(b.loc) - ((a.file.fanIn ?? 0) + r(a.loc))))
@@ -281,6 +286,36 @@ function drawGraph(root: HTMLElement, facts: DerivedFacts, colors: ReportColorSc
     .on("mousemove", (ev: MouseEvent) => tip.move(ev))
     .on("mouseleave", () => tip.hide());
 
+  let selectedId: string | null = null;
+  const idOf = (v: string | GraphNode): string => (typeof v === "object" ? v.id : v);
+  const applyGraphHighlight = (): void => {
+    const active = selectedId !== null;
+    const nb = active ? neighbors.get(selectedId as string) : undefined;
+    node
+      .attr("opacity", (d) => (!active || d.id === selectedId || nb?.has(d.id) ? 1 : 0.15))
+      .attr("stroke", (d) => (d.id === selectedId ? "#dfe3e8" : facts.cycleNodes.has(d.id) ? "#ff6b6b" : "#0a0b0d"))
+      .attr("stroke-width", (d) => (d.id === selectedId ? 2.5 : facts.cycleNodes.has(d.id) ? 2 : 1));
+    link
+      .attr("stroke-opacity", (d) => (!active ? 0.75 : idOf(d.source) === selectedId || idOf(d.target) === selectedId ? 0.95 : 0.06))
+      .attr("stroke", (d) =>
+        facts.cyclePairs.has(d.key)
+          ? "#ff6b6b"
+          : active && (idOf(d.source) === selectedId || idOf(d.target) === selectedId)
+            ? "#63b3ff"
+            : "#2b323d"
+      );
+  };
+  node.on("click", (ev: MouseEvent, d) => {
+    ev.stopPropagation();
+    selectedId = selectedId === d.id ? null : d.id;
+    applyGraphHighlight();
+  });
+  svg.on("click", () => {
+    if (selectedId === null) return;
+    selectedId = null;
+    applyGraphHighlight();
+  });
+
   if (legend)
     legend.innerHTML =
       legendHtml(
@@ -288,7 +323,7 @@ function drawGraph(root: HTMLElement, facts: DerivedFacts, colors: ReportColorSc
           .slice(0, 8)
           .map((x): [string, string] => [colors.group(x), x])
           .concat([["#ff6b6b", "in a cycle"]])
-      ) + '<span class="hint">⌃ Ctrl / ⌘ Cmd + scroll to zoom · drag to pan</span>';
+      ) + '<span class="hint">click a node to isolate its neighbourhood · ⌃ Ctrl / ⌘ Cmd + scroll to zoom · drag to pan</span>';
 }
 
 function drawMatrix(root: HTMLElement, facts: DerivedFacts, tip: Tip): void {

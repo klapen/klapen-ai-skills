@@ -134,7 +134,7 @@ export function buildSectionsHtml(data: RepositoryData, facts: DerivedFacts, col
       "graph",
       "Dependency graph",
       `${imports.length} import edges`,
-      `<b>What this is:</b> each connected source file is a circle (area = lines of code, colour = module), each arrow an import. Files with no imports either way are left out so the shape stays readable. <b>How to read it:</b> circles everything points at are shared foundations — change them carefully; circles with many outgoing arrows are orchestrators and the natural place to start reading. Hover to isolate a file's neighbourhood, drag to pan. Hold Ctrl (Windows/Linux) or Cmd (Mac) and scroll to zoom, so scrolling the page still works over the chart. Red outlines mark files in an import cycle.`,
+      `<b>What this is:</b> each connected source file is a circle (area = lines of code, colour = module), each arrow an import. Files with no imports either way are left out so the shape stays readable. <b>How to read it:</b> circles everything points at are shared foundations — change them carefully; circles with many outgoing arrows are orchestrators and the natural place to start reading. Click a node to isolate its neighbourhood — click it again, or click empty space, to clear. Drag to pan; hold Ctrl (Windows/Linux) or Cmd (Mac) and scroll to zoom, so scrolling the page still works over the chart. Red outlines mark files in an import cycle.`,
       `<div class="card"><div id="c-graph" class="chart"></div><div class="legend" id="l-graph"></div></div>${callout(
         `${N(connected.size)} of ${N(facts.sourceFiles.length)} source files take part in the import graph; ${N(
           orphans.length
