@@ -156,6 +156,12 @@ export function buildSectionsHtml(data: RepositoryData, facts: DerivedFacts, col
         .join("")
     : '<p class="cap">No import cycles detected.</p>';
 
+  const filesByGroup = d3.group(files, (f) => groupOf(f.relativePath));
+  const matrixModules = facts.groups.filter((g) => {
+    const members = filesByGroup.get(g) ?? [];
+    return !(members.length === 1 && members[0].relativePath === g);
+  });
+
   parts.push(
     section(
       sections,
@@ -166,7 +172,7 @@ export function buildSectionsHtml(data: RepositoryData, facts: DerivedFacts, col
       `<div class="card"><div class="controls">${["rows", "cols"]
         .map(
           (axis) =>
-            `<label>${axis === "rows" ? "Rows" : "Columns"} <select id="mx-${axis}"><option value="">All modules</option>${facts.groups
+            `<label>${axis === "rows" ? "Rows" : "Columns"} <select id="mx-${axis}"><option value="">All modules</option>${matrixModules
               .map((g) => `<option value="${escapeHtml(g)}">${escapeHtml(g)}</option>`)
               .join("")}</select></label>`
         )
