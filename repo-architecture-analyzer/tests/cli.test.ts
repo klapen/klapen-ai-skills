@@ -85,10 +85,18 @@ describe("main — --data-out", () => {
     fs.writeFileSync(
       narrativePath,
       JSON.stringify({
-        summary: "A tiny fixture repo.",
-        keyInsights: ["ok"],
-        readingList: [{ path: "a.ts", reason: "ok" }],
-        views: { repoMap: "x", depMatrix: "x", hotspots: "x" },
+        en: {
+          summary: "A tiny fixture repo.",
+          keyInsights: ["ok"],
+          readingList: [{ path: "a.ts", reason: "ok" }],
+          views: { repoMap: "x", depMatrix: "x", hotspots: "x" },
+        },
+        es: {
+          summary: "Un pequeño repositorio de prueba.",
+          keyInsights: ["ok"],
+          readingList: [{ path: "a.ts", reason: "ok" }],
+          views: { repoMap: "x", depMatrix: "x", hotspots: "x" },
+        },
       })
     );
 
@@ -178,10 +186,18 @@ describe("main — --narrative", () => {
     fs.writeFileSync(
       narrativePath,
       JSON.stringify({
-        summary: "A tiny fixture repo.",
-        keyInsights: ["a.ts and b.ts form a cycle."],
-        readingList: [{ path: "a.ts", reason: "Part of the only cycle." }],
-        views: { repoMap: "x", depMatrix: "x", hotspots: "x" },
+        en: {
+          summary: "A tiny fixture repo.",
+          keyInsights: ["a.ts and b.ts form a cycle."],
+          readingList: [{ path: "a.ts", reason: "Part of the only cycle." }],
+          views: { repoMap: "x", depMatrix: "x", hotspots: "x" },
+        },
+        es: {
+          summary: "Un pequeño repositorio de prueba.",
+          keyInsights: ["a.ts y b.ts forman un ciclo."],
+          readingList: [{ path: "a.ts", reason: "Parte del único ciclo." }],
+          views: { repoMap: "x", depMatrix: "x", hotspots: "x" },
+        },
       })
     );
 
@@ -246,10 +262,18 @@ describe("main — --render-only", () => {
     fs.writeFileSync(
       narrativePath,
       JSON.stringify({
-        summary: "A tiny fixture repo.",
-        keyInsights: ["ok"],
-        readingList: [{ path: "a.ts", reason: "ok" }],
-        views: { repoMap: "x", depMatrix: "x", hotspots: "x" },
+        en: {
+          summary: "A tiny fixture repo.",
+          keyInsights: ["ok"],
+          readingList: [{ path: "a.ts", reason: "ok" }],
+          views: { repoMap: "x", depMatrix: "x", hotspots: "x" },
+        },
+        es: {
+          summary: "Un pequeño repositorio de prueba.",
+          keyInsights: ["ok"],
+          readingList: [{ path: "a.ts", reason: "ok" }],
+          views: { repoMap: "x", depMatrix: "x", hotspots: "x" },
+        },
       })
     );
 

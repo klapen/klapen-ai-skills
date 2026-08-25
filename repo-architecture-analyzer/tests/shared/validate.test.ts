@@ -58,14 +58,15 @@ describe("validateRepositoryData", () => {
     expect(result.valid).toBe(false);
   });
 
-  it("accepts a document with a narrative attached", () => {
+  it("accepts a document with a bilingual narrative attached", () => {
     const data = minimalData() as any;
-    data.narrative = {
+    const langContent = {
       summary: "x",
       keyInsights: ["x"],
       readingList: [{ path: "a", reason: "b" }],
       views: { repoMap: "x", depMatrix: "x", hotspots: "x" },
     };
+    data.narrative = { en: langContent, es: langContent };
     const result = validateRepositoryData(data);
     expect(result.valid).toBe(true);
   });
@@ -82,8 +83,9 @@ describe("narrative.schema.json vs. repository-data.schema.json's NarrativeConte
     expect(Object.keys(narrativeSchema.properties)).toEqual(Object.keys(repoDefinition.properties));
   });
 
-  it("keep the same required fields under views", () => {
-    const repoDefinition = (repositoryDataSchema as any).definitions.NarrativeContent;
-    expect(narrativeSchema.properties.views.required).toEqual(repoDefinition.properties.views.required);
+  it("keep the same required fields under views, in the shared NarrativeLangContent shape", () => {
+    const repoLangDefinition = (repositoryDataSchema as any).definitions.NarrativeLangContent;
+    const narrativeLangDefinition = (narrativeSchema as any).definitions.NarrativeLangContent;
+    expect(narrativeLangDefinition.properties.views.required).toEqual(repoLangDefinition.properties.views.required);
   });
 });

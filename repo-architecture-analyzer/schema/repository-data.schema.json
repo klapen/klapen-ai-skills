@@ -150,6 +150,14 @@
     },
     "NarrativeContent": {
       "type": "object",
+      "required": ["en", "es"],
+      "properties": {
+        "en": { "$ref": "#/definitions/NarrativeLangContent" },
+        "es": { "$ref": "#/definitions/NarrativeLangContent" }
+      }
+    },
+    "NarrativeLangContent": {
+      "type": "object",
       "required": ["summary", "keyInsights", "readingList", "views"],
       "properties": {
         "summary": { "type": "string", "minLength": 1 },

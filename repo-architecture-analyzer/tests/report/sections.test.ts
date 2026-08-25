@@ -29,22 +29,30 @@ function fixtureData(): RepositoryData {
 
 function narrativeFixture(): NarrativeContent {
   return {
-    summary: "A small fixture repo with two files.",
-    keyInsights: ["src/a.ts has the highest fan-in of any file."],
-    readingList: [{ path: "src/a.ts", reason: "Start here." }],
-    views: { repoMap: "x", depMatrix: "x", hotspots: "x" },
+    en: {
+      summary: "A small fixture repo with two files.",
+      keyInsights: ["src/a.ts has the highest fan-in of any file."],
+      readingList: [{ path: "src/a.ts", reason: "Start here." }],
+      views: { repoMap: "x", depMatrix: "x", hotspots: "x" },
+    },
+    es: {
+      summary: "Un pequeño repositorio de prueba con dos archivos.",
+      keyInsights: ["src/a.ts tiene el mayor fan-in de cualquier archivo."],
+      readingList: [{ path: "src/a.ts", reason: "Empieza aquí." }],
+      views: { repoMap: "x", depMatrix: "x", hotspots: "x" },
+    },
   };
 }
 
 function build(data: RepositoryData) {
   const facts = deriveFacts(data);
   const colors = createColorScales(facts);
-  return buildSectionsHtml(data, facts, colors);
+  return buildSectionsHtml(data, facts, colors, "en");
 }
 
 describe("buildMastheadHtml", () => {
   it("renders branch, commit, dirty state, and languages", () => {
-    const html = buildMastheadHtml(fixtureData().metadata);
+    const html = buildMastheadHtml(fixtureData().metadata, "en");
     expect(html).toContain("main");
     expect(html).toContain("abc123def4");
     expect(html).toContain("clean worktree");
@@ -54,9 +62,14 @@ describe("buildMastheadHtml", () => {
   it("flags a dirty worktree distinctly", () => {
     const data = fixtureData();
     data.metadata.isDirty = true;
-    const html = buildMastheadHtml(data.metadata);
+    const html = buildMastheadHtml(data.metadata, "en");
     expect(html).toContain("dirty worktree");
     expect(html).toContain('class="dirty"');
+  });
+
+  it("renders Spanish labels when lang is es", () => {
+    const html = buildMastheadHtml(fixtureData().metadata, "es");
+    expect(html).toContain("árbol de trabajo limpio");
   });
 });
 
@@ -85,13 +98,24 @@ describe("buildSectionsHtml — narrative gating", () => {
     expect(html).toContain("src/a.ts has the highest fan-in of any file.");
     expect(html).toContain("Start here.");
   });
+
+  it("renders the Spanish narrative content when lang is es", () => {
+    const data = fixtureData();
+    data.narrative = narrativeFixture();
+    const facts = deriveFacts(data);
+    const colors = createColorScales(facts);
+    const { html } = buildSectionsHtml(data, facts, colors, "es");
+    expect(html).toContain("Un pequeño repositorio de prueba con dos archivos.");
+    expect(html).toContain("Empieza aquí.");
+    expect(html).not.toContain("A small fixture repo with two files.");
+  });
 });
 
 describe("buildSectionsHtml — escaping", () => {
   it("escapes an unsafe narrative summary", () => {
     const data = fixtureData();
     data.narrative = narrativeFixture();
-    data.narrative.summary = "<script>evil()</script>";
+    data.narrative.en.summary = "<script>evil()</script>";
     const { html } = build(data);
     expect(html).not.toContain("<script>evil()</script>");
     expect(html).toContain("&lt;script&gt;");

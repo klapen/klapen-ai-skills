@@ -3,30 +3,38 @@
   "$id": "repo-architecture-analyzer/narrative.schema.json",
   "title": "NarrativeContent",
   "type": "object",
-  "required": ["summary", "keyInsights", "readingList", "views"],
+  "required": ["en", "es"],
   "properties": {
-    "summary": { "type": "string", "minLength": 1 },
-    "keyInsights": {
-      "type": "array",
-      "items": { "type": "string", "minLength": 1 },
-      "minItems": 1
-    },
-    "readingList": {
-      "type": "array",
-      "items": { "$ref": "#/definitions/ReadingListItem" },
-      "minItems": 1
-    },
-    "views": {
-      "type": "object",
-      "required": ["repoMap", "depMatrix", "hotspots"],
-      "properties": {
-        "repoMap": { "type": "string", "minLength": 1 },
-        "depMatrix": { "type": "string", "minLength": 1 },
-        "hotspots": { "type": "string", "minLength": 1 }
-      }
-    }
+    "en": { "$ref": "#/definitions/NarrativeLangContent" },
+    "es": { "$ref": "#/definitions/NarrativeLangContent" }
   },
   "definitions": {
+    "NarrativeLangContent": {
+      "type": "object",
+      "required": ["summary", "keyInsights", "readingList", "views"],
+      "properties": {
+        "summary": { "type": "string", "minLength": 1 },
+        "keyInsights": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "minItems": 1
+        },
+        "readingList": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/ReadingListItem" },
+          "minItems": 1
+        },
+        "views": {
+          "type": "object",
+          "required": ["repoMap", "depMatrix", "hotspots"],
+          "properties": {
+            "repoMap": { "type": "string", "minLength": 1 },
+            "depMatrix": { "type": "string", "minLength": 1 },
+            "hotspots": { "type": "string", "minLength": 1 }
+          }
+        }
+      }
+    },
     "ReadingListItem": {
       "type": "object",
       "required": ["path", "reason"],

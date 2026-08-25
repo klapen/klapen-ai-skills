@@ -5,9 +5,7 @@ import { groupOf } from "./derive";
 import type { ReportColorScales } from "./colors";
 import { escapeHtml } from "./escape";
 import { barRows, callout, section, tableHTML, type ReportSection } from "./html";
-
-const N = d3.format(",");
-const P = d3.format(".0%");
+import { formatters, t, type Lang } from "./i18n";
 
 function short(path: string | undefined): string {
   const p = path ?? "";
@@ -19,21 +17,25 @@ export interface SectionsResult {
   sections: ReportSection[];
 }
 
-export function buildMastheadHtml(metadata: RepositoryMetadata): string {
+export function buildMastheadHtml(metadata: RepositoryMetadata, lang: Lang): string {
+  const d = t(lang);
   const parts = [
     `<span>${escapeHtml(metadata.gitBranch ?? "")}</span>`,
     `<span>${escapeHtml((metadata.gitCommit ?? "").slice(0, 10))}</span>`,
-    metadata.isDirty ? '<span class="dirty">dirty worktree</span>' : "<span>clean worktree</span>",
+    metadata.isDirty ? `<span class="dirty">${escapeHtml(d.dirtyWorktree)}</span>` : `<span>${escapeHtml(d.cleanWorktree)}</span>`,
     `<span>${escapeHtml((metadata.languages ?? []).join(" · "))}</span>`,
-    `<span>generated ${escapeHtml(metadata.generatedAt.slice(0, 16).replace("T", " "))} UTC</span>`,
-    `<span>analyzer ${escapeHtml(metadata.analyzerVersion)}</span>`,
+    `<span>${escapeHtml(d.generated)} ${escapeHtml(metadata.generatedAt.slice(0, 16).replace("T", " "))} ${escapeHtml(d.utc)}</span>`,
+    `<span>${escapeHtml(d.analyzer)} ${escapeHtml(metadata.analyzerVersion)}</span>`,
   ];
   return parts.join("");
 }
 
-export function buildSectionsHtml(data: RepositoryData, facts: DerivedFacts, colors: ReportColorScales): SectionsResult {
+export function buildSectionsHtml(data: RepositoryData, facts: DerivedFacts, colors: ReportColorScales, lang: Lang): SectionsResult {
+  const d = t(lang);
+  const { N, P } = formatters(lang);
   const sections: ReportSection[] = [];
-  const { summary, metadata, narrative } = data;
+  const { summary, metadata } = data;
+  const narrative = data.narrative?.[lang];
   const { files, symbols, imports, byGroup, byExt, hubs, spokes, risky, churned, recent, connected, orphans, hidden, symKinds, complexSyms, maxDepth, biggest, tests, loc } = facts;
 
   const parts: string[] = [];
@@ -42,26 +44,28 @@ export function buildSectionsHtml(data: RepositoryData, facts: DerivedFacts, col
     section(
       sections,
       "snapshot",
-      "Snapshot",
+      d.snapshot.title,
       null,
-      `Eight numbers that place the repository: how much code there is, how much of it the parser could read, and how tangled it is. Use it as the baseline for the next run — a rising cycle or violation count is the signal worth acting on.`,
+      d.snapshot.lede,
       `<div class="stats">${[
-        ["files", N(summary.files)],
-        ["lines of code", N(loc)],
-        ["source files", N(summary.sourceFiles)],
-        ["symbols", N(symbols.length)],
-        ["import edges", N(imports.length)],
-        ["cycles", N(summary.cycles)],
-        ["violations", N(summary.architectureViolations)],
-        ["parsed", `${metadata.parserCoverage.full}<small>/${metadata.parserCoverage.full + metadata.parserCoverage.skipped}</small>`],
+        [d.snapshot.files, N(summary.files)],
+        [d.snapshot.loc, N(loc)],
+        [d.snapshot.sourceFiles, N(summary.sourceFiles)],
+        [d.snapshot.symbols, N(symbols.length)],
+        [d.snapshot.importEdges, N(imports.length)],
+        [d.snapshot.cycles, N(summary.cycles)],
+        [d.snapshot.violations, N(summary.architectureViolations)],
+        [d.snapshot.parsed, `${metadata.parserCoverage.full}<small>/${metadata.parserCoverage.full + metadata.parserCoverage.skipped}</small>`],
       ]
-        .map(([l, v]) => `<div><b>${v}</b><span>${l}</span></div>`)
+        .map(([l, v]) => `<div><b>${v}</b><span>${escapeHtml(l)}</span></div>`)
         .join("")}</div>${callout(
-        `${P(files.length ? tests.length / files.length : 0)} of files are tests (${N(tests.length)} of ${N(
-          files.length
-        )}). The parser skipped ${N(metadata.parserCoverage.skipped)} files — config, docs and generated output rather than source — and failed on ${N(
-          metadata.parserCoverage.failed
-        )}.`
+        d.snapshot.callout(
+          P(files.length ? tests.length / files.length : 0),
+          N(tests.length),
+          N(files.length),
+          N(metadata.parserCoverage.skipped),
+          N(metadata.parserCoverage.failed)
+        )
       )}`
     )
   );
@@ -71,12 +75,12 @@ export function buildSectionsHtml(data: RepositoryData, facts: DerivedFacts, col
       section(
         sections,
         "summary",
-        "Executive summary",
+        d.summary.title,
         null,
-        `A written read of this run, generated alongside the metrics. Everything below is the evidence behind it.`,
-        `<p class="sum">${escapeHtml(narrative.summary)}</p><h3 style="margin-top:26px">Key insights</h3><ul class="ins">${narrative.keyInsights
-          .map((i) => `<li>${escapeHtml(i)}</li>`)
-          .join("")}</ul>`
+        d.summary.lede,
+        `<p class="sum">${escapeHtml(narrative.summary)}</p><h3 style="margin-top:26px">${escapeHtml(
+          d.summary.keyInsights
+        )}</h3><ul class="ins">${narrative.keyInsights.map((i) => `<li>${escapeHtml(i)}</li>`).join("")}</ul>`
       )
     );
   }
@@ -86,24 +90,27 @@ export function buildSectionsHtml(data: RepositoryData, facts: DerivedFacts, col
       section(
         sections,
         "composition",
-        "Composition",
-        `${byGroup.length} modules · ${byExt.length} file types`,
-        `<b>What this is:</b> where the lines actually live — by module (top two path segments) and by file type. <b>How to read it:</b> the top bar is where most of your reading time will go; a module with many files but few lines is usually config or fixtures, and an unexpected file type is worth a look.`,
+        d.composition.title,
+        d.composition.subtitle(N(byGroup.length), N(byExt.length)),
+        d.composition.lede,
         `<div class="grid g2">
-      <div class="card"><h3>Lines of code by module</h3>${barRows(
+      <div class="card"><h3>${escapeHtml(d.composition.locByModule)}</h3>${barRows(
         byGroup.slice(0, 10).map((g) => ({ label: escapeHtml(g.key), value: g.loc, color: colors.group(g.key) })),
         byGroup[0].loc
       )}</div>
-      <div class="card"><h3>Lines of code by file type</h3>${barRows(
-        byExt.slice(0, 10).map((e) => ({ label: `${escapeHtml(e.key)}  ·  ${e.files} files`, value: e.loc })),
+      <div class="card"><h3>${escapeHtml(d.composition.locByFileType)}</h3>${barRows(
+        byExt.slice(0, 10).map((e) => ({ label: `${escapeHtml(e.key)}  ·  ${e.files} ${escapeHtml(d.composition.filesSuffix)}`, value: e.loc })),
         byExt[0].loc
       )}</div>
     </div>${callout(
-          `<b>${escapeHtml(byGroup[0].key)}</b> holds ${P(loc ? byGroup[0].loc / loc : 0)} of all code (${N(
-            byGroup[0].loc
-          )} lines in ${N(byGroup[0].files)} files); the top three modules are ${P(
-            loc ? d3.sum(byGroup.slice(0, 3), (g) => g.loc) / loc : 0
-          )} of the repository. Directories nest ${maxDepth} levels deep.`
+          d.composition.callout(
+            escapeHtml(byGroup[0].key),
+            P(loc ? byGroup[0].loc / loc : 0),
+            N(byGroup[0].loc),
+            N(byGroup[0].files),
+            P(loc ? d3.sum(byGroup.slice(0, 3), (g) => g.loc) / loc : 0),
+            maxDepth
+          )
         )}`
       )
     );
@@ -113,17 +120,11 @@ export function buildSectionsHtml(data: RepositoryData, facts: DerivedFacts, col
     section(
       sections,
       "map",
-      "Repo map",
-      "treemap, area = lines of code",
-      `<b>What this is:</b> every file as a rectangle nested inside its folder, area proportional to lines of code. <b>How to read it:</b> scan for the few large rectangles — they dominate the codebase and are where refactoring pays off; a folder that is one giant rectangle plus crumbs usually wants splitting. Hover for metrics.`,
+      d.map.title,
+      d.map.subtitle,
+      d.map.lede,
       `<div class="card"><div id="c-map" class="chart"></div><div class="legend" id="l-map"></div></div>${
-        biggest
-          ? callout(
-              `Largest single file: <b>${escapeHtml(biggest.relativePath)}</b> at ${N(biggest.loc ?? 0)} lines — ${P(
-                loc ? (biggest.loc ?? 0) / loc : 0
-              )} of the repository on its own.`
-            )
-          : ""
+        biggest ? callout(d.map.callout(escapeHtml(biggest.relativePath), N(biggest.loc ?? 0), P(loc ? (biggest.loc ?? 0) / loc : 0))) : ""
       }`
     )
   );
@@ -132,15 +133,16 @@ export function buildSectionsHtml(data: RepositoryData, facts: DerivedFacts, col
     section(
       sections,
       "graph",
-      "Dependency graph",
-      `${imports.length} import edges`,
-      `<b>What this is:</b> each connected source file is a circle (area = lines of code, colour = module), each arrow an import. Files with no imports either way are left out so the shape stays readable. <b>How to read it:</b> circles everything points at are shared foundations — change them carefully; circles with many outgoing arrows are orchestrators and the natural place to start reading. Click a node to isolate its neighbourhood — click it again, or click empty space, to clear. Drag to pan; hold Ctrl (Windows/Linux) or Cmd (Mac) and scroll to zoom, so scrolling the page still works over the chart. Red outlines mark files in an import cycle.`,
+      d.graph.title,
+      d.graph.subtitle(N(imports.length)),
+      d.graph.lede,
       `<div class="card"><div id="c-graph" class="chart"></div><div class="legend" id="l-graph"></div></div>${callout(
-        `${N(connected.size)} of ${N(facts.sourceFiles.length)} source files take part in the import graph; ${N(
-          orphans.length
-        )} import nothing and are imported by nothing${
-          orphans.length ? ` (e.g. ${orphans.slice(0, 3).map((o) => escapeHtml(o.name)).join(", ")})` : ""
-        } — usually entry points, scripts, or dead code worth checking.`
+        d.graph.callout(
+          N(connected.size),
+          N(facts.sourceFiles.length),
+          N(orphans.length),
+          orphans.length ? orphans.slice(0, 3).map((o) => escapeHtml(o.name)).join(", ") : ""
+        )
       )}`
     )
   );
@@ -154,7 +156,7 @@ export function buildSectionsHtml(data: RepositoryData, facts: DerivedFacts, col
               .join(' <span style="color:var(--risk)">⇄</span> ')}</div>`
         )
         .join("")
-    : '<p class="cap">No import cycles detected.</p>';
+    : `<p class="cap">${escapeHtml(d.coupling.noCycles)}</p>`;
 
   const filesByGroup = d3.group(files, (f) => groupOf(f.relativePath));
   const matrixModules = facts.groups.filter((g) => {
@@ -166,40 +168,54 @@ export function buildSectionsHtml(data: RepositoryData, facts: DerivedFacts, col
     section(
       sections,
       "coupling",
-      "Coupling & cycles",
-      `${summary.cycles} cycle${summary.cycles === 1 ? "" : "s"}`,
-      `<b>What this is:</b> the same imports as a matrix — a mark at row → column means the row file imports the column file. <b>How to read it:</b> a dense column is a hub everything depends on; a dense row is a file that depends on everything. Marks mirrored across the diagonal for one pair are a cycle (red) and should be broken. Click a row or column label to trace everything it touches, or click a cell to isolate that one row/column intersection — click again, or click the empty background, to clear. The tables rank what the matrix points at.`,
+      d.coupling.title,
+      d.coupling.subtitle(summary.cycles),
+      d.coupling.lede,
       `<div class="card"><div class="controls">${["rows", "cols"]
         .map(
           (axis) =>
-            `<label>${axis === "rows" ? "Rows" : "Columns"} <select id="mx-${axis}"><option value="">All modules</option>${matrixModules
-              .map((g) => `<option value="${escapeHtml(g)}">${escapeHtml(g)}</option>`)
-              .join("")}</select></label>`
+            `<label>${axis === "rows" ? escapeHtml(d.coupling.rows) : escapeHtml(d.coupling.cols)} <select id="mx-${axis}"><option value="">${escapeHtml(
+              d.coupling.allModules
+            )}</option>${matrixModules.map((g) => `<option value="${escapeHtml(g)}">${escapeHtml(g)}</option>`).join("")}</select></label>`
         )
-        .join("")}</div><div id="c-matrix" class="chart" style="overflow:auto"></div><div class="cap">Ordered by path, so folders appear as blocks. Filter rows/columns to a module, click a label or cell to highlight, hover a cell for the pair.</div></div>
+        .join("")}</div><div id="c-matrix" class="chart" style="overflow:auto"></div><div class="cap">${escapeHtml(d.coupling.caption)}</div></div>
      <div class="grid g2" style="margin-top:20px">${
        hubs.length
-         ? `<div class="card"><h3>Most depended on · fan-in</h3>${tableHTML(
-             [{ header: "file" }, { header: "module", cls: "p" }, { header: "in", numeric: true }, { header: "out", numeric: true }],
+         ? `<div class="card"><h3>${escapeHtml(d.coupling.fanInHeading)}</h3>${tableHTML(
+             [
+               { header: escapeHtml(d.coupling.col.file) },
+               { header: escapeHtml(d.coupling.col.module), cls: "p" },
+               { header: escapeHtml(d.coupling.col.in), numeric: true },
+               { header: escapeHtml(d.coupling.col.out), numeric: true },
+             ],
              hubs.slice(0, 8).map((f) => [escapeHtml(f.name), escapeHtml(groupOf(f.relativePath)), f.fanIn ?? 0, f.fanOut ?? 0])
            )}</div>`
          : ""
      }${
        spokes.length
-         ? `<div class="card"><h3>Depends on most · fan-out</h3>${tableHTML(
-             [{ header: "file" }, { header: "module", cls: "p" }, { header: "out", numeric: true }, { header: "instab.", numeric: true }],
+         ? `<div class="card"><h3>${escapeHtml(d.coupling.fanOutHeading)}</h3>${tableHTML(
+             [
+               { header: escapeHtml(d.coupling.col.file) },
+               { header: escapeHtml(d.coupling.col.module), cls: "p" },
+               { header: escapeHtml(d.coupling.col.out), numeric: true },
+               { header: escapeHtml(d.coupling.col.instab), numeric: true },
+             ],
              spokes
                .slice(0, 8)
                .map((f) => [escapeHtml(f.name), escapeHtml(groupOf(f.relativePath)), f.fanOut ?? 0, (+(f.instability ?? 0)).toFixed(2)])
            )}</div>`
          : ""
      }</div>
-     <div class="card" style="margin-top:20px"><h3>Cycles</h3>${cyclesList}</div>${
+     <div class="card" style="margin-top:20px"><h3>${escapeHtml(d.coupling.cyclesHeading)}</h3>${cyclesList}</div>${
        hubs.length && spokes.length
          ? callout(
-             `Highest fan-in is <b>${escapeHtml(hubs[0].relativePath)}</b> with ${hubs[0].fanIn} dependents — a change there touches ${P(
-               connected.size ? (hubs[0].fanIn ?? 0) / connected.size : 0
-             )} of the connected graph. Highest fan-out is <b>${escapeHtml(spokes[0].relativePath)}</b> with ${spokes[0].fanOut} dependencies: the orchestration point.`
+             d.coupling.callout(
+               escapeHtml(hubs[0].relativePath),
+               hubs[0].fanIn ?? 0,
+               P(connected.size ? (hubs[0].fanIn ?? 0) / connected.size : 0),
+               escapeHtml(spokes[0].relativePath),
+               spokes[0].fanOut ?? 0
+             )
            )
          : ""
      }`
@@ -210,24 +226,20 @@ export function buildSectionsHtml(data: RepositoryData, facts: DerivedFacts, col
     section(
       sections,
       "hidden",
-      "Hidden coupling",
-      `${hidden.length} pair${hidden.length === 1 ? "" : "s"}`,
-      `<b>What this is:</b> pairs of files repeatedly committed together that have no import between them — coupling git can see and the compiler cannot. <b>How to read it:</b> high-confidence pairs are candidates for a shared abstraction or a moved responsibility, and they are the pairs most likely to break each other during a refactor.`,
+      d.hidden.title,
+      d.hidden.subtitle(hidden.length),
+      d.hidden.lede,
       hidden.length
         ? `<div class="card">${tableHTML(
             [
-              { header: "file a", cls: "p" },
-              { header: "file b", cls: "p" },
-              { header: "commits together", numeric: true },
-              { header: "confidence", numeric: true },
+              { header: escapeHtml(d.hidden.col.fileA), cls: "p" },
+              { header: escapeHtml(d.hidden.col.fileB), cls: "p" },
+              { header: escapeHtml(d.hidden.col.commitsTogether), numeric: true },
+              { header: escapeHtml(d.hidden.col.confidence), numeric: true },
             ],
             hidden.slice(0, 12).map((h) => [escapeHtml(short(h.a.relativePath)), escapeHtml(short(h.b.relativePath)), h.weight, P(h.confidence)])
-          )}</div>${callout(
-            `Strongest pair: <b>${escapeHtml(hidden[0].a.name)}</b> and <b>${escapeHtml(
-              hidden[0].b.name
-            )}</b> — changed together ${hidden[0].weight} times at ${P(hidden[0].confidence)} confidence with no import between them.`
-          )}`
-        : `<div class="card"><p class="cap">Every co-change pair is also an import — no hidden coupling detected.</p></div>`
+          )}</div>${callout(d.hidden.callout(escapeHtml(hidden[0].a.name), escapeHtml(hidden[0].b.name), hidden[0].weight, P(hidden[0].confidence)))}`
+        : `<div class="card"><p class="cap">${escapeHtml(d.hidden.none)}</p></div>`
     )
   );
 
@@ -235,19 +247,19 @@ export function buildSectionsHtml(data: RepositoryData, facts: DerivedFacts, col
     section(
       sections,
       "risk",
-      "Risk & hotspots",
-      `${risky.length} files scored`,
-      `<b>What this is:</b> churn (lines changed across git history) against complexity; bubble area = file size, colour = risk score. <b>How to read it:</b> the top-right quadrant is the danger zone — complex code that also changes constantly, the classic refactor target. Bottom-right is churny but simple (healthy). Top-left is complex but stable (leave alone unless you must touch it).`,
-      `<div class="card"><div id="c-hot" class="chart"></div><div class="cap">Every file with git history is plotted; the six highest-risk files are labelled.</div></div>${
+      d.risk.title,
+      d.risk.subtitle(risky.length),
+      d.risk.lede,
+      `<div class="card"><div id="c-hot" class="chart"></div><div class="cap">${escapeHtml(d.risk.caption)}</div></div>${
         risky.length
-          ? `<div class="card" style="margin-top:20px"><h3>Highest risk files</h3>${tableHTML(
+          ? `<div class="card" style="margin-top:20px"><h3>${escapeHtml(d.risk.heading)}</h3>${tableHTML(
               [
-                { header: "file", cls: "p" },
-                { header: "risk", numeric: true },
-                { header: "cx", numeric: true },
-                { header: "churn", numeric: true },
-                { header: "loc", numeric: true },
-                { header: "commits", numeric: true },
+                { header: escapeHtml(d.risk.col.file), cls: "p" },
+                { header: escapeHtml(d.risk.col.risk), numeric: true },
+                { header: escapeHtml(d.risk.col.cx), numeric: true },
+                { header: escapeHtml(d.risk.col.churn), numeric: true },
+                { header: escapeHtml(d.risk.col.loc), numeric: true },
+                { header: escapeHtml(d.risk.col.commits), numeric: true },
               ],
               risky
                 .slice(0, 10)
@@ -260,13 +272,8 @@ export function buildSectionsHtml(data: RepositoryData, facts: DerivedFacts, col
                   f.commitCount ?? 0,
                 ])
             )}</div>${callout(
-              `Top risk is <b>${escapeHtml(risky[0].relativePath)}</b> at ${risky[0].riskScore} — complexity ${risky[0].complexity}, churn ${N(
-                risky[0].churn ?? 0
-              )} over ${risky[0].commitCount} commits. ${
-                (d3.max(files, (f) => f.riskScore ?? 0) ?? 0) < 60
-                  ? "Nothing crosses the hotspot threshold of 60, so this ranking is relative, not alarming."
-                  : ""
-              }`
+              d.risk.callout(escapeHtml(risky[0].relativePath), risky[0].riskScore ?? 0, risky[0].complexity ?? 0, N(risky[0].churn ?? 0), risky[0].commitCount ?? 0) +
+                ((d3.max(files, (f) => f.riskScore ?? 0) ?? 0) < 60 ? ` ${d.risk.notAlarming}` : "")
             )}`
           : ""
       }`
@@ -278,31 +285,35 @@ export function buildSectionsHtml(data: RepositoryData, facts: DerivedFacts, col
     section(
       sections,
       "history",
-      "Change history",
-      `${N(d3.sum(files, (f) => f.churn ?? 0))} lines churned`,
-      `<b>What this is:</b> where git activity concentrates, by module and by file. <b>How to read it:</b> churn shows which parts of the repo are alive; pair it with risk — high churn in a simple module is healthy iteration, high churn in a complex one is debt accumulating. The recent list answers "what has the team been doing".`,
+      d.history.title,
+      d.history.subtitle(N(d3.sum(files, (f) => f.churn ?? 0))),
+      d.history.lede,
       `<div class="grid g2">${
         churnByGroup.length
-          ? `<div class="card"><h3>Churn by module</h3>${barRows(
+          ? `<div class="card"><h3>${escapeHtml(d.history.churnByModule)}</h3>${barRows(
               churnByGroup.slice(0, 8).map((g) => ({ label: escapeHtml(g.key), value: g.churn, color: colors.group(g.key) })),
               d3.max(byGroup, (g) => g.churn) || 1
             )}</div>`
           : ""
       }${
         churned.length
-          ? `<div class="card"><h3>Most-changed files</h3>${tableHTML(
-              [{ header: "file", cls: "p" }, { header: "churn", numeric: true }, { header: "commits", numeric: true }],
+          ? `<div class="card"><h3>${escapeHtml(d.history.mostChanged)}</h3>${tableHTML(
+              [
+                { header: escapeHtml(d.history.col.file), cls: "p" },
+                { header: escapeHtml(d.history.col.churn), numeric: true },
+                { header: escapeHtml(d.history.col.commits), numeric: true },
+              ],
               churned.slice(0, 8).map((f) => [escapeHtml(short(f.relativePath)), N(f.churn ?? 0), f.commitCount ?? 0])
             )}</div>`
           : ""
       }</div>${
         recent.length
-          ? `<div class="card" style="margin-top:20px"><h3>Recently modified</h3>${tableHTML(
+          ? `<div class="card" style="margin-top:20px"><h3>${escapeHtml(d.history.recentlyModified)}</h3>${tableHTML(
               [
-                { header: "file", cls: "p" },
-                { header: "module", cls: "p" },
-                { header: "modified", numeric: true },
-                { header: "contributors", numeric: true },
+                { header: escapeHtml(d.history.col.file), cls: "p" },
+                { header: escapeHtml(d.history.col.module), cls: "p" },
+                { header: escapeHtml(d.history.col.modified), numeric: true },
+                { header: escapeHtml(d.history.col.contributors), numeric: true },
               ],
               recent.slice(0, 8).map((f) => [escapeHtml(short(f.relativePath)), escapeHtml(groupOf(f.relativePath)), (f.lastModified ?? "").slice(0, 10), f.contributorCount ?? 0])
             )}</div>`
@@ -310,10 +321,11 @@ export function buildSectionsHtml(data: RepositoryData, facts: DerivedFacts, col
       }${
         churnByGroup.length
           ? callout(
-              `<b>${escapeHtml(churnByGroup[0].key)}</b> absorbs the most churn. Files carry at most ${d3.max(
-                files,
-                (f) => f.contributorCount ?? 0
-              )} contributor${(d3.max(files, (f) => f.contributorCount ?? 0) ?? 0) === 1 ? "" : "s"}, so bus factor — not merge conflict — is the people risk here.`
+              d.history.callout(
+                escapeHtml(churnByGroup[0].key),
+                d3.max(files, (f) => f.contributorCount ?? 0) ?? 0,
+                (d3.max(files, (f) => f.contributorCount ?? 0) ?? 0) !== 1
+              )
             )
           : ""
       }`
@@ -329,25 +341,25 @@ export function buildSectionsHtml(data: RepositoryData, facts: DerivedFacts, col
       section(
         sections,
         "symbols",
-        "Symbols",
-        `${N(symbols.length)} parsed`,
-        `<b>What this is:</b> the classes, interfaces, functions and methods found inside the source files. <b>How to read it:</b> the mix describes the codebase's style — interface-heavy means a typed contract layer, function-heavy a procedural pipeline. The complexity table is what to check before touching anything: those symbols are hardest to change safely.`,
+        d.symbols.title,
+        d.symbols.subtitle(N(symbols.length)),
+        d.symbols.lede,
         `<div class="grid g2">
-      <div class="card"><h3>Symbols by kind</h3>${barRows(
+      <div class="card"><h3>${escapeHtml(d.symbols.byKind)}</h3>${barRows(
         symKinds.map((k) => ({ label: escapeHtml(k.kind), value: k.count })),
         symKinds[0].count
       )}
-        <h3 style="margin-top:22px">Files with most symbols</h3>${barRows(
+        <h3 style="margin-top:22px">${escapeHtml(d.symbols.filesWithMost)}</h3>${barRows(
           symbolsByFileCounts.slice(0, 6).map((s) => ({ label: escapeHtml(s.label), value: s.value })),
           d3.max(symbolsByFileCounts, (s) => s.value) ?? 1
         )}</div>
-      <div class="card"><h3>Most complex symbols</h3>${tableHTML(
+      <div class="card"><h3>${escapeHtml(d.symbols.mostComplex)}</h3>${tableHTML(
         [
-          { header: "symbol" },
-          { header: "kind", cls: "p" },
-          { header: "file", cls: "p" },
-          { header: "cx", numeric: true },
-          { header: "loc", numeric: true },
+          { header: escapeHtml(d.symbols.col.symbol) },
+          { header: escapeHtml(d.symbols.col.kind), cls: "p" },
+          { header: escapeHtml(d.symbols.col.file), cls: "p" },
+          { header: escapeHtml(d.symbols.col.cx), numeric: true },
+          { header: escapeHtml(d.symbols.col.loc), numeric: true },
         ],
         complexSyms.map((s) => [
           escapeHtml(s.name),
@@ -360,9 +372,12 @@ export function buildSectionsHtml(data: RepositoryData, facts: DerivedFacts, col
      </div>${
        complexSyms.length
          ? callout(
-             `<b>${escapeHtml(complexSyms[0].name)}</b> in ${escapeHtml(
-               (complexSyms[0].relativePath ?? "").split("/").pop() ?? ""
-             )} is the most complex symbol (complexity ${complexSyms[0].complexity}, ${complexSyms[0].loc} lines) — first candidate to break up if that file needs work.`
+             d.symbols.callout(
+               escapeHtml(complexSyms[0].name),
+               escapeHtml((complexSyms[0].relativePath ?? "").split("/").pop() ?? ""),
+               complexSyms[0].complexity ?? 0,
+               complexSyms[0].loc ?? 0
+             )
            )
          : ""
      }`
@@ -375,9 +390,9 @@ export function buildSectionsHtml(data: RepositoryData, facts: DerivedFacts, col
       section(
         sections,
         "reading",
-        "Where to start reading",
+        d.reading.title,
         null,
-        `A path through the code for someone opening this repository for the first time, ordered by how much structure each file explains.`,
+        d.reading.lede,
         `<div class="card">${narrative.readingList
           .map(
             (r, i) =>
@@ -395,9 +410,9 @@ export function buildSectionsHtml(data: RepositoryData, facts: DerivedFacts, col
   parts.push(
     `<footer><span>${escapeHtml(metadata.repositoryName)} · ${escapeHtml((metadata.gitCommit ?? "").slice(0, 10))} · ${escapeHtml(
       metadata.generatedAt.slice(0, 10)
-    )}</span><span>schema ${escapeHtml(metadata.schemaVersion)} · analyzer ${escapeHtml(metadata.analyzerVersion)} · config ${escapeHtml(
-      (metadata.configurationHash ?? "").slice(0, 8)
-    )}</span></footer>`
+    )}</span><span>${escapeHtml(d.footer.schema)} ${escapeHtml(metadata.schemaVersion)} · ${escapeHtml(d.footer.analyzer)} ${escapeHtml(
+      metadata.analyzerVersion
+    )} · ${escapeHtml(d.footer.config)} ${escapeHtml((metadata.configurationHash ?? "").slice(0, 8))}</span></footer>`
   );
 
   return { html: parts.join(""), sections };

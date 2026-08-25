@@ -45,6 +45,34 @@ describe("bin/analyze.js — standalone bundle", () => {
 
     dom.window.close();
   });
+
+  it("switches the whole report to Spanish when the language toggle is clicked, and back to English", () => {
+    const html = fs.readFileSync(outPath, "utf8");
+    const dom = new JSDOM(html, { runScripts: "dangerously", resources: "usable" });
+    const doc = dom.window.document;
+
+    // jsdom's default navigator.language is en-US, so the initial render is English.
+    expect(doc.documentElement.lang).toBe("en");
+    expect(doc.querySelector("#main h2")?.textContent).toBe("Snapshot");
+
+    const esBtn = doc.querySelector<HTMLButtonElement>('#lang-toggle button[data-lang="es"]');
+    expect(esBtn).toBeTruthy();
+    esBtn?.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+
+    expect(doc.documentElement.lang).toBe("es");
+    expect(doc.querySelector("#main h2")?.textContent).toBe("Resumen general");
+    expect(doc.title).toContain("Informe del repositorio");
+    // Spanish locale formatting: "." as the thousands separator.
+    expect(doc.querySelector("#main .stats b")?.textContent).toMatch(/^\d{1,3}(\.\d{3})*$/);
+    expect(esBtn?.classList.contains("on")).toBe(true);
+
+    const enBtn = doc.querySelector<HTMLButtonElement>('#lang-toggle button[data-lang="en"]');
+    enBtn?.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+    expect(doc.documentElement.lang).toBe("en");
+    expect(doc.querySelector("#main h2")?.textContent).toBe("Snapshot");
+
+    dom.window.close();
+  });
 });
 
 describe("bin/analyze.js — render-only with narrative", () => {
@@ -74,13 +102,25 @@ describe("bin/analyze.js — render-only with narrative", () => {
     fs.writeFileSync(
       narrativePath,
       JSON.stringify({
-        summary: "A tiny fixture repo used for testing.",
-        keyInsights: ["a.ts and b.ts import each other, forming a cycle."],
-        readingList: [{ path: "a.ts", reason: "Part of the only cycle in this fixture." }],
-        views: {
-          repoMap: "The map shows a handful of top-level files.",
-          depMatrix: "One cycle is visible between a.ts and b.ts.",
-          hotspots: "No file crosses the default risk threshold in this tiny fixture.",
+        en: {
+          summary: "A tiny fixture repo used for testing.",
+          keyInsights: ["a.ts and b.ts import each other, forming a cycle."],
+          readingList: [{ path: "a.ts", reason: "Part of the only cycle in this fixture." }],
+          views: {
+            repoMap: "The map shows a handful of top-level files.",
+            depMatrix: "One cycle is visible between a.ts and b.ts.",
+            hotspots: "No file crosses the default risk threshold in this tiny fixture.",
+          },
+        },
+        es: {
+          summary: "Un pequeño repositorio de prueba usado para testing.",
+          keyInsights: ["a.ts y b.ts se importan mutuamente, formando un ciclo."],
+          readingList: [{ path: "a.ts", reason: "Parte del único ciclo de este fixture." }],
+          views: {
+            repoMap: "El mapa muestra un puñado de archivos de nivel superior.",
+            depMatrix: "Se ve un ciclo entre a.ts y b.ts.",
+            hotspots: "Ningún archivo cruza el umbral de riesgo por defecto en este fixture.",
+          },
         },
       })
     );
@@ -109,15 +149,13 @@ describe("bin/analyze.js — render-only with narrative", () => {
   });
 
   it("never renders narrative text as executable markup, even when it looks like a script tag", () => {
-    fs.writeFileSync(
-      narrativePath,
-      JSON.stringify({
-        summary: "</script><script>window.__rkPwned = true;</script>",
-        keyInsights: ["ok"],
-        readingList: [{ path: "a.ts", reason: "ok" }],
-        views: { repoMap: "ok", depMatrix: "ok", hotspots: "ok" },
-      })
-    );
+    const malicious = {
+      summary: "</script><script>window.__rkPwned = true;</script>",
+      keyInsights: ["ok"],
+      readingList: [{ path: "a.ts", reason: "ok" }],
+      views: { repoMap: "ok", depMatrix: "ok", hotspots: "ok" },
+    };
+    fs.writeFileSync(narrativePath, JSON.stringify({ en: malicious, es: malicious }));
 
     execFileSync(
       "node",

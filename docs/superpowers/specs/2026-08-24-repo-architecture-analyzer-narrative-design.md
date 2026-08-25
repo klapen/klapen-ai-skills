@@ -16,6 +16,24 @@ with less code and no new runtime JS, and was accepted during Task 4's
 review. Also, §5's "reading list ... small card" language shipped as a
 `<ul>` list, not a distinct card element.
 
+**Amendment (2026-08-25 — bilingual report):** the report gained a
+client-side English/Spanish language toggle covering every static string
+in the report (not just the narrative), backed by a dictionary module at
+`src/report/i18n.ts` and locale-aware number formatting via
+`d3.formatLocale`. As a direct consequence, `NarrativeContent` in §4 is no
+longer the flat shape described there — it is now `{ en: NarrativeContent,
+es: NarrativeContent }` (the old flat shape, renamed
+`NarrativeLangContent`, nested under both language keys), and both
+`schema/narrative.schema.json` and the embedded copy in
+`schema/repository-data.schema.json` require both keys. `narrative.json`
+authored by Claude must always carry both languages, written with equal
+rigor, not a mechanical translation pass of one into the other. This was
+out of scope for the original narrative design (§10 didn't anticipate
+it) but is additive to everything else in this document — the runtime
+flow, safety rules, and backward-compatibility guarantee (§7: omitting
+`--narrative` still produces the graphs-only report, now with the toggle
+covering just the deterministic sections) are unchanged.
+
 ## 1. Purpose
 
 The base skill produces a report that's all hard data: three D3 views, an

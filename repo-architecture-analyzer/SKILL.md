@@ -118,17 +118,23 @@ baseline command:
    ```
 2. **Read `<data-path>` in full** (not just the stdout summary — you need
    real file paths, scores, and cycle members to write anything grounded).
-   Write `<narrative-path>` as JSON matching this shape:
+   Write `<narrative-path>` as JSON with **both** an `en` and an `es`
+   version of the same content — the report has a language toggle, and
+   every narrative field must exist in both languages or the file fails
+   schema validation:
    ```json
    {
-     "summary": "2-4 sentences: what kind of system this is, its main layers/modules, overall shape.",
-     "keyInsights": ["3-6 short, data-grounded observations"],
-     "readingList": [{ "path": "relative/path", "reason": "why start here" }],
-     "views": {
-       "repoMap": "1-2 sentences framing what to look for in this repo's map.",
-       "depMatrix": "1-2 sentences — e.g. name a real dense cluster or cycle.",
-       "hotspots": "1-2 sentences — e.g. name the actual top hotspot and why."
-     }
+     "en": {
+       "summary": "2-4 sentences: what kind of system this is, its main layers/modules, overall shape.",
+       "keyInsights": ["3-6 short, data-grounded observations"],
+       "readingList": [{ "path": "relative/path", "reason": "why start here" }],
+       "views": {
+         "repoMap": "1-2 sentences framing what to look for in this repo's map.",
+         "depMatrix": "1-2 sentences — e.g. name a real dense cluster or cycle.",
+         "hotspots": "1-2 sentences — e.g. name the actual top hotspot and why."
+       }
+     },
+     "es": { "...": "the same four fields, written in Spanish — not a literal translation pass, write it as a native Spanish-speaking analyst would" }
    }
    ```
    **Every sentence must cite something concretely present in
@@ -136,11 +142,12 @@ baseline command:
    fan-in count. No generic filler ("this repo has good separation of
    concerns"). Derive `readingList` from real signals in the data (highest
    fan-in files, README/entry-point presence, highest-risk files) — never
-   guess independent of the analysis. `views` is still required by the
-   schema but no longer individually rendered anywhere in the current
-   report layout (a holdover from an earlier per-view-dashboard design) —
-   write it briefly and grounded like everything else, but don't spend
-   much effort on it.
+   guess independent of the analysis. Write both languages with the same
+   rigor; don't let the second language become a thinner afterthought.
+   `views` is still required by the schema but no longer individually
+   rendered anywhere in the current report layout (a holdover from an
+   earlier per-view-dashboard design) — write it briefly and grounded like
+   everything else, but don't spend much effort on it.
 3. **Render with the narrative attached:**
    ```bash
    node <skill-dir>/bin/analyze.js --render-only --data <data-path> --narrative <narrative-path> --out <report-path>
@@ -175,22 +182,35 @@ If you skip this flow entirely, the report is still complete and correct
 
 ## Report contents
 
-The report is a single-scroll document, not an interactive dashboard —
-read top to bottom, with a sticky table of contents and hover tooltips on
-every chart. Sections, in order: **Snapshot** (stat grid), **Executive
-summary** and **Where to start reading** (narrative-only — see below),
-**Composition** (lines of code by module and file type), **Repo map**
-(treemap, area = lines of code), **Dependency graph** (force-directed,
-file-level imports), **Coupling & cycles** (import matrix, fan-in/fan-out
-tables, detected cycles), **Hidden coupling** (co-change pairs with no
-import between them), **Risk & hotspots** (churn × complexity scatter,
+The report is a single-scroll document, not an app-shell dashboard — read
+top to bottom, with a sticky table of contents. Sections, in order:
+**Snapshot** (stat grid), **Executive summary** and **Where to start
+reading** (narrative-only — see below), **Composition** (lines of code by
+module and file type), **Repo map** (treemap, area = lines of code),
+**Dependency graph** (force-directed, file-level imports — click a node to
+isolate its neighbourhood, drag to pan, Ctrl/Cmd+scroll to zoom),
+**Coupling & cycles** (import matrix with module row/column filters and
+click-to-trace row/column/cell highlighting, fan-in/fan-out tables,
+detected cycles), **Hidden coupling** (co-change pairs with no import
+between them), **Risk & hotspots** (churn × complexity scatter,
 highest-risk table), **Change history** (churn by module, most-changed
 and recently-modified files), and **Symbols** (parsed classes/functions/
-methods, most-complex-symbol table). There is no search box, filter
-controls, or click-to-inspect panel — every section explains itself in
-prose and charts respond to hover only. Edge bundling, the architectural-
-tension view, and snapshot/history comparison are **not built** — v2
-backlog, not missing features to apologize for.
+methods, most-complex-symbol table). Every chart also has hover tooltips.
+Edge bundling, the architectural-tension view, and snapshot/history
+comparison are **not built** — v2 backlog, not missing features to
+apologize for.
+
+## Language toggle
+
+Every static label, table header, tooltip, and hint in the report — plus
+the narrative, when attached — exists in English and Spanish. An EN/ES
+toggle in the masthead switches the whole page instantly, client-side, no
+reload; it auto-detects the viewer's browser language on first load
+(Spanish if `navigator.language` starts with `es`, English otherwise) and
+also localizes number formatting (`1,234` in English, `1.234` in
+Spanish). This is why narrative.json must always carry both `en` and `es`
+— a narrative present in only one language would leave the other half of
+the toggle broken.
 
 ## Common pitfalls
 

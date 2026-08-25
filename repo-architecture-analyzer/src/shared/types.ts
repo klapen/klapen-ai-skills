@@ -130,7 +130,7 @@ export interface ReadingListItem {
   reason: string;
 }
 
-export interface NarrativeContent {
+export interface NarrativeLangContent {
   summary: string;
   keyInsights: string[];
   readingList: ReadingListItem[];
@@ -139,6 +139,11 @@ export interface NarrativeContent {
     depMatrix: string;
     hotspots: string;
   };
+}
+
+export interface NarrativeContent {
+  en: NarrativeLangContent;
+  es: NarrativeLangContent;
 }
 
 export interface RepositoryData {

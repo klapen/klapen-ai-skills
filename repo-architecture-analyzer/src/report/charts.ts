@@ -4,8 +4,7 @@ import type { DerivedFacts } from "./derive";
 import { groupOf } from "./derive";
 import type { ReportColorScales } from "./colors";
 import { escapeHtml } from "./escape";
-
-const N = d3.format(",");
+import { formatters, t, type Lang } from "./i18n";
 
 function legendHtml(items: Array<[string, string]>): string {
   return items.map(([c, l]) => `<span><i style="background:${c}"></i>${escapeHtml(l)}</span>`).join("");
@@ -42,31 +41,33 @@ function makeTip(root: ParentNode): {
   return { show, move, hide };
 }
 
-export function drawAll(root: HTMLElement, data: RepositoryData, facts: DerivedFacts, colors: ReportColorScales): void {
+export function drawAll(root: HTMLElement, data: RepositoryData, facts: DerivedFacts, colors: ReportColorScales, lang: Lang = "en"): void {
   const tip = makeTip(root.ownerDocument ?? document);
-  drawMap(root, facts, colors, tip);
-  drawGraph(root, facts, colors, tip);
-  drawMatrix(root, facts, tip);
-  drawHotspots(root, facts, colors, tip);
+  drawMap(root, facts, colors, tip, lang);
+  drawGraph(root, facts, colors, tip, lang);
+  drawMatrix(root, facts, tip, lang);
+  drawHotspots(root, facts, colors, tip, lang);
 }
 
 /** Wires the row/column module selects above the coupling matrix so changing either re-renders it in place. */
-export function bindMatrixFilters(root: HTMLElement, facts: DerivedFacts): void {
+export function bindMatrixFilters(root: HTMLElement, facts: DerivedFacts, lang: Lang = "en"): void {
   const rowsSel = root.querySelector<HTMLSelectElement>("#mx-rows");
   const colsSel = root.querySelector<HTMLSelectElement>("#mx-cols");
   if (!rowsSel || !colsSel) return;
   const tip = makeTip(root.ownerDocument ?? document);
-  const redraw = (): void => drawMatrix(root, facts, tip);
+  const redraw = (): void => drawMatrix(root, facts, tip, lang);
   rowsSel.addEventListener("change", redraw);
   colsSel.addEventListener("change", redraw);
 }
 
 type Tip = ReturnType<typeof makeTip>;
 
-function drawMap(root: HTMLElement, facts: DerivedFacts, colors: ReportColorScales, tip: Tip): void {
+function drawMap(root: HTMLElement, facts: DerivedFacts, colors: ReportColorScales, tip: Tip, lang: Lang): void {
   const container = root.querySelector<HTMLElement>("#c-map");
   const legend = root.querySelector<HTMLElement>("#l-map");
   if (!container) return;
+  const dict = t(lang);
+  const { N } = formatters(lang);
   const { svg, width, height } = chartSvg(container, 440);
 
   const keep = new Set<string>();
@@ -85,7 +86,7 @@ function drawMap(root: HTMLElement, facts: DerivedFacts, colors: ReportColorScal
       .id((d) => d.id)
       .parentId((d) => (d.kind === "repository" ? null : d.parentId ?? null))(list);
   } catch {
-    container.innerHTML = '<p class="cap">Repo map unavailable — could not build a file hierarchy for this analysis.</p>';
+    container.innerHTML = `<p class="cap">${escapeHtml(dict.empty.repoMapUnavailable)}</p>`;
     return;
   }
   root_.sum((d) => (d.kind === "file" ? Math.max(1, d.loc ?? 0) : 0)).sort((a, b) => (b.value ?? 0) - (a.value ?? 0));
@@ -121,12 +122,14 @@ function drawMap(root: HTMLElement, facts: DerivedFacts, colors: ReportColorScal
     .on("mouseenter", (ev: MouseEvent, d) =>
       tip.show(
         ev,
-        `<b>${escapeHtml(d.data.name)}</b><br /><span class="d">${escapeHtml(d.data.relativePath ?? "")}</span><br /><span class="d">loc</span> ${N(
-          d.value ?? 0
-        )}${
+        `<b>${escapeHtml(d.data.name)}</b><br /><span class="d">${escapeHtml(d.data.relativePath ?? "")}</span><br /><span class="d">${escapeHtml(
+          dict.tip.loc
+        )}</span> ${N(d.value ?? 0)}${
           d.data.kind === "file"
-            ? ` · <span class="d">risk</span> ${d.data.riskScore ?? 0} · <span class="d">fan-in</span> ${d.data.fanIn ?? 0}`
-            : ` · <span class="d">files</span> ${d.leaves().length}`
+            ? ` · <span class="d">${escapeHtml(dict.tip.risk)}</span> ${d.data.riskScore ?? 0} · <span class="d">${escapeHtml(dict.tip.fanIn)}</span> ${
+                d.data.fanIn ?? 0
+              }`
+            : ` · <span class="d">${escapeHtml(dict.tip.files)}</span> ${d.leaves().length}`
         }`
       )
     )
@@ -136,10 +139,12 @@ function drawMap(root: HTMLElement, facts: DerivedFacts, colors: ReportColorScal
   if (legend) legend.innerHTML = legendHtml(facts.groups.slice(0, 8).map((g) => [colors.group(g), g]));
 }
 
-function drawGraph(root: HTMLElement, facts: DerivedFacts, colors: ReportColorScales, tip: Tip): void {
+function drawGraph(root: HTMLElement, facts: DerivedFacts, colors: ReportColorScales, tip: Tip, lang: Lang): void {
   const container = root.querySelector<HTMLElement>("#c-graph");
   const legend = root.querySelector<HTMLElement>("#l-graph");
   if (!container) return;
+  const dict = t(lang);
+  const { N } = formatters(lang);
   const { svg, width, height } = chartSvg(container, 520);
   const g = svg.append("g");
   svg
@@ -166,7 +171,7 @@ function drawGraph(root: HTMLElement, facts: DerivedFacts, colors: ReportColorSc
     .filter((f) => facts.connected.has(f.id))
     .map((f) => ({ id: f.id, name: f.name, group: groupOf(f.relativePath), loc: f.loc ?? 1, file: f }));
   if (!nodes.length) {
-    container.innerHTML = '<p class="cap">No connected files to graph.</p>';
+    container.innerHTML = `<p class="cap">${escapeHtml(dict.empty.noConnectedGraph)}</p>`;
     return;
   }
   const keep = new Set(nodes.map((n) => n.id));
@@ -276,11 +281,11 @@ function drawGraph(root: HTMLElement, facts: DerivedFacts, colors: ReportColorSc
     .on("mouseenter", (ev: MouseEvent, d) =>
       tip.show(
         ev,
-        `<b>${escapeHtml(d.name)}</b><br /><span class="d">${escapeHtml(d.file.relativePath ?? "")}</span><br /><span class="d">loc</span> ${N(
-          d.loc
-        )} · <span class="d">in</span> ${d.file.fanIn ?? 0} · <span class="d">out</span> ${d.file.fanOut ?? 0} · <span class="d">risk</span> ${
-          d.file.riskScore ?? 0
-        }`
+        `<b>${escapeHtml(d.name)}</b><br /><span class="d">${escapeHtml(d.file.relativePath ?? "")}</span><br /><span class="d">${escapeHtml(
+          dict.tip.loc
+        )}</span> ${N(d.loc)} · <span class="d">${escapeHtml(dict.tip.in)}</span> ${d.file.fanIn ?? 0} · <span class="d">${escapeHtml(
+          dict.tip.out
+        )}</span> ${d.file.fanOut ?? 0} · <span class="d">${escapeHtml(dict.tip.risk)}</span> ${d.file.riskScore ?? 0}`
       )
     )
     .on("mousemove", (ev: MouseEvent) => tip.move(ev))
@@ -322,13 +327,14 @@ function drawGraph(root: HTMLElement, facts: DerivedFacts, colors: ReportColorSc
         lanes
           .slice(0, 8)
           .map((x): [string, string] => [colors.group(x), x])
-          .concat([["#ff6b6b", "in a cycle"]])
-      ) + '<span class="hint">click a node to isolate its neighbourhood · ⌃ Ctrl / ⌘ Cmd + scroll to zoom · drag to pan</span>';
+          .concat([["#ff6b6b", dict.graph.legendCycle]])
+      ) + `<span class="hint">${escapeHtml(dict.graph.hint)}</span>`;
 }
 
-function drawMatrix(root: HTMLElement, facts: DerivedFacts, tip: Tip): void {
+function drawMatrix(root: HTMLElement, facts: DerivedFacts, tip: Tip, lang: Lang): void {
   const container = root.querySelector<HTMLElement>("#c-matrix");
   if (!container) return;
+  const dict = t(lang);
   container.innerHTML = "";
   const degree = new Set<string>();
   for (const e of facts.imports) {
@@ -337,7 +343,7 @@ function drawMatrix(root: HTMLElement, facts: DerivedFacts, tip: Tip): void {
   }
   const all = facts.files.filter((f) => degree.has(f.id)).sort((a, b) => d3.ascending(a.relativePath, b.relativePath));
   if (!all.length) {
-    container.innerHTML = '<p class="cap">No connected files to show in the matrix.</p>';
+    container.innerHTML = `<p class="cap">${escapeHtml(dict.empty.noConnectedMatrix)}</p>`;
     return;
   }
 
@@ -346,7 +352,7 @@ function drawMatrix(root: HTMLElement, facts: DerivedFacts, tip: Tip): void {
   const rows = rowFilter ? all.filter((f) => groupOf(f.relativePath) === rowFilter) : all;
   const cols = colFilter ? all.filter((f) => groupOf(f.relativePath) === colFilter) : all;
   if (!rows.length || !cols.length) {
-    container.innerHTML = '<p class="cap">No files match the selected row/column modules.</p>';
+    container.innerHTML = `<p class="cap">${escapeHtml(dict.empty.noMatrixMatch)}</p>`;
     return;
   }
 
@@ -399,10 +405,10 @@ function drawMatrix(root: HTMLElement, facts: DerivedFacts, tip: Tip): void {
     .on("mouseenter", (ev: MouseEvent, d) =>
       tip.show(
         ev,
-        `<b>${escapeHtml(rows[d.r].name)}</b> imports <b>${escapeHtml(cols[d.c].name)}</b><br /><span class="d">${escapeHtml(
+        `<b>${escapeHtml(rows[d.r].name)}</b> ${escapeHtml(dict.tip.imports)} <b>${escapeHtml(cols[d.c].name)}</b><br /><span class="d">${escapeHtml(
           rows[d.r].relativePath
         )}</span><br /><span class="d">→ ${escapeHtml(cols[d.c].relativePath)}</span>${
-          facts.cyclePairs.has(`${d.s}|${d.t}`) ? '<br /><span style="color:#ff6b6b">part of a cycle</span>' : ""
+          facts.cyclePairs.has(`${d.s}|${d.t}`) ? `<br /><span style="color:#ff6b6b">${escapeHtml(dict.tip.partOfCycle)}</span>` : ""
         }`
       )
     )
@@ -469,13 +475,15 @@ function drawMatrix(root: HTMLElement, facts: DerivedFacts, tip: Tip): void {
   });
 }
 
-function drawHotspots(root: HTMLElement, facts: DerivedFacts, colors: ReportColorScales, tip: Tip): void {
+function drawHotspots(root: HTMLElement, facts: DerivedFacts, colors: ReportColorScales, tip: Tip, lang: Lang): void {
   const container = root.querySelector<HTMLElement>("#c-hot");
   if (!container) return;
+  const dict = t(lang);
+  const { N } = formatters(lang);
   const { svg, width, height } = chartSvg(container, 420);
   const data = facts.files.filter((f) => (f.churn ?? 0) > 0 || (f.complexity ?? 0) > 0);
   if (!data.length) {
-    container.innerHTML = '<p class="cap">No files with churn or complexity data to plot.</p>';
+    container.innerHTML = `<p class="cap">${escapeHtml(dict.empty.noHotspotData)}</p>`;
     return;
   }
   const m = { l: 58, r: 26, t: 30, b: 46 };
@@ -496,7 +504,7 @@ function drawHotspots(root: HTMLElement, facts: DerivedFacts, colors: ReportColo
     .attr("fill", "#5b636e")
     .attr("font-family", "var(--mono)")
     .attr("font-size", 10)
-    .text("churn — lines changed →");
+    .text(dict.risk.axisChurn);
   svg
     .append("text")
     .attr("x", m.l)
@@ -505,7 +513,7 @@ function drawHotspots(root: HTMLElement, facts: DerivedFacts, colors: ReportColo
     .attr("fill", "#5b636e")
     .attr("font-family", "var(--mono)")
     .attr("font-size", 10)
-    .text("complexity ↑");
+    .text(dict.risk.axisComplexity);
 
   const g2 = svg.append("g");
   g2
@@ -522,11 +530,11 @@ function drawHotspots(root: HTMLElement, facts: DerivedFacts, colors: ReportColo
     .on("mouseenter", (ev: MouseEvent, d) =>
       tip.show(
         ev,
-        `<b>${escapeHtml(d.name)}</b><br /><span class="d">${escapeHtml(d.relativePath ?? "")}</span><br /><span class="d">risk</span> ${
-          d.riskScore ?? 0
-        } · <span class="d">churn</span> ${N(d.churn ?? 0)} · <span class="d">cx</span> ${d.complexity ?? 0} · <span class="d">loc</span> ${N(
-          d.loc ?? 0
-        )}`
+        `<b>${escapeHtml(d.name)}</b><br /><span class="d">${escapeHtml(d.relativePath ?? "")}</span><br /><span class="d">${escapeHtml(
+          dict.tip.risk
+        )}</span> ${d.riskScore ?? 0} · <span class="d">${escapeHtml(dict.tip.churn)}</span> ${N(d.churn ?? 0)} · <span class="d">${escapeHtml(
+          dict.tip.cx
+        )}</span> ${d.complexity ?? 0} · <span class="d">${escapeHtml(dict.tip.loc)}</span> ${N(d.loc ?? 0)}`
       )
     )
     .on("mousemove", (ev: MouseEvent) => tip.move(ev))

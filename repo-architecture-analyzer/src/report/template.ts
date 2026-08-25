@@ -18,6 +18,12 @@ a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline;col
 .mast .meta{display:flex;flex-wrap:wrap;gap:8px;font-family:var(--mono);font-size:11px;color:var(--dim)}
 .mast .meta span{border:1px solid var(--line);border-radius:3px;padding:3px 7px;background:var(--panel);white-space:nowrap}
 .mast .meta span.dirty{color:var(--amber);border-color:#3a3220}
+.mast .top{display:flex;justify-content:space-between;align-items:flex-start;gap:16px}
+#lang-toggle{display:flex;border:1px solid var(--line);border-radius:5px;overflow:hidden;flex:none}
+#lang-toggle button{font-family:var(--mono);font-size:11px;color:var(--dim);background:var(--panel);border:0;padding:6px 12px;cursor:pointer}
+#lang-toggle button+button{border-left:1px solid var(--line)}
+#lang-toggle button:hover{color:var(--text)}
+#lang-toggle button.on{color:var(--bg);background:var(--accent)}
 nav.toc{position:sticky;top:0;z-index:20;margin-bottom:36px;background:rgba(10,11,13,.93);backdrop-filter:blur(6px);border-bottom:1px solid var(--line)}
 nav.toc .inner{max-width:1180px;margin:0 auto;padding:0 40px;display:flex;gap:20px;overflow:auto}
 nav.toc a{font-family:var(--mono);font-size:11px;color:var(--dim);padding:11px 0;border-bottom:2px solid transparent;white-space:nowrap}
@@ -78,17 +84,20 @@ export function buildReportHtml(data: RepositoryData, options: BuildReportHtmlOp
   const name = escapeHtml(data.metadata.repositoryName);
 
   return `<!doctype html>
-<html lang="en">
+<html>
 <head>
 <meta charset="utf-8" />
-<title>${name} — Repository Report</title>
+<title>${name}</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <style>${REPORT_CSS}</style>
 </head>
 <body>
 <div class="wrap head">
   <div class="mast">
-    <div class="eyebrow">Repository architecture report</div>
+    <div class="top">
+      <div class="eyebrow">Repository architecture report</div>
+      <div id="lang-toggle"><button type="button" data-lang="en">EN</button><button type="button" data-lang="es">ES</button></div>
+    </div>
     <h1 id="m-name">—</h1>
     <div class="meta" id="m-meta"></div>
   </div>
