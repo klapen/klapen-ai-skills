@@ -162,7 +162,7 @@ export function buildSectionsHtml(data: RepositoryData, facts: DerivedFacts, col
       "coupling",
       "Coupling & cycles",
       `${summary.cycles} cycle${summary.cycles === 1 ? "" : "s"}`,
-      `<b>What this is:</b> the same imports as a matrix — a mark at row → column means the row file imports the column file. <b>How to read it:</b> a dense column is a hub everything depends on; a dense row is a file that depends on everything. Marks mirrored across the diagonal for one pair are a cycle (red) and should be broken. The tables rank what the matrix points at.`,
+      `<b>What this is:</b> the same imports as a matrix — a mark at row → column means the row file imports the column file. <b>How to read it:</b> a dense column is a hub everything depends on; a dense row is a file that depends on everything. Marks mirrored across the diagonal for one pair are a cycle (red) and should be broken. Click a row or column label to trace everything it touches, or click a cell to isolate that one row/column intersection — click again, or click the empty background, to clear. The tables rank what the matrix points at.`,
       `<div class="card"><div class="controls">${["rows", "cols"]
         .map(
           (axis) =>
@@ -170,7 +170,7 @@ export function buildSectionsHtml(data: RepositoryData, facts: DerivedFacts, col
               .map((g) => `<option value="${escapeHtml(g)}">${escapeHtml(g)}</option>`)
               .join("")}</select></label>`
         )
-        .join("")}</div><div id="c-matrix" class="chart" style="overflow:auto"></div><div class="cap">Ordered by path, so folders appear as blocks. Filter rows/columns to a module, hover a cell for the pair.</div></div>
+        .join("")}</div><div id="c-matrix" class="chart" style="overflow:auto"></div><div class="cap">Ordered by path, so folders appear as blocks. Filter rows/columns to a module, click a label or cell to highlight, hover a cell for the pair.</div></div>
      <div class="grid g2" style="margin-top:20px">${
        hubs.length
          ? `<div class="card"><h3>Most depended on · fan-in</h3>${tableHTML(

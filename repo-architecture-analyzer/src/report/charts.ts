@@ -323,15 +323,34 @@ function drawMatrix(root: HTMLElement, facts: DerivedFacts, tip: Tip): void {
   const h = cs * rows.length;
   const svg = d3.select(container).append("svg").attr("width", pad.l + w + 16).attr("height", pad.t + h + 16);
   const g = svg.append("g").attr("transform", `translate(${pad.l},${pad.t})`);
-  g.append("rect").attr("width", w).attr("height", h).attr("fill", "#0d1014");
+  const bg = g.append("rect").attr("width", w).attr("height", h).attr("fill", "#0d1014").style("cursor", "pointer");
   g.selectAll("line.h").data(rows).join("line").attr("x1", 0).attr("x2", w).attr("y1", (_d, i) => i * cs).attr("y2", (_d, i) => i * cs).attr("stroke", "#161a20");
   g.selectAll("line.v").data(cols).join("line").attr("y1", 0).attr("y2", h).attr("x1", (_d, i) => i * cs).attr("x2", (_d, i) => i * cs).attr("stroke", "#161a20");
+
+  const rowBand = g
+    .append("rect")
+    .attr("x", 0)
+    .attr("width", w)
+    .attr("height", cs)
+    .attr("fill", "#63b3ff")
+    .attr("fill-opacity", 0.1)
+    .attr("opacity", 0)
+    .attr("pointer-events", "none");
+  const colBand = g
+    .append("rect")
+    .attr("y", 0)
+    .attr("height", h)
+    .attr("width", cs)
+    .attr("fill", "#63b3ff")
+    .attr("fill-opacity", 0.1)
+    .attr("opacity", 0)
+    .attr("pointer-events", "none");
 
   const cells = facts.imports
     .filter((e) => rowIdx.has(e.source) && colIdx.has(e.target))
     .map((e) => ({ r: rowIdx.get(e.source) as number, c: colIdx.get(e.target) as number, w: e.weight || 1, s: e.source, t: e.target }));
   const wmax = d3.max(cells, (c) => c.w) || 1;
-  g
+  const cellSel = g
     .selectAll("rect.c")
     .data(cells)
     .join("rect")
@@ -341,6 +360,7 @@ function drawMatrix(root: HTMLElement, facts: DerivedFacts, tip: Tip): void {
     .attr("height", cs - 1)
     .attr("fill", (d) => (facts.cyclePairs.has(`${d.s}|${d.t}`) ? "#ff6b6b" : "#63b3ff"))
     .attr("fill-opacity", (d) => 0.4 + 0.6 * (d.w / wmax))
+    .style("cursor", "pointer")
     .on("mouseenter", (ev: MouseEvent, d) =>
       tip.show(
         ev,
@@ -354,7 +374,7 @@ function drawMatrix(root: HTMLElement, facts: DerivedFacts, tip: Tip): void {
     .on("mousemove", (ev: MouseEvent) => tip.move(ev))
     .on("mouseleave", () => tip.hide());
 
-  g
+  const rowLabelSel = g
     .selectAll("text.r")
     .data(rows)
     .join("text")
@@ -363,17 +383,55 @@ function drawMatrix(root: HTMLElement, facts: DerivedFacts, tip: Tip): void {
     .attr("text-anchor", "end")
     .attr("font-family", "var(--mono)")
     .attr("font-size", 9)
-    .attr("fill", (d) => (facts.cycleNodes.has(d.id) ? "#ff6b6b" : "#7f8894"))
+    .style("cursor", "pointer")
     .text((d) => (d.relativePath ?? "").slice(-46));
-  g
+  const colLabelSel = g
     .selectAll("text.c")
     .data(cols)
     .join("text")
     .attr("transform", (_d, i) => `translate(${i * cs + cs / 2 + 3},-6) rotate(-90)`)
     .attr("font-family", "var(--mono)")
     .attr("font-size", 9)
-    .attr("fill", (d) => (facts.cycleNodes.has(d.id) ? "#ff6b6b" : "#7f8894"))
+    .style("cursor", "pointer")
     .text((d) => d.name.slice(0, 28));
+
+  let selRow: number | null = null;
+  let selCol: number | null = null;
+  const baseColor = (d: CodeNode): string => (facts.cycleNodes.has(d.id) ? "#ff6b6b" : "#7f8894");
+  const applyHighlight = (): void => {
+    const active = selRow !== null || selCol !== null;
+    cellSel
+      .attr("stroke", (d) => (selRow !== null && selCol !== null && d.r === selRow && d.c === selCol ? "#fff" : "none"))
+      .attr("stroke-width", (d) => (selRow !== null && selCol !== null && d.r === selRow && d.c === selCol ? 1.4 : 0))
+      .attr("opacity", (d) => (active && d.r !== selRow && d.c !== selCol ? 0.22 : 1));
+    rowBand.attr("y", selRow !== null ? selRow * cs : -1000).attr("opacity", selRow !== null ? 1 : 0);
+    colBand.attr("x", selCol !== null ? selCol * cs : -1000).attr("opacity", selCol !== null ? 1 : 0);
+    rowLabelSel.attr("fill", (d, i) => (i === selRow ? "#dfe3e8" : baseColor(d))).attr("font-weight", (_d, i) => (i === selRow ? 700 : 400));
+    colLabelSel.attr("fill", (d, i) => (i === selCol ? "#dfe3e8" : baseColor(d))).attr("font-weight", (_d, i) => (i === selCol ? 700 : 400));
+  };
+  applyHighlight();
+
+  rowLabelSel.on("click", function (_ev, d) {
+    const i = rows.indexOf(d);
+    selRow = selRow === i ? null : i;
+    applyHighlight();
+  });
+  colLabelSel.on("click", function (_ev, d) {
+    const i = cols.indexOf(d);
+    selCol = selCol === i ? null : i;
+    applyHighlight();
+  });
+  cellSel.on("click", (_ev, d) => {
+    const alreadyThisCell = selRow === d.r && selCol === d.c;
+    selRow = alreadyThisCell ? null : d.r;
+    selCol = alreadyThisCell ? null : d.c;
+    applyHighlight();
+  });
+  bg.on("click", () => {
+    selRow = null;
+    selCol = null;
+    applyHighlight();
+  });
 }
 
 function drawHotspots(root: HTMLElement, facts: DerivedFacts, colors: ReportColorScales, tip: Tip): void {
