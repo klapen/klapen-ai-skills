@@ -73,6 +73,41 @@ describe("bin/analyze.js — standalone bundle", () => {
 
     dom.window.close();
   });
+
+  it("filters the Composition module/file-type breakdown when a category button is clicked", () => {
+    const html = fs.readFileSync(outPath, "utf8");
+    const dom = new JSDOM(html, { runScripts: "dangerously", resources: "usable" });
+    const doc = dom.window.document;
+
+    // Unfiltered: the fixture's README.md (docs) and .ts/.py files (code) are both present.
+    const extAll = doc.getElementById("comp-ext")?.textContent ?? "";
+    expect(extAll).toContain(".md");
+    expect(extAll).toContain(".ts");
+
+    const codeBtn = doc.querySelector<HTMLButtonElement>('#comp-filter button[data-cat="code"]');
+    expect(codeBtn).toBeTruthy();
+    codeBtn?.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+
+    const extCode = doc.getElementById("comp-ext")?.textContent ?? "";
+    expect(extCode).toContain(".ts");
+    expect(extCode).not.toContain(".md");
+    expect(codeBtn?.classList.contains("on")).toBe(true);
+    expect(doc.querySelector<HTMLButtonElement>('#comp-filter button[data-cat="all"]')?.classList.contains("on")).toBe(false);
+
+    const docsBtn = doc.querySelector<HTMLButtonElement>('#comp-filter button[data-cat="docs"]');
+    docsBtn?.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+    const extDocs = doc.getElementById("comp-ext")?.textContent ?? "";
+    expect(extDocs).toContain(".md");
+    expect(extDocs).not.toContain(".ts");
+
+    const allBtn = doc.querySelector<HTMLButtonElement>('#comp-filter button[data-cat="all"]');
+    allBtn?.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+    const extRestored = doc.getElementById("comp-ext")?.textContent ?? "";
+    expect(extRestored).toContain(".md");
+    expect(extRestored).toContain(".ts");
+
+    dom.window.close();
+  });
 });
 
 describe("bin/analyze.js — render-only with narrative", () => {

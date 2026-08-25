@@ -186,8 +186,10 @@ The report is a single-scroll document, not an app-shell dashboard — read
 top to bottom, with a sticky table of contents. Sections, in order:
 **Snapshot** (stat grid), **Executive summary** and **Where to start
 reading** (narrative-only — see below), **Composition** (lines of code by
-category — code/documentation/assets, classified by extension — by
-module, and by file type), **Repo map** (treemap, area = lines of code),
+category — code/documentation/assets, classified by extension — plus a
+by-module and by-file-type breakdown that an All/Code/Documentation/
+Assets filter narrows to one category), **Repo map** (treemap, area =
+lines of code),
 **Dependency graph** (force-directed, file-level imports — click a node to
 isolate its neighbourhood, drag to pan, Ctrl/Cmd+scroll to zoom),
 **Coupling & cycles** (import matrix with module row/column filters and

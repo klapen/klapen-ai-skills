@@ -1,7 +1,7 @@
 import * as d3 from "d3";
 import type { RepositoryData, RepositoryMetadata } from "../shared/types";
 import type { DerivedFacts, FileCategory } from "./derive";
-import { groupOf } from "./derive";
+import { categoryOf, extOf, groupAndExtStats, groupOf } from "./derive";
 import type { ReportColorScales } from "./colors";
 import { escapeHtml } from "./escape";
 import { barRows, callout, section, tableHTML, type ReportSection } from "./html";
@@ -30,13 +30,68 @@ export function buildMastheadHtml(metadata: RepositoryMetadata, lang: Lang): str
   return parts.join("");
 }
 
+export interface CompositionBreakdown {
+  moduleHtml: string;
+  extHtml: string;
+  calloutHtml: string;
+}
+
+/**
+ * Builds the module/file-type breakdown for one category filter ("all" or a single
+ * FileCategory). Used for the Composition section's initial render and reused client-side
+ * when the category filter buttons are clicked, so both stay in sync.
+ */
+export function buildCompositionBreakdown(
+  facts: DerivedFacts,
+  colors: ReportColorScales,
+  lang: Lang,
+  category: FileCategory | "all"
+): CompositionBreakdown {
+  const d = t(lang);
+  const { N, P } = formatters(lang);
+  const files = category === "all" ? facts.files : facts.files.filter((f) => categoryOf(f.name, extOf(f.relativePath)) === category);
+  const { byGroup, byExt } = groupAndExtStats(files);
+  const totalLoc = d3.sum(files, (f) => f.loc ?? 0);
+
+  const moduleHtml = byGroup.length
+    ? barRows(
+        byGroup.slice(0, 10).map((g) => ({ label: escapeHtml(g.key), value: g.loc, text: N(g.loc), color: colors.group(g.key) })),
+        byGroup[0].loc
+      )
+    : `<p class="cap">${escapeHtml(d.composition.noFilesInCategory)}</p>`;
+
+  const extHtml = byExt.length
+    ? barRows(
+        byExt
+          .slice(0, 10)
+          .map((e) => ({ label: `${escapeHtml(e.key)}  ·  ${e.files} ${escapeHtml(d.composition.filesSuffix)}`, value: e.loc, text: N(e.loc) })),
+        byExt[0].loc
+      )
+    : `<p class="cap">${escapeHtml(d.composition.noFilesInCategory)}</p>`;
+
+  const calloutHtml = byGroup.length
+    ? callout(
+        d.composition.callout(
+          escapeHtml(byGroup[0].key),
+          P(totalLoc ? byGroup[0].loc / totalLoc : 0),
+          N(byGroup[0].loc),
+          N(byGroup[0].files),
+          P(totalLoc ? d3.sum(byGroup.slice(0, 3), (g) => g.loc) / totalLoc : 0),
+          facts.maxDepth
+        )
+      )
+    : "";
+
+  return { moduleHtml, extHtml, calloutHtml };
+}
+
 export function buildSectionsHtml(data: RepositoryData, facts: DerivedFacts, colors: ReportColorScales, lang: Lang): SectionsResult {
   const d = t(lang);
   const { N, P } = formatters(lang);
   const sections: ReportSection[] = [];
   const { summary, metadata } = data;
   const narrative = data.narrative?.[lang];
-  const { files, symbols, imports, byGroup, byExt, byCategory, hubs, spokes, risky, churned, recent, connected, orphans, hidden, symKinds, complexSyms, maxDepth, biggest, tests, loc } = facts;
+  const { files, symbols, imports, byGroup, byExt, byCategory, hubs, spokes, risky, churned, recent, connected, orphans, hidden, symKinds, complexSyms, biggest, tests, loc } = facts;
 
   const parts: string[] = [];
 
@@ -92,6 +147,7 @@ export function buildSectionsHtml(data: RepositoryData, facts: DerivedFacts, col
       assets: { label: d.composition.categoryAssets, color: "var(--teal)" },
     };
     const categoryLoc = (key: FileCategory): number => byCategory.find((c) => c.key === key)?.loc ?? 0;
+    const initial = buildCompositionBreakdown(facts, colors, lang, "all");
     parts.push(
       section(
         sections,
@@ -114,25 +170,20 @@ export function buildSectionsHtml(data: RepositoryData, facts: DerivedFacts, col
             P(loc ? categoryLoc("assets") / loc : 0)
           )
         )}</div>
-    <div class="grid g2" style="margin-top:20px">
-      <div class="card"><h3>${escapeHtml(d.composition.locByModule)}</h3>${barRows(
-        byGroup.slice(0, 10).map((g) => ({ label: escapeHtml(g.key), value: g.loc, text: N(g.loc), color: colors.group(g.key) })),
-        byGroup[0].loc
-      )}</div>
-      <div class="card"><h3>${escapeHtml(d.composition.locByFileType)}</h3>${barRows(
-        byExt.slice(0, 10).map((e) => ({ label: `${escapeHtml(e.key)}  ·  ${e.files} ${escapeHtml(d.composition.filesSuffix)}`, value: e.loc, text: N(e.loc) })),
-        byExt[0].loc
-      )}</div>
-    </div>${callout(
-          d.composition.callout(
-            escapeHtml(byGroup[0].key),
-            P(loc ? byGroup[0].loc / loc : 0),
-            N(byGroup[0].loc),
-            N(byGroup[0].files),
-            P(loc ? d3.sum(byGroup.slice(0, 3), (g) => g.loc) / loc : 0),
-            maxDepth
-          )
-        )}`
+    <div class="seg" id="comp-filter" style="margin-top:20px">${(["all", "code", "docs", "assets"] as const)
+      .map(
+        (cat) =>
+          `<button type="button" data-cat="${cat}"${cat === "all" ? ' class="on"' : ""}>${escapeHtml(
+            cat === "all" ? d.composition.categoryAll : categoryMeta[cat].label
+          )}</button>`
+      )
+      .join("")}</div>
+    <div class="cap">${escapeHtml(d.composition.filterHint)}</div>
+    <div class="grid g2" style="margin-top:10px">
+      <div class="card"><h3>${escapeHtml(d.composition.locByModule)}</h3><div id="comp-module">${initial.moduleHtml}</div></div>
+      <div class="card"><h3>${escapeHtml(d.composition.locByFileType)}</h3><div id="comp-ext">${initial.extHtml}</div></div>
+    </div>
+    <div id="comp-callout">${initial.calloutHtml}</div>`
       )
     );
   }
@@ -437,4 +488,27 @@ export function buildSectionsHtml(data: RepositoryData, facts: DerivedFacts, col
   );
 
   return { html: parts.join(""), sections };
+}
+
+/** Wires the All/Code/Documentation/Assets buttons above the Composition module/file-type breakdown. */
+export function bindCompositionFilter(root: HTMLElement, facts: DerivedFacts, colors: ReportColorScales, lang: Lang): void {
+  const filterEl = root.querySelector<HTMLElement>("#comp-filter");
+  const moduleEl = root.querySelector<HTMLElement>("#comp-module");
+  const extEl = root.querySelector<HTMLElement>("#comp-ext");
+  const calloutEl = root.querySelector<HTMLElement>("#comp-callout");
+  if (!filterEl || !moduleEl || !extEl || !calloutEl) return;
+
+  filterEl.addEventListener("click", (ev) => {
+    const btn = (ev.target as HTMLElement).closest<HTMLButtonElement>("button[data-cat]");
+    const cat = btn?.dataset.cat;
+    if (!cat || (cat !== "all" && cat !== "code" && cat !== "docs" && cat !== "assets")) return;
+
+    const { moduleHtml, extHtml, calloutHtml } = buildCompositionBreakdown(facts, colors, lang, cat);
+    moduleEl.innerHTML = moduleHtml;
+    extEl.innerHTML = extHtml;
+    calloutEl.innerHTML = calloutHtml;
+    for (const b of Array.from(filterEl.querySelectorAll<HTMLButtonElement>("button"))) {
+      b.classList.toggle("on", b.dataset.cat === cat);
+    }
+  });
 }

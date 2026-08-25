@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { deriveFacts } from "../../src/report/derive";
 import { createColorScales } from "../../src/report/colors";
-import { buildMastheadHtml, buildSectionsHtml } from "../../src/report/sections";
+import { buildCompositionBreakdown, buildMastheadHtml, buildSectionsHtml } from "../../src/report/sections";
 import type { NarrativeContent, RepositoryData } from "../../src/shared/types";
 
 function fixtureData(): RepositoryData {
@@ -153,11 +153,17 @@ describe("buildSectionsHtml — content", () => {
     }
   });
 
-  it("breaks composition down by code/documentation/assets category", () => {
+  it("breaks composition down by code/documentation/assets category, with filter buttons for the module/file-type breakdown", () => {
     const { html } = build(fixtureData());
     expect(html).toContain("Lines of code by category");
     expect(html).toContain("Code  ·  2 files");
     expect(html).toContain("100% of this repository is actual code");
+    expect(html).toContain('id="comp-filter"');
+    for (const cat of ["all", "code", "docs", "assets"]) {
+      expect(html).toContain(`data-cat="${cat}"`);
+    }
+    expect(html).toContain('id="comp-module"');
+    expect(html).toContain('id="comp-ext"');
   });
 
   it("renders the category breakdown in Spanish when lang is es", () => {
@@ -167,5 +173,58 @@ describe("buildSectionsHtml — content", () => {
     const { html } = buildSectionsHtml(data, facts, colors, "es");
     expect(html).toContain("Líneas de código por categoría");
     expect(html).toContain("Código  ·  2 archivos");
+  });
+});
+
+describe("buildCompositionBreakdown", () => {
+  function mixedData(): RepositoryData {
+    const data = fixtureData();
+    data.nodes.push(
+      { id: "file:README.md", parentId: "repository:.", name: "README.md", relativePath: "README.md", kind: "file", loc: 10 },
+      { id: "file:logo.svg", parentId: "repository:.", name: "logo.svg", relativePath: "assets/logo.svg", kind: "file", loc: 4 }
+    );
+    return data;
+  }
+
+  it("returns the whole-repo breakdown for category \"all\"", () => {
+    const data = mixedData();
+    const facts = deriveFacts(data);
+    const colors = createColorScales(facts);
+    const { moduleHtml, extHtml } = buildCompositionBreakdown(facts, colors, "en", "all");
+    expect(moduleHtml).toContain("src");
+    expect(extHtml).toContain(".md");
+    expect(extHtml).toContain(".svg");
+  });
+
+  it("filters the module/file-type breakdown to just code files", () => {
+    const data = mixedData();
+    const facts = deriveFacts(data);
+    const colors = createColorScales(facts);
+    const { extHtml, calloutHtml } = buildCompositionBreakdown(facts, colors, "en", "code");
+    expect(extHtml).toContain(".ts");
+    expect(extHtml).not.toContain(".md");
+    expect(extHtml).not.toContain(".svg");
+    expect(calloutHtml).toContain("100%"); // the code subset is 100% of itself
+  });
+
+  it("filters to just documentation files", () => {
+    const data = mixedData();
+    const facts = deriveFacts(data);
+    const colors = createColorScales(facts);
+    const { moduleHtml, extHtml } = buildCompositionBreakdown(facts, colors, "en", "docs");
+    expect(extHtml).toContain(".md");
+    expect(extHtml).not.toContain(".ts");
+    expect(extHtml).not.toContain(".svg");
+    expect(moduleHtml).toContain("(root)");
+  });
+
+  it("shows a graceful empty state for a category with no files", () => {
+    const data = fixtureData(); // only .ts files — no docs at all
+    const facts = deriveFacts(data);
+    const colors = createColorScales(facts);
+    const { moduleHtml, extHtml, calloutHtml } = buildCompositionBreakdown(facts, colors, "en", "docs");
+    expect(moduleHtml).toContain("No files in this category.");
+    expect(extHtml).toContain("No files in this category.");
+    expect(calloutHtml).toBe("");
   });
 });

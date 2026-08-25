@@ -54,12 +54,15 @@ interface Dict {
     subtitle: (modules: string, types: string) => string;
     lede: string;
     locByCategory: string;
+    categoryAll: string;
     categoryCode: string;
     categoryDocs: string;
     categoryAssets: string;
+    filterHint: string;
     locByModule: string;
     locByFileType: string;
     filesSuffix: string;
+    noFilesInCategory: string;
     categoryCallout: (codePct: string, docsPct: string, assetsPct: string) => string;
     callout: (topModule: string, pct: string, loc: string, files: string, top3Pct: string, depth: number) => string;
   };
@@ -198,12 +201,15 @@ const en: Dict = {
     subtitle: (modules, types) => `${modules} modules · ${types} file types`,
     lede: "<b>What this is:</b> where the lines actually live — by category (code, documentation, assets), by module (top two path segments), and by file type. <b>How to read it:</b> the category split shows how much of the repository is actually source you'd read as code; the top bar is where most of your reading time will go; a module with many files but few lines is usually config or fixtures, and an unexpected file type is worth a look.",
     locByCategory: "Lines of code by category",
+    categoryAll: "All",
     categoryCode: "Code",
     categoryDocs: "Documentation",
     categoryAssets: "Assets",
+    filterHint: "Filter the module and file-type breakdown below to one category.",
     locByModule: "Lines of code by module",
     locByFileType: "Lines of code by file type",
     filesSuffix: "files",
+    noFilesInCategory: "No files in this category.",
     categoryCallout: (codePct, docsPct, assetsPct) =>
       `${codePct} of this repository is actual code, ${docsPct} is documentation, and ${assetsPct} is assets and other non-code files.`,
     callout: (topModule, pct, loc, files, top3Pct, depth) =>
@@ -352,12 +358,15 @@ const es: Dict = {
     subtitle: (modules, types) => `${modules} módulos · ${types} tipos de archivo`,
     lede: "<b>Qué es esto:</b> dónde viven realmente las líneas — por categoría (código, documentación, recursos), por módulo (primeros dos segmentos de la ruta) y por tipo de archivo. <b>Cómo leerlo:</b> la división por categoría muestra cuánto del repositorio es código fuente que realmente leerías como tal; la barra superior es donde irá la mayor parte de tu tiempo de lectura; un módulo con muchos archivos pero pocas líneas suele ser configuración o fixtures, y un tipo de archivo inesperado vale la pena revisarlo.",
     locByCategory: "Líneas de código por categoría",
+    categoryAll: "Todo",
     categoryCode: "Código",
     categoryDocs: "Documentación",
     categoryAssets: "Recursos",
+    filterHint: "Filtra el desglose por módulo y por tipo de archivo de abajo a una sola categoría.",
     locByModule: "Líneas de código por módulo",
     locByFileType: "Líneas de código por tipo de archivo",
     filesSuffix: "archivos",
+    noFilesInCategory: "No hay archivos en esta categoría.",
     categoryCallout: (codePct, docsPct, assetsPct) =>
       `${codePct} de este repositorio es código real, ${docsPct} es documentación y ${assetsPct} son recursos y otros archivos que no son código.`,
     callout: (topModule, pct, loc, files, top3Pct, depth) =>

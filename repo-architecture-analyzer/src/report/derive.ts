@@ -88,6 +88,25 @@ export function extOf(relativePath: string | undefined): string {
   return base.includes(".") ? `.${base.split(".").pop()}` : "(none)";
 }
 
+/** Shared by the initial (whole-repo) render and the client-side category filter on the Composition section. */
+export function groupAndExtStats(files: CodeNode[]): { byGroup: GroupStat[]; byExt: ExtensionStat[] } {
+  const byGroup: GroupStat[] = Array.from(
+    d3.rollup(
+      files,
+      (v) => ({ files: v.length, loc: d3.sum(v, (f) => f.loc ?? 0), churn: d3.sum(v, (f) => f.churn ?? 0) }),
+      (f) => groupOf(f.relativePath)
+    ),
+    ([key, v]) => ({ key, ...v })
+  ).sort((a, b) => b.loc - a.loc);
+
+  const byExt: ExtensionStat[] = Array.from(
+    d3.rollup(files, (v) => ({ files: v.length, loc: d3.sum(v, (f) => f.loc ?? 0) }), (f) => extOf(f.relativePath)),
+    ([key, v]) => ({ key, ...v })
+  ).sort((a, b) => b.loc - a.loc);
+
+  return { byGroup, byExt };
+}
+
 export function deriveFacts(data: RepositoryData): DerivedFacts {
   const byId = new Map(data.nodes.map((n) => [n.id, n]));
   const files = data.nodes.filter((n) => n.kind === "file");
@@ -117,19 +136,7 @@ export function deriveFacts(data: RepositoryData): DerivedFacts {
   const tests = files.filter((f) => f.isTest);
   const loc = d3.sum(files, (f) => f.loc ?? 0);
 
-  const byGroup: GroupStat[] = Array.from(
-    d3.rollup(
-      files,
-      (v) => ({ files: v.length, loc: d3.sum(v, (f) => f.loc ?? 0), churn: d3.sum(v, (f) => f.churn ?? 0) }),
-      (f) => groupOf(f.relativePath)
-    ),
-    ([key, v]) => ({ key, ...v })
-  ).sort((a, b) => b.loc - a.loc);
-
-  const byExt: ExtensionStat[] = Array.from(
-    d3.rollup(files, (v) => ({ files: v.length, loc: d3.sum(v, (f) => f.loc ?? 0) }), (f) => extOf(f.relativePath)),
-    ([key, v]) => ({ key, ...v })
-  ).sort((a, b) => b.loc - a.loc);
+  const { byGroup, byExt } = groupAndExtStats(files);
 
   const categoryCounts = d3.rollup(
     files,

@@ -1,7 +1,7 @@
 import type { RepositoryData } from "../shared/types";
 import { deriveFacts } from "./derive";
 import { createColorScales } from "./colors";
-import { buildMastheadHtml, buildSectionsHtml } from "./sections";
+import { bindCompositionFilter, buildMastheadHtml, buildSectionsHtml } from "./sections";
 import { bindMatrixFilters, drawAll } from "./charts";
 import { isLang, t, type Lang } from "./i18n";
 
@@ -76,6 +76,7 @@ export function bootstrapReport(): void {
 
     drawAll(document.body, data, facts, colors, lang);
     bindMatrixFilters(document.body, facts, lang);
+    bindCompositionFilter(document.body, facts, colors, lang);
 
     if (toggleEl) {
       for (const btn of Array.from(toggleEl.querySelectorAll<HTMLButtonElement>("button"))) {
