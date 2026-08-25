@@ -30444,6 +30444,11 @@ td.hi{color:var(--accent)}
 #tip .d{color:var(--dim-2)}
 .legend{display:flex;flex-wrap:wrap;gap:12px;font-family:var(--mono);font-size:10.5px;color:var(--dim);margin-top:12px}
 .legend i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px}
+.legend .hint{color:var(--dim-2);margin-left:auto}
+.controls{display:flex;flex-wrap:wrap;gap:16px;margin-bottom:14px;font-family:var(--mono);font-size:11px;color:var(--dim)}
+.controls label{display:flex;align-items:center;gap:7px}
+.controls select{background:var(--panel-2);color:var(--text);border:1px solid var(--line);border-radius:4px;padding:4px 8px;font-family:var(--mono);font-size:11px}
+.controls select:hover{border-color:#39424f}
 footer{border-top:1px solid var(--line);padding-top:20px;font-family:var(--mono);font-size:11px;color:var(--dim-2);display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px}
 @media print{body{background:#fff}nav.toc{display:none}}
 `;function fNe(p,i){let c=JSON.stringify(p).replace(/</g,"\\u003c");return`<!doctype html>

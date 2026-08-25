@@ -2,7 +2,7 @@ import type { RepositoryData } from "../shared/types";
 import { deriveFacts } from "./derive";
 import { createColorScales } from "./colors";
 import { buildMastheadHtml, buildSectionsHtml } from "./sections";
-import { drawAll } from "./charts";
+import { bindMatrixFilters, drawAll } from "./charts";
 
 declare global {
   interface Window {
@@ -55,6 +55,7 @@ export function bootstrapReport(): void {
 
   const redraw = (): void => drawAll(document.body, data, facts, colors);
   redraw();
+  bindMatrixFilters(document.body, facts);
   addEventListener("resize", () => {
     clearTimeout(resizeTimer);
     resizeTimer = setTimeout(redraw, 250);

@@ -50,6 +50,17 @@ export function drawAll(root: HTMLElement, data: RepositoryData, facts: DerivedF
   drawHotspots(root, facts, colors, tip);
 }
 
+/** Wires the row/column module selects above the coupling matrix so changing either re-renders it in place. */
+export function bindMatrixFilters(root: HTMLElement, facts: DerivedFacts): void {
+  const rowsSel = root.querySelector<HTMLSelectElement>("#mx-rows");
+  const colsSel = root.querySelector<HTMLSelectElement>("#mx-cols");
+  if (!rowsSel || !colsSel) return;
+  const tip = makeTip(root.ownerDocument ?? document);
+  const redraw = (): void => drawMatrix(root, facts, tip);
+  rowsSel.addEventListener("change", redraw);
+  colsSel.addEventListener("change", redraw);
+}
+
 type Tip = ReturnType<typeof makeTip>;
 
 function drawMap(root: HTMLElement, facts: DerivedFacts, colors: ReportColorScales, tip: Tip): void {
@@ -238,7 +249,14 @@ function drawGraph(root: HTMLElement, facts: DerivedFacts, colors: ReportColorSc
   for (let i = 0; i < 340; i++) sim.tick();
   tick();
 
-  const zoom = d3.zoom<SVGSVGElement, unknown>().scaleExtent([0.3, 5]).on("zoom", (ev) => g.attr("transform", ev.transform.toString()));
+  const zoom = d3
+    .zoom<SVGSVGElement, unknown>()
+    .scaleExtent([0.3, 5])
+    .filter((ev: Event) => {
+      if (ev.type === "wheel") return (ev as WheelEvent).ctrlKey || (ev as WheelEvent).metaKey;
+      return !(ev as MouseEvent).ctrlKey && !(ev as MouseEvent).button;
+    })
+    .on("zoom", (ev) => g.attr("transform", ev.transform.toString()));
   svg.call(zoom);
   const bbox = (g.node() as SVGGElement | null)?.getBBox?.();
   if (bbox && bbox.width && bbox.height) {
@@ -264,12 +282,13 @@ function drawGraph(root: HTMLElement, facts: DerivedFacts, colors: ReportColorSc
     .on("mouseleave", () => tip.hide());
 
   if (legend)
-    legend.innerHTML = legendHtml(
-      lanes
-        .slice(0, 8)
-        .map((x): [string, string] => [colors.group(x), x])
-        .concat([["#ff6b6b", "in a cycle"]])
-    );
+    legend.innerHTML =
+      legendHtml(
+        lanes
+          .slice(0, 8)
+          .map((x): [string, string] => [colors.group(x), x])
+          .concat([["#ff6b6b", "in a cycle"]])
+      ) + '<span class="hint">⌃ Ctrl / ⌘ Cmd + scroll to zoom · drag to pan</span>';
 }
 
 function drawMatrix(root: HTMLElement, facts: DerivedFacts, tip: Tip): void {
@@ -281,24 +300,36 @@ function drawMatrix(root: HTMLElement, facts: DerivedFacts, tip: Tip): void {
     degree.add(e.source);
     degree.add(e.target);
   }
-  const ns = facts.files.filter((f) => degree.has(f.id)).sort((a, b) => d3.ascending(a.relativePath, b.relativePath));
-  if (!ns.length) {
+  const all = facts.files.filter((f) => degree.has(f.id)).sort((a, b) => d3.ascending(a.relativePath, b.relativePath));
+  if (!all.length) {
     container.innerHTML = '<p class="cap">No connected files to show in the matrix.</p>';
     return;
   }
-  const idx = new Map(ns.map((n, i) => [n.id, i]));
+
+  const rowFilter = root.querySelector<HTMLSelectElement>("#mx-rows")?.value ?? "";
+  const colFilter = root.querySelector<HTMLSelectElement>("#mx-cols")?.value ?? "";
+  const rows = rowFilter ? all.filter((f) => groupOf(f.relativePath) === rowFilter) : all;
+  const cols = colFilter ? all.filter((f) => groupOf(f.relativePath) === colFilter) : all;
+  if (!rows.length || !cols.length) {
+    container.innerHTML = '<p class="cap">No files match the selected row/column modules.</p>';
+    return;
+  }
+
+  const rowIdx = new Map(rows.map((n, i) => [n.id, i]));
+  const colIdx = new Map(cols.map((n, i) => [n.id, i]));
   const cs = 11;
   const pad = { l: 300, t: 250 };
-  const size = cs * ns.length;
-  const svg = d3.select(container).append("svg").attr("width", pad.l + size + 16).attr("height", pad.t + size + 16);
+  const w = cs * cols.length;
+  const h = cs * rows.length;
+  const svg = d3.select(container).append("svg").attr("width", pad.l + w + 16).attr("height", pad.t + h + 16);
   const g = svg.append("g").attr("transform", `translate(${pad.l},${pad.t})`);
-  g.append("rect").attr("width", size).attr("height", size).attr("fill", "#0d1014");
-  g.selectAll("line.h").data(ns).join("line").attr("x1", 0).attr("x2", size).attr("y1", (_d, i) => i * cs).attr("y2", (_d, i) => i * cs).attr("stroke", "#161a20");
-  g.selectAll("line.v").data(ns).join("line").attr("y1", 0).attr("y2", size).attr("x1", (_d, i) => i * cs).attr("x2", (_d, i) => i * cs).attr("stroke", "#161a20");
+  g.append("rect").attr("width", w).attr("height", h).attr("fill", "#0d1014");
+  g.selectAll("line.h").data(rows).join("line").attr("x1", 0).attr("x2", w).attr("y1", (_d, i) => i * cs).attr("y2", (_d, i) => i * cs).attr("stroke", "#161a20");
+  g.selectAll("line.v").data(cols).join("line").attr("y1", 0).attr("y2", h).attr("x1", (_d, i) => i * cs).attr("x2", (_d, i) => i * cs).attr("stroke", "#161a20");
 
   const cells = facts.imports
-    .filter((e) => idx.has(e.source) && idx.has(e.target))
-    .map((e) => ({ r: idx.get(e.source) as number, c: idx.get(e.target) as number, w: e.weight || 1, s: e.source, t: e.target }));
+    .filter((e) => rowIdx.has(e.source) && colIdx.has(e.target))
+    .map((e) => ({ r: rowIdx.get(e.source) as number, c: colIdx.get(e.target) as number, w: e.weight || 1, s: e.source, t: e.target }));
   const wmax = d3.max(cells, (c) => c.w) || 1;
   g
     .selectAll("rect.c")
@@ -313,9 +344,9 @@ function drawMatrix(root: HTMLElement, facts: DerivedFacts, tip: Tip): void {
     .on("mouseenter", (ev: MouseEvent, d) =>
       tip.show(
         ev,
-        `<b>${escapeHtml(ns[d.r].name)}</b> imports <b>${escapeHtml(ns[d.c].name)}</b><br /><span class="d">${escapeHtml(
-          ns[d.r].relativePath
-        )}</span><br /><span class="d">→ ${escapeHtml(ns[d.c].relativePath)}</span>${
+        `<b>${escapeHtml(rows[d.r].name)}</b> imports <b>${escapeHtml(cols[d.c].name)}</b><br /><span class="d">${escapeHtml(
+          rows[d.r].relativePath
+        )}</span><br /><span class="d">→ ${escapeHtml(cols[d.c].relativePath)}</span>${
           facts.cyclePairs.has(`${d.s}|${d.t}`) ? '<br /><span style="color:#ff6b6b">part of a cycle</span>' : ""
         }`
       )
@@ -325,7 +356,7 @@ function drawMatrix(root: HTMLElement, facts: DerivedFacts, tip: Tip): void {
 
   g
     .selectAll("text.r")
-    .data(ns)
+    .data(rows)
     .join("text")
     .attr("x", -6)
     .attr("y", (_d, i) => i * cs + cs / 2 + 3)
@@ -336,7 +367,7 @@ function drawMatrix(root: HTMLElement, facts: DerivedFacts, tip: Tip): void {
     .text((d) => (d.relativePath ?? "").slice(-46));
   g
     .selectAll("text.c")
-    .data(ns)
+    .data(cols)
     .join("text")
     .attr("transform", (_d, i) => `translate(${i * cs + cs / 2 + 3},-6) rotate(-90)`)
     .attr("font-family", "var(--mono)")

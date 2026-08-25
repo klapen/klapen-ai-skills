@@ -134,7 +134,7 @@ export function buildSectionsHtml(data: RepositoryData, facts: DerivedFacts, col
       "graph",
       "Dependency graph",
       `${imports.length} import edges`,
-      `<b>What this is:</b> each connected source file is a circle (area = lines of code, colour = module), each arrow an import. Files with no imports either way are left out so the shape stays readable. <b>How to read it:</b> circles everything points at are shared foundations — change them carefully; circles with many outgoing arrows are orchestrators and the natural place to start reading. Hover to isolate a file's neighbourhood, drag to pull the layout apart, scroll to zoom. Red outlines mark files in an import cycle.`,
+      `<b>What this is:</b> each connected source file is a circle (area = lines of code, colour = module), each arrow an import. Files with no imports either way are left out so the shape stays readable. <b>How to read it:</b> circles everything points at are shared foundations — change them carefully; circles with many outgoing arrows are orchestrators and the natural place to start reading. Hover to isolate a file's neighbourhood, drag to pan. Hold Ctrl (Windows/Linux) or Cmd (Mac) and scroll to zoom, so scrolling the page still works over the chart. Red outlines mark files in an import cycle.`,
       `<div class="card"><div id="c-graph" class="chart"></div><div class="legend" id="l-graph"></div></div>${callout(
         `${N(connected.size)} of ${N(facts.sourceFiles.length)} source files take part in the import graph; ${N(
           orphans.length
@@ -163,7 +163,14 @@ export function buildSectionsHtml(data: RepositoryData, facts: DerivedFacts, col
       "Coupling & cycles",
       `${summary.cycles} cycle${summary.cycles === 1 ? "" : "s"}`,
       `<b>What this is:</b> the same imports as a matrix — a mark at row → column means the row file imports the column file. <b>How to read it:</b> a dense column is a hub everything depends on; a dense row is a file that depends on everything. Marks mirrored across the diagonal for one pair are a cycle (red) and should be broken. The tables rank what the matrix points at.`,
-      `<div class="card"><div id="c-matrix" class="chart" style="overflow:auto"></div><div class="cap">Ordered by path, so folders appear as blocks. Hover a cell for the pair.</div></div>
+      `<div class="card"><div class="controls">${["rows", "cols"]
+        .map(
+          (axis) =>
+            `<label>${axis === "rows" ? "Rows" : "Columns"} <select id="mx-${axis}"><option value="">All modules</option>${facts.groups
+              .map((g) => `<option value="${escapeHtml(g)}">${escapeHtml(g)}</option>`)
+              .join("")}</select></label>`
+        )
+        .join("")}</div><div id="c-matrix" class="chart" style="overflow:auto"></div><div class="cap">Ordered by path, so folders appear as blocks. Filter rows/columns to a module, hover a cell for the pair.</div></div>
      <div class="grid g2" style="margin-top:20px">${
        hubs.length
          ? `<div class="card"><h3>Most depended on · fan-in</h3>${tableHTML(
