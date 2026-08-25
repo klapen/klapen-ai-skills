@@ -152,4 +152,20 @@ describe("buildSectionsHtml — content", () => {
       expect(html).toContain(`id="${id}"`);
     }
   });
+
+  it("breaks composition down by code/documentation/assets category", () => {
+    const { html } = build(fixtureData());
+    expect(html).toContain("Lines of code by category");
+    expect(html).toContain("Code  ·  2 files");
+    expect(html).toContain("100% of this repository is actual code");
+  });
+
+  it("renders the category breakdown in Spanish when lang is es", () => {
+    const data = fixtureData();
+    const facts = deriveFacts(data);
+    const colors = createColorScales(facts);
+    const { html } = buildSectionsHtml(data, facts, colors, "es");
+    expect(html).toContain("Líneas de código por categoría");
+    expect(html).toContain("Código  ·  2 archivos");
+  });
 });

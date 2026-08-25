@@ -4,6 +4,24 @@ import type { CodeEdge, CodeNode, RepositoryData } from "../shared/types";
 const SYMBOL_KINDS = new Set(["class", "interface", "function", "method"]);
 const SOURCE_EXTENSIONS = new Set([".ts", ".js", ".py", ".tsx", ".jsx", ".mjs"]);
 
+const CODE_EXTENSIONS = new Set([
+  ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".py", ".go", ".rb", ".java", ".kt", ".kts", ".swift", ".rs",
+  ".c", ".h", ".cc", ".cpp", ".hpp", ".cs", ".php", ".scala", ".sh", ".bash", ".zsh", ".sql", ".graphql",
+  ".gql", ".proto", ".vue", ".svelte", ".lua", ".pl", ".r", ".m", ".dart",
+]);
+const DOC_EXTENSIONS = new Set([".md", ".mdx", ".rst", ".txt", ".adoc", ".textile", ".markdown"]);
+const DOC_BASENAMES = new Set(["license", "readme", "changelog", "contributing", "authors", "notice", "codeowners"]);
+
+export type FileCategory = "code" | "docs" | "assets";
+
+export function categoryOf(name: string, ext: string): FileCategory {
+  if (CODE_EXTENSIONS.has(ext)) return "code";
+  if (DOC_EXTENSIONS.has(ext)) return "docs";
+  const base = name.replace(/\.[^.]+$/, "").toLowerCase();
+  if (ext === "(none)" && DOC_BASENAMES.has(base)) return "docs";
+  return "assets";
+}
+
 export interface HiddenCouplingPair {
   a: CodeNode;
   b: CodeNode;
@@ -24,6 +42,12 @@ export interface ExtensionStat {
   loc: number;
 }
 
+export interface CategoryStat {
+  key: FileCategory;
+  files: number;
+  loc: number;
+}
+
 export interface DerivedFacts {
   byId: Map<string, CodeNode>;
   files: CodeNode[];
@@ -39,6 +63,7 @@ export interface DerivedFacts {
   groups: string[];
   byGroup: GroupStat[];
   byExt: ExtensionStat[];
+  byCategory: CategoryStat[];
   hubs: CodeNode[];
   spokes: CodeNode[];
   risky: CodeNode[];
@@ -106,6 +131,17 @@ export function deriveFacts(data: RepositoryData): DerivedFacts {
     ([key, v]) => ({ key, ...v })
   ).sort((a, b) => b.loc - a.loc);
 
+  const categoryCounts = d3.rollup(
+    files,
+    (v) => ({ files: v.length, loc: d3.sum(v, (f) => f.loc ?? 0) }),
+    (f) => categoryOf(f.name, extOf(f.relativePath))
+  );
+  const byCategory: CategoryStat[] = (["code", "docs", "assets"] as const).map((key) => ({
+    key,
+    files: categoryCounts.get(key)?.files ?? 0,
+    loc: categoryCounts.get(key)?.loc ?? 0,
+  }));
+
   const hubs = files.filter((f) => (f.fanIn ?? 0) > 0).sort((a, b) => (b.fanIn ?? 0) - (a.fanIn ?? 0));
   const spokes = files.filter((f) => (f.fanOut ?? 0) > 0).sort((a, b) => (b.fanOut ?? 0) - (a.fanOut ?? 0));
   const risky = files.filter((f) => (f.riskScore ?? 0) > 0).sort((a, b) => (b.riskScore ?? 0) - (a.riskScore ?? 0));
@@ -155,6 +191,7 @@ export function deriveFacts(data: RepositoryData): DerivedFacts {
     groups,
     byGroup,
     byExt,
+    byCategory,
     hubs,
     spokes,
     risky,

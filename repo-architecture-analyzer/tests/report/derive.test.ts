@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { deriveFacts, groupOf, extOf } from "../../src/report/derive";
+import { deriveFacts, groupOf, extOf, categoryOf } from "../../src/report/derive";
 import type { RepositoryData } from "../../src/shared/types";
 
 function fixtureData(): RepositoryData {
@@ -40,6 +40,28 @@ describe("groupOf / extOf", () => {
   it("extracts the file extension", () => {
     expect(extOf("src/report/derive.ts")).toBe(".ts");
     expect(extOf("LICENSE")).toBe("(none)");
+  });
+});
+
+describe("categoryOf", () => {
+  it("classifies known programming-language extensions as code", () => {
+    expect(categoryOf("derive.ts", ".ts")).toBe("code");
+    expect(categoryOf("render.py", ".py")).toBe("code");
+    expect(categoryOf("main.go", ".go")).toBe("code");
+  });
+
+  it("classifies markdown/text extensions and extensionless doc filenames as docs", () => {
+    expect(categoryOf("HANDOFF.md", ".md")).toBe("docs");
+    expect(categoryOf("notes.txt", ".txt")).toBe("docs");
+    expect(categoryOf("LICENSE", "(none)")).toBe("docs");
+    expect(categoryOf("README", "(none)")).toBe("docs");
+  });
+
+  it("falls back to assets for everything else, including config/data and extensionless non-doc files", () => {
+    expect(categoryOf("example.html", ".html")).toBe("assets");
+    expect(categoryOf("logo.svg", ".svg")).toBe("assets");
+    expect(categoryOf("config.json", ".json")).toBe("assets");
+    expect(categoryOf("Dockerfile", "(none)")).toBe("assets");
   });
 });
 
@@ -92,4 +114,25 @@ describe("deriveFacts", () => {
     expect(facts.tests).toHaveLength(1);
     expect(facts.loc).toBe(60);
   });
+
+  it("buckets every file into exactly one of code/docs/assets, covering all files and all LOC", () => {
+    const data = fixtureData();
+    data.nodes.push(
+      { id: "file:README.md", parentId: "repository:.", name: "README.md", relativePath: "README.md", kind: "file", loc: 8 },
+      { id: "file:logo.svg", parentId: "repository:.", name: "logo.svg", relativePath: "assets/logo.svg", kind: "file", loc: 3 }
+    );
+    const facts = deriveFacts(data);
+    const byKey = Object.fromEntries(facts.byCategory.map((c) => [c.key, c]));
+    expect(byKey.code).toEqual({ key: "code", files: 4, loc: 60 });
+    expect(byKey.docs).toEqual({ key: "docs", files: 1, loc: 8 });
+    expect(byKey.assets).toEqual({ key: "assets", files: 1, loc: 3 });
+    const totalFiles = facts.byCategory.reduce((n, c) => n + c.files, 0);
+    const totalLoc = facts.byCategory.reduce((n, c) => n + c.loc, 0);
+    expect(totalFiles).toBe(facts.files.length);
+    expect(totalLoc).toBe(sumLoc(facts.files));
+  });
 });
+
+function sumLoc(files: { loc?: number }[]): number {
+  return files.reduce((n, f) => n + (f.loc ?? 0), 0);
+}

@@ -53,9 +53,14 @@ interface Dict {
     title: string;
     subtitle: (modules: string, types: string) => string;
     lede: string;
+    locByCategory: string;
+    categoryCode: string;
+    categoryDocs: string;
+    categoryAssets: string;
     locByModule: string;
     locByFileType: string;
     filesSuffix: string;
+    categoryCallout: (codePct: string, docsPct: string, assetsPct: string) => string;
     callout: (topModule: string, pct: string, loc: string, files: string, top3Pct: string, depth: number) => string;
   };
   map: {
@@ -191,10 +196,16 @@ const en: Dict = {
   composition: {
     title: "Composition",
     subtitle: (modules, types) => `${modules} modules · ${types} file types`,
-    lede: "<b>What this is:</b> where the lines actually live — by module (top two path segments) and by file type. <b>How to read it:</b> the top bar is where most of your reading time will go; a module with many files but few lines is usually config or fixtures, and an unexpected file type is worth a look.",
+    lede: "<b>What this is:</b> where the lines actually live — by category (code, documentation, assets), by module (top two path segments), and by file type. <b>How to read it:</b> the category split shows how much of the repository is actually source you'd read as code; the top bar is where most of your reading time will go; a module with many files but few lines is usually config or fixtures, and an unexpected file type is worth a look.",
+    locByCategory: "Lines of code by category",
+    categoryCode: "Code",
+    categoryDocs: "Documentation",
+    categoryAssets: "Assets",
     locByModule: "Lines of code by module",
     locByFileType: "Lines of code by file type",
     filesSuffix: "files",
+    categoryCallout: (codePct, docsPct, assetsPct) =>
+      `${codePct} of this repository is actual code, ${docsPct} is documentation, and ${assetsPct} is assets and other non-code files.`,
     callout: (topModule, pct, loc, files, top3Pct, depth) =>
       `<b>${topModule}</b> holds ${pct} of all code (${loc} lines in ${files} files); the top three modules are ${top3Pct} of the repository. Directories nest ${depth} levels deep.`,
   },
@@ -339,10 +350,16 @@ const es: Dict = {
   composition: {
     title: "Composición",
     subtitle: (modules, types) => `${modules} módulos · ${types} tipos de archivo`,
-    lede: "<b>Qué es esto:</b> dónde viven realmente las líneas — por módulo (primeros dos segmentos de la ruta) y por tipo de archivo. <b>Cómo leerlo:</b> la barra superior es donde irá la mayor parte de tu tiempo de lectura; un módulo con muchos archivos pero pocas líneas suele ser configuración o fixtures, y un tipo de archivo inesperado vale la pena revisarlo.",
+    lede: "<b>Qué es esto:</b> dónde viven realmente las líneas — por categoría (código, documentación, recursos), por módulo (primeros dos segmentos de la ruta) y por tipo de archivo. <b>Cómo leerlo:</b> la división por categoría muestra cuánto del repositorio es código fuente que realmente leerías como tal; la barra superior es donde irá la mayor parte de tu tiempo de lectura; un módulo con muchos archivos pero pocas líneas suele ser configuración o fixtures, y un tipo de archivo inesperado vale la pena revisarlo.",
+    locByCategory: "Líneas de código por categoría",
+    categoryCode: "Código",
+    categoryDocs: "Documentación",
+    categoryAssets: "Recursos",
     locByModule: "Líneas de código por módulo",
     locByFileType: "Líneas de código por tipo de archivo",
     filesSuffix: "archivos",
+    categoryCallout: (codePct, docsPct, assetsPct) =>
+      `${codePct} de este repositorio es código real, ${docsPct} es documentación y ${assetsPct} son recursos y otros archivos que no son código.`,
     callout: (topModule, pct, loc, files, top3Pct, depth) =>
       `<b>${topModule}</b> contiene ${pct} de todo el código (${loc} líneas en ${files} archivos); los tres módulos principales suman ${top3Pct} del repositorio. Los directorios anidan ${depth} niveles de profundidad.`,
   },

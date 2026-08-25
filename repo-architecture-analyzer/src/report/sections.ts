@@ -1,6 +1,6 @@
 import * as d3 from "d3";
 import type { RepositoryData, RepositoryMetadata } from "../shared/types";
-import type { DerivedFacts } from "./derive";
+import type { DerivedFacts, FileCategory } from "./derive";
 import { groupOf } from "./derive";
 import type { ReportColorScales } from "./colors";
 import { escapeHtml } from "./escape";
@@ -36,7 +36,7 @@ export function buildSectionsHtml(data: RepositoryData, facts: DerivedFacts, col
   const sections: ReportSection[] = [];
   const { summary, metadata } = data;
   const narrative = data.narrative?.[lang];
-  const { files, symbols, imports, byGroup, byExt, hubs, spokes, risky, churned, recent, connected, orphans, hidden, symKinds, complexSyms, maxDepth, biggest, tests, loc } = facts;
+  const { files, symbols, imports, byGroup, byExt, byCategory, hubs, spokes, risky, churned, recent, connected, orphans, hidden, symKinds, complexSyms, maxDepth, biggest, tests, loc } = facts;
 
   const parts: string[] = [];
 
@@ -86,6 +86,12 @@ export function buildSectionsHtml(data: RepositoryData, facts: DerivedFacts, col
   }
 
   if (byGroup.length && byExt.length) {
+    const categoryMeta: Record<FileCategory, { label: string; color: string }> = {
+      code: { label: d.composition.categoryCode, color: "var(--accent)" },
+      docs: { label: d.composition.categoryDocs, color: "var(--violet)" },
+      assets: { label: d.composition.categoryAssets, color: "var(--teal)" },
+    };
+    const categoryLoc = (key: FileCategory): number => byCategory.find((c) => c.key === key)?.loc ?? 0;
     parts.push(
       section(
         sections,
@@ -93,13 +99,28 @@ export function buildSectionsHtml(data: RepositoryData, facts: DerivedFacts, col
         d.composition.title,
         d.composition.subtitle(N(byGroup.length), N(byExt.length)),
         d.composition.lede,
-        `<div class="grid g2">
+        `<div class="card"><h3>${escapeHtml(d.composition.locByCategory)}</h3>${barRows(
+          byCategory.map((c) => ({
+            label: `${escapeHtml(categoryMeta[c.key].label)}  ·  ${c.files} ${escapeHtml(d.composition.filesSuffix)}`,
+            value: c.loc,
+            text: N(c.loc),
+            color: categoryMeta[c.key].color,
+          })),
+          d3.max(byCategory, (c) => c.loc) || 1
+        )}${callout(
+          d.composition.categoryCallout(
+            P(loc ? categoryLoc("code") / loc : 0),
+            P(loc ? categoryLoc("docs") / loc : 0),
+            P(loc ? categoryLoc("assets") / loc : 0)
+          )
+        )}</div>
+    <div class="grid g2" style="margin-top:20px">
       <div class="card"><h3>${escapeHtml(d.composition.locByModule)}</h3>${barRows(
-        byGroup.slice(0, 10).map((g) => ({ label: escapeHtml(g.key), value: g.loc, color: colors.group(g.key) })),
+        byGroup.slice(0, 10).map((g) => ({ label: escapeHtml(g.key), value: g.loc, text: N(g.loc), color: colors.group(g.key) })),
         byGroup[0].loc
       )}</div>
       <div class="card"><h3>${escapeHtml(d.composition.locByFileType)}</h3>${barRows(
-        byExt.slice(0, 10).map((e) => ({ label: `${escapeHtml(e.key)}  ·  ${e.files} ${escapeHtml(d.composition.filesSuffix)}`, value: e.loc })),
+        byExt.slice(0, 10).map((e) => ({ label: `${escapeHtml(e.key)}  ·  ${e.files} ${escapeHtml(d.composition.filesSuffix)}`, value: e.loc, text: N(e.loc) })),
         byExt[0].loc
       )}</div>
     </div>${callout(
@@ -291,7 +312,7 @@ export function buildSectionsHtml(data: RepositoryData, facts: DerivedFacts, col
       `<div class="grid g2">${
         churnByGroup.length
           ? `<div class="card"><h3>${escapeHtml(d.history.churnByModule)}</h3>${barRows(
-              churnByGroup.slice(0, 8).map((g) => ({ label: escapeHtml(g.key), value: g.churn, color: colors.group(g.key) })),
+              churnByGroup.slice(0, 8).map((g) => ({ label: escapeHtml(g.key), value: g.churn, text: N(g.churn), color: colors.group(g.key) })),
               d3.max(byGroup, (g) => g.churn) || 1
             )}</div>`
           : ""
@@ -346,11 +367,11 @@ export function buildSectionsHtml(data: RepositoryData, facts: DerivedFacts, col
         d.symbols.lede,
         `<div class="grid g2">
       <div class="card"><h3>${escapeHtml(d.symbols.byKind)}</h3>${barRows(
-        symKinds.map((k) => ({ label: escapeHtml(k.kind), value: k.count })),
+        symKinds.map((k) => ({ label: escapeHtml(k.kind), value: k.count, text: N(k.count) })),
         symKinds[0].count
       )}
         <h3 style="margin-top:22px">${escapeHtml(d.symbols.filesWithMost)}</h3>${barRows(
-          symbolsByFileCounts.slice(0, 6).map((s) => ({ label: escapeHtml(s.label), value: s.value })),
+          symbolsByFileCounts.slice(0, 6).map((s) => ({ label: escapeHtml(s.label), value: s.value, text: N(s.value) })),
           d3.max(symbolsByFileCounts, (s) => s.value) ?? 1
         )}</div>
       <div class="card"><h3>${escapeHtml(d.symbols.mostComplex)}</h3>${tableHTML(
