@@ -45,6 +45,20 @@
     'section.files_sub':    { en: 'annotated diff',     es: 'diff anotado',       pt: 'diff anotado' },
     'section.quiz':         { en: 'Comprehension check', es: 'Verificación de comprensión', pt: 'Verificação de compreensão' },
     'section.quiz_sub':     { en: '— optional, 4 questions', es: '— opcional, 4 preguntas', pt: '— opcional, 4 perguntas' },
+    'section.mrkit':        { en: 'MR review kit',       es: 'Kit de revisión del MR', pt: 'Kit de revisão do MR' },
+    'section.mrkit_sub':    { en: 'copy-paste-ready comments', es: 'comentarios listos para copiar y pegar', pt: 'comentários prontos para copiar e colar' },
+    'section.prior':        { en: 'Prior review threads', es: 'Hilos de revisión previos', pt: 'Threads de revisão anteriores' },
+    'section.prior_sub':    { en: 'what other humans already said', es: 'lo que otros humanos ya dijeron', pt: 'o que outros humanos já disseram' },
+    'prior.resolved':       { en: 'resolved',            es: 'resuelto',           pt: 'resolvido' },
+    'prior.unresolved':     { en: 'open',                es: 'abierto',            pt: 'aberto' },
+    'prior.bot':            { en: 'bot',                 es: 'bot',                pt: 'bot' },
+    'prior.review':         { en: 'line',                es: 'línea',              pt: 'linha' },
+    'prior.issue':          { en: 'general',             es: 'general',            pt: 'geral' },
+    'prior.hide_bots':      { en: 'Hide bot comments',   es: 'Ocultar comentarios de bots', pt: 'Ocultar comentários de bots' },
+    'mrkit.overall':        { en: 'Overall MR comment',  es: 'Comentario general del MR', pt: 'Comentário geral do MR' },
+    'mrkit.line':           { en: 'Line comment',        es: 'Comentario de línea', pt: 'Comentário de linha' },
+    'button.copy':          { en: 'Copy',                es: 'Copiar',             pt: 'Copiar' },
+    'button.copied':        { en: 'Copied ✓',            es: 'Copiado ✓',          pt: 'Copiado ✓' },
     'label.look_here':      { en: 'Look here first',    es: 'Mira esto primero',  pt: 'Veja isto primeiro' },
     'label.concerns':       { en: 'Open concerns from this report', es: 'Preocupaciones abiertas de este reporte', pt: 'Preocupações em aberto deste relatório' },
     'label.your_call':      { en: 'Your call',          es: 'Tu decisión',        pt: 'Sua decisão' },
@@ -588,6 +602,167 @@
     });
   }
 
+  // ------------------------- MR review kit -------------------------
+  function fallbackCopy(text) {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.left = '-9999px';
+    ta.setAttribute('readonly', '');
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); } catch (e) {}
+    document.body.removeChild(ta);
+  }
+
+  function initMRKit(mrReview) {
+    var section = document.getElementById('s-mrkit');
+    var wrap = document.getElementById('rk-mrkit');
+    if (!section || !wrap) return;
+    var comments = (mrReview && mrReview.comments) || [];
+    if (!mrReview || (!mrReview.overall && !comments.length)) {
+      section.hidden = true;
+      return;
+    }
+    section.hidden = false;
+    wrap.innerHTML = '';
+
+    function makeCard(kind, label, text, sev) {
+      var card = el('div', 'rk-mrkit__card' + (kind === 'overall' ? ' is-overall' : ''));
+      var head = el('div', 'rk-mrkit__head');
+
+      var titleWrap = el('div', 'rk-mrkit__title');
+      if (sev) titleWrap.appendChild(el('span', 'rk-mrkit__sev is-' + sev, sev));
+      titleWrap.appendChild(el('span', 'rk-mrkit__label', label));
+      head.appendChild(titleWrap);
+
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'rk-mrkit__copy';
+      btn.textContent = T('button.copy');
+      btn.setAttribute('data-i18n-runtime', 'button.copy');
+      btn.addEventListener('click', function () {
+        var done = function () {
+          btn.classList.add('is-copied');
+          btn.textContent = T('button.copied');
+          setTimeout(function () {
+            btn.classList.remove('is-copied');
+            btn.textContent = T('button.copy');
+          }, 1400);
+        };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(done, function () { fallbackCopy(text); done(); });
+        } else {
+          fallbackCopy(text); done();
+        }
+      });
+      head.appendChild(btn);
+      card.appendChild(head);
+
+      var body = el('pre', 'rk-mrkit__body');
+      body.textContent = text;
+      card.appendChild(body);
+      return card;
+    }
+
+    if (mrReview.overall) {
+      wrap.appendChild(makeCard('overall', T('mrkit.overall'), mrReview.overall, null));
+    }
+    comments.forEach(function (c) {
+      var loc = (c.file || '');
+      if (c.line) loc = loc + ':' + c.line;
+      var label = T('mrkit.line') + (loc ? ' · ' + loc : '');
+      wrap.appendChild(makeCard('line', label, c.text || '', c.severity || null));
+    });
+  }
+
+  // ------------------------- Prior review threads -------------------------
+  // Heuristic — matches most CI/security bots that comment on MRs so we
+  // can offer a "hide bot comments" toggle. Real human accounts don't
+  // typically hit any of these substrings.
+  var BOT_AUTHOR_RE = /(-bot\b|\bbot\b|-service-account\b|_service_account\b|gitlab-ox|renovate|dependabot)/i;
+
+  function initPrior(comments) {
+    var section = document.getElementById('s-prior');
+    var wrap = document.getElementById('rk-prior');
+    if (!section || !wrap) return;
+    var list = (comments || []).filter(function (c) {
+      return c && (c.body || '').trim().length > 0;
+    });
+    if (!list.length) { section.hidden = true; return; }
+    section.hidden = false;
+
+    // Sort: unresolved before resolved, review comments before issue comments,
+    // then by file then by line.
+    list.sort(function (a, b) {
+      if (!!a.resolved !== !!b.resolved) return a.resolved ? 1 : -1;
+      if (a.kind !== b.kind) return a.kind === 'review' ? -1 : 1;
+      var af = a.file || '', bf = b.file || '';
+      if (af !== bf) return af < bf ? -1 : 1;
+      return (a.line || 0) - (b.line || 0);
+    });
+
+    var hasBots = list.some(function (c) { return BOT_AUTHOR_RE.test(c.author || ''); });
+    wrap.innerHTML = '';
+
+    if (hasBots) {
+      var toolbar = el('div', 'rk-prior__toolbar');
+      var label = document.createElement('label');
+      label.className = 'rk-prior__hide-bots';
+      var cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.checked = true;
+      cb.addEventListener('change', function () {
+        wrap.classList.toggle('is-hiding-bots', cb.checked);
+      });
+      label.appendChild(cb);
+      label.appendChild(document.createTextNode(' ' + T('prior.hide_bots')));
+      toolbar.appendChild(label);
+      wrap.appendChild(toolbar);
+      wrap.classList.add('is-hiding-bots');
+    }
+
+    list.forEach(function (c) {
+      var isBot = BOT_AUTHOR_RE.test(c.author || '');
+      var card = el('div', 'rk-prior__card' +
+        (c.resolved ? ' is-resolved' : '') +
+        (isBot ? ' is-bot' : ''));
+
+      var head = el('div', 'rk-prior__head');
+      var who = el('span', 'rk-prior__author', '@' + (c.author || 'unknown'));
+      head.appendChild(who);
+
+      if (isBot) head.appendChild(el('span', 'rk-prior__tag is-bot', T('prior.bot')));
+      head.appendChild(el('span', 'rk-prior__tag is-kind',
+        c.kind === 'review' ? T('prior.review') : T('prior.issue')));
+      head.appendChild(el('span',
+        'rk-prior__tag is-status ' + (c.resolved ? 'is-resolved' : 'is-open'),
+        c.resolved ? T('prior.resolved') : T('prior.unresolved')));
+
+      if (c.file) {
+        var loc = c.file + (c.line ? ':' + c.line : '');
+        head.appendChild(el('span', 'rk-prior__loc', loc));
+      }
+      card.appendChild(head);
+
+      var body = el('div', 'rk-prior__body');
+      body.textContent = c.body;
+      card.appendChild(body);
+
+      if (c.url) {
+        var a = document.createElement('a');
+        a.className = 'rk-prior__link';
+        a.href = c.url;
+        a.target = '_blank';
+        a.rel = 'noreferrer';
+        a.textContent = '↗';
+        card.appendChild(a);
+      }
+
+      wrap.appendChild(card);
+    });
+  }
+
   // ------------------------- Syntax highlighting -------------------------
   function initHighlight() {
     if (typeof window.hljs !== 'object' || typeof window.hljs.highlightElement !== 'function') return;
@@ -650,6 +825,8 @@
 
     initQuiz(payload.quiz || []);
     initConcerns(payload.concerns || []);
+    initPrior(payload.prior_comments || []);
+    initMRKit(payload.mr_review);
     initVerdict();
 
     initToggles();
