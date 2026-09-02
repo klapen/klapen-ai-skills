@@ -140,6 +140,50 @@ def resolve_branch_diff(branch_name):
     return branch_name, diff
 
 
+def _github_review_comments(repo, pr_num):
+    """Fetch line-attached review comments on a GitHub PR.
+
+    `gh pr view --json comments` returns issue-level (conversation-tab)
+    comments only. Line-attached "Files changed" comments live at
+    /repos/{owner}/{repo}/pulls/{n}/comments and require a separate call.
+    We return the union, normalized to the common shape:
+        {author, body, file, line, resolved, url, kind}
+    where kind is "review" (line-attached) or "issue" (conversation tab).
+    """
+    out = []
+    try:
+        raw = run(["gh", "api", "--paginate",
+                   f"/repos/{repo}/pulls/{pr_num}/comments"]).stdout
+        for c in json.loads(raw) or []:
+            out.append({
+                "author": ((c.get("user") or {}).get("login") or ""),
+                "body": c.get("body") or "",
+                "file": c.get("path") or "",
+                "line": c.get("line") or c.get("original_line"),
+                "resolved": False,  # GitHub uses in_reply_to / resolved on threads; keep simple.
+                "url": c.get("html_url") or "",
+                "kind": "review",
+            })
+    except Exception as e:
+        eprint(f"gh api /pulls/{pr_num}/comments failed: {e}")
+    try:
+        raw = run(["gh", "api", "--paginate",
+                   f"/repos/{repo}/issues/{pr_num}/comments"]).stdout
+        for c in json.loads(raw) or []:
+            out.append({
+                "author": ((c.get("user") or {}).get("login") or ""),
+                "body": c.get("body") or "",
+                "file": "",
+                "line": None,
+                "resolved": False,
+                "url": c.get("html_url") or "",
+                "kind": "issue",
+            })
+    except Exception as e:
+        eprint(f"gh api /issues/{pr_num}/comments failed: {e}")
+    return out
+
+
 def resolve_github_pr(url):
     m = GITHUB_URL_RE.match(url)
     if not m:
@@ -151,8 +195,9 @@ def resolve_github_pr(url):
     if has_cmd("gh"):
         base = ["gh", "-R", repo, "pr"]
         try:
-            meta = run(base + ["view", pr_num, "--json", "title,body,comments"]).stdout
+            meta = run(base + ["view", pr_num, "--json", "title,body"]).stdout
             pr_meta = json.loads(meta)
+            pr_meta["comments"] = _github_review_comments(repo, pr_num)
         except Exception as e:
             eprint(f"gh pr view failed: {e}")
         try:
@@ -227,6 +272,49 @@ def _gitlab_changes_api_diff(repo_path, mr_num):
     return "".join(parts) if parts else None
 
 
+def _gitlab_mr_comments(repo_path, mr_num):
+    """Fetch line-attached MR discussion notes from GitLab.
+
+    `glab mr view --output json` returns MR fields but often not the
+    discussion threads (they live behind /merge_requests/{n}/discussions).
+    We flatten each discussion's notes into the common shape:
+        {author, body, file, line, resolved, url, kind}
+    kind is "review" (has a diff position → file/line set) or "issue"
+    (general MR discussion, no position).
+    """
+    import urllib.parse as _uparse
+
+    encoded = _uparse.quote(repo_path, safe="")
+    out = []
+    try:
+        raw = run([
+            "glab", "api", "--paginate",
+            f"projects/{encoded}/merge_requests/{mr_num}/discussions",
+        ]).stdout
+        threads = json.loads(raw) or []
+    except Exception as e:
+        eprint(f"glab api /discussions failed: {e}")
+        return out
+    for thread in threads:
+        resolved = bool(thread.get("resolved"))
+        for n in thread.get("notes") or []:
+            if n.get("system"):
+                continue  # skip auto-generated "changed status" notes
+            pos = n.get("position") or {}
+            file_path = pos.get("new_path") or pos.get("old_path") or ""
+            line = pos.get("new_line") or pos.get("old_line")
+            out.append({
+                "author": ((n.get("author") or {}).get("username") or ""),
+                "body": n.get("body") or "",
+                "file": file_path,
+                "line": line,
+                "resolved": resolved,
+                "url": "",  # GitLab discussion notes don't have a direct html url in the api
+                "kind": "review" if file_path else "issue",
+            })
+    return out
+
+
 def resolve_gitlab_mr(url):
     m = GITLAB_URL_RE.match(url)
     if not m:
@@ -243,7 +331,7 @@ def resolve_gitlab_mr(url):
             pr_meta = {
                 "title": data.get("title"),
                 "body": data.get("description"),
-                "comments": data.get("notes", []),
+                "comments": _gitlab_mr_comments(repo_path, mr_num),
             }
         except Exception as e:
             eprint(f"glab mr view failed: {e}")
@@ -296,6 +384,29 @@ def cmd_collect(args):
     diff_path = Path(f"/tmp/rick-diff-{payload['slug']}.diff")
     diff_path.write_text(payload["diff"], encoding="utf-8")
     payload["diff_path"] = str(diff_path)
+
+    # Sidecar: persist fetched MR/PR comments so `render` can auto-load
+    # them without Claude having to shuttle them through the payload.
+    # If the PR had no comments we skip writing the file so a later
+    # `render` doesn't attach stale comments from a previous MR.
+    pr = payload.get("pr") or {}
+    comments = pr.get("comments") or []
+    comments_path = Path(f"/tmp/rick-comments-{payload['slug']}.json")
+    if comments:
+        comments_path.write_text(json.dumps(comments), encoding="utf-8")
+        payload["comments_path"] = str(comments_path)
+    elif comments_path.exists():
+        comments_path.unlink()
+
+    repo_arg = getattr(args, "repo", None)
+    if repo_arg:
+        repo_path = Path(repo_arg).expanduser().resolve()
+        if not repo_path.is_dir():
+            err = {"error": f"--repo path does not exist or is not a directory: {repo_path}",
+                   "hint": "Point --repo at a local checkout of the project (a directory)."}
+            print(json.dumps(err))
+            return 1
+        payload["repo"] = str(repo_path)
 
     print(json.dumps(payload))
     return 0
@@ -645,6 +756,23 @@ def cmd_render(args):
     final_payload["files"] = merged_files
     final_payload["stats"] = stats
 
+    # Prior review comments: explicit payload wins, then --comments flag,
+    # then the sidecar file that `collect` wrote (auto-picked by slug).
+    if "prior_comments" not in final_payload:
+        comments_arg = getattr(args, "comments", None)
+        candidate = None
+        if comments_arg:
+            candidate = Path(comments_arg)
+        else:
+            sidecar = Path(f"/tmp/rick-comments-{slug}.json")
+            if sidecar.exists():
+                candidate = sidecar
+        if candidate and candidate.exists():
+            try:
+                final_payload["prior_comments"] = json.loads(candidate.read_text(encoding="utf-8"))
+            except json.JSONDecodeError as e:
+                eprint(f"[warn] comments sidecar {candidate} is not valid JSON: {e}")
+
     if "shape" in claude_payload and isinstance(claude_payload["shape"], dict):
         final_payload["shape"] = {
             "note": claude_payload["shape"].get("note", ""),
@@ -726,6 +854,10 @@ def build_parser():
     pc = sub.add_parser("collect", help="Resolve a diff target and emit JSON context.")
     pc.add_argument("--target", default=None,
                     help="Branch, range (A..B), PR URL, or MR URL. Omit for current branch.")
+    pc.add_argument("--repo", default=None,
+                    help="Optional absolute path to a local checkout of the project. When given, "
+                         "the emitted JSON includes a `repo` field so Claude can grep/read un-diffed "
+                         "code to fact-check its concerns before finalizing the report.")
     pc.set_defaults(func=cmd_collect)
 
     pr = sub.add_parser("render", help="Assemble the final HTML from payload+sections+diff.")
@@ -739,6 +871,9 @@ def build_parser():
     pr.add_argument("--lang", default="en", choices=["en", "es", "pt"],
                     help="Content language baked into <html lang=...>. Payload prose must be authored in this language. Defaults to English.")
     pr.add_argument("--no-open", action="store_true", help="Skip auto-opening the browser.")
+    pr.add_argument("--comments", default=None,
+                    help="Path to a JSON file of prior MR/PR comments. Overrides the "
+                         "sidecar auto-loaded from /tmp/rick-comments-<slug>.json.")
     pr.set_defaults(func=cmd_render)
 
     return p
