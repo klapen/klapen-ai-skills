@@ -418,6 +418,91 @@ def read_text(path):
     return Path(path).read_text(encoding="utf-8")
 
 
+def lint_chart(chart):
+    """Validate chart payload references before rendering.
+
+    Silent-drops of chart edges/messages are the worst class of bug in this
+    skill: the report renders successfully, the flow diagram just shows
+    disconnected boxes, and the author has to open the browser console to
+    figure out what went wrong. This pass prints loud warnings to stderr
+    for every unresolvable reference so the failure mode is impossible to
+    miss at Phase 3.
+
+    Non-fatal — returns nothing, never raises. The chart JS also renders
+    an on-page banner when messages get dropped, so the warning is visible
+    both in the terminal and in the report itself.
+    """
+    if not isinstance(chart, dict):
+        return
+    kind = chart.get("type")
+    data = chart.get("data") or {}
+    warnings = []
+
+    if kind == "sequence":
+        actors = data.get("actors") or []
+        for i, m in enumerate(data.get("messages") or []):
+            for slot in ("from", "to"):
+                ref = m.get(slot)
+                if isinstance(ref, int):
+                    if not (0 <= ref < len(actors)):
+                        warnings.append(
+                            f"sequence.messages[{i}].{slot}={ref!r} is out of "
+                            f"range (actors has {len(actors)} entries)"
+                        )
+                elif isinstance(ref, str):
+                    if ref not in actors:
+                        warnings.append(
+                            f"sequence.messages[{i}].{slot}={ref!r} is not "
+                            f"in actors {actors!r}"
+                        )
+                else:
+                    warnings.append(
+                        f"sequence.messages[{i}].{slot}={ref!r} must be an "
+                        f"actor name string or integer index"
+                    )
+    elif kind == "force":
+        node_ids = {n.get("id") for n in (data.get("nodes") or []) if isinstance(n, dict)}
+        for i, e in enumerate(data.get("edges") or []):
+            for slot in ("source", "target"):
+                ref = e.get(slot)
+                if ref not in node_ids:
+                    warnings.append(
+                        f"force.edges[{i}].{slot}={ref!r} is not a node id "
+                        f"(known ids: {sorted(x for x in node_ids if x is not None)!r})"
+                    )
+    elif kind == "sankey":
+        nodes = data.get("nodes") or []
+        for i, f in enumerate(data.get("flows") or []):
+            for slot in ("source", "target"):
+                ref = f.get(slot)
+                if not (isinstance(ref, int) and 0 <= ref < len(nodes)):
+                    warnings.append(
+                        f"sankey.flows[{i}].{slot}={ref!r} is not an integer "
+                        f"index in [0, {len(nodes)})"
+                    )
+    elif kind == "state":
+        for side in ("before", "after"):
+            block = data.get(side) or {}
+            state_ids = {s.get("id") for s in (block.get("states") or []) if isinstance(s, dict)}
+            for i, t in enumerate(block.get("transitions") or []):
+                for slot in ("from", "to"):
+                    ref = t.get(slot)
+                    if ref not in state_ids:
+                        warnings.append(
+                            f"state.{side}.transitions[{i}].{slot}={ref!r} is "
+                            f"not a state id (known: {sorted(x for x in state_ids if x is not None)!r})"
+                        )
+
+    if warnings:
+        eprint(f"[warn] chart lint: {len(warnings)} unresolvable reference(s)")
+        for w in warnings:
+            eprint(f"       - {w}")
+        eprint(
+            "       The flow diagram will render with these edges/messages "
+            "dropped. See the on-page banner in the Flow section for details."
+        )
+
+
 def list_assets(subdir, ext):
     d = ASSETS_DIR / subdir
     return sorted(p for p in d.iterdir() if p.suffix == ext and p.is_file())
@@ -485,6 +570,8 @@ def cmd_render(args):
 
     slug = args.slug or claude_payload.get("pr_slug") or "report"
     slug = slugify(slug)
+
+    lint_chart(claude_payload.get("chart"))
 
     # Mechanical diff parse — no Claude tokens involved.
     parsed_files = parse_unified_diff(diff_text)
