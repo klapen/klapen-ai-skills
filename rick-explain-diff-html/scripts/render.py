@@ -173,6 +173,60 @@ def resolve_github_pr(url):
     return slug, diff, pr_meta, "github"
 
 
+def _gitlab_changes_api_diff(repo_path, mr_num):
+    """Fetch the MR diff via GitLab's /changes API endpoint.
+
+    Unlike `glab mr diff` (which returns the raw branch-vs-merge-base diff),
+    the /changes endpoint returns the same content-diff GitLab shows on the
+    MR's "Changes" tab. When a branch is stacked on another that got
+    squash-merged into the target, the two diverge — `glab mr diff` still
+    surfaces the stacked ancestor's files, while /changes correctly hides
+    files that have no net contribution vs. the current target.
+
+    Returns the reconstructed unified diff, or None on any failure (caller
+    should fall back to `glab mr diff`).
+    """
+    project = urllib.parse.quote(repo_path, safe="")
+    try:
+        payload = run(["glab", "api", f"projects/{project}/merge_requests/{mr_num}/changes"]).stdout
+    except Exception as e:
+        eprint(f"glab api /changes failed: {e}")
+        return None
+    try:
+        data = json.loads(payload)
+    except Exception as e:
+        eprint(f"glab api /changes returned bad JSON: {e}")
+        return None
+    changes = data.get("changes") or []
+    if not changes:
+        return None
+    parts = []
+    for c in changes:
+        old_path = c.get("old_path") or c.get("new_path")
+        new_path = c.get("new_path") or c.get("old_path")
+        new_file = bool(c.get("new_file"))
+        deleted_file = bool(c.get("deleted_file"))
+        renamed_file = bool(c.get("renamed_file"))
+        d = c.get("diff") or ""
+        if not d.strip():
+            continue
+        header = [f"diff --git a/{old_path} b/{new_path}"]
+        if renamed_file and old_path != new_path:
+            header.append(f"rename from {old_path}")
+            header.append(f"rename to {new_path}")
+        if new_file:
+            header.append("--- /dev/null")
+            header.append(f"+++ b/{new_path}")
+        elif deleted_file:
+            header.append(f"--- a/{old_path}")
+            header.append("+++ /dev/null")
+        else:
+            header.append(f"--- a/{old_path}")
+            header.append(f"+++ b/{new_path}")
+        parts.append("\n".join(header) + "\n" + d)
+    return "".join(parts) if parts else None
+
+
 def resolve_gitlab_mr(url):
     m = GITLAB_URL_RE.match(url)
     if not m:
@@ -193,6 +247,11 @@ def resolve_gitlab_mr(url):
             }
         except Exception as e:
             eprint(f"glab mr view failed: {e}")
+        # Prefer the /changes API endpoint — matches what GitLab shows on the
+        # Changes tab. Falls back to `glab mr diff` on any failure.
+        diff = _gitlab_changes_api_diff(repo_path, mr_num)
+        if diff:
+            return slug, diff, pr_meta, "gitlab"
         try:
             diff = run(base + ["diff", mr_num]).stdout
             return slug, diff, pr_meta, "gitlab"
