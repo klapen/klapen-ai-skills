@@ -41,16 +41,60 @@ that Phase 1 persists — don't skip straight from payload/sections to render.
 
 ### Phase 1 — Collect context
 
+**Refresh the repo first.** MR branches move: owners push follow-up commits,
+rebase after review, absorb suggestions, or their branch gets fast-forwarded
+when a stacked parent is merged. Stale local state produces stale reports —
+wrong file counts, wrong line numbers, comments on lines that no longer
+exist, or (worst) contradicting the reviewer's actual GitLab/GitHub view.
+
+Before Phase 1's `collect`, always run — even if you fetched the same MR
+earlier in this session:
+
+```bash
+# GitLab MR (adjust ref path for GitHub PRs: refs/pull/N/head:pr-N)
+cd <repo-checkout>
+git fetch origin main --force
+git fetch origin "refs/merge-requests/<N>/head:pr-<N>" --force
+```
+
+Then check whether the branch has been rebased or the target moved since
+your last look — a one-line ancestry check catches most surprises:
+
+```bash
+git log pr-<N> --oneline -5
+git merge-base --is-ancestor pr-<N>~1 origin/main && echo "clean base" || echo "diverged"
+```
+
+If a previously-open sibling MR (e.g. the request-side pair to a
+response-side follow-up) may have merged since your last review, verify:
+
+```bash
+glab mr view <sibling-N> --output json | jq -r '.state, .merged_at'
+```
+
+If the sibling merged and this branch was stacked on it, the diff you're
+about to collect can look very different from what you saw before — even
+without any authored changes on this branch. Reset your assumptions from
+scratch after every refresh.
+
 Run the renderer's `collect` subcommand to resolve the target into a diff
 plus optional PR/MR metadata:
 
 ```bash
 python3 ~/.claude/skills/rick-explain-diff-html/scripts/render.py collect \
-    --target "<branch | A..B | https://github.com/... | https://gitlab.../-/merge_requests/N>"
+    --target "<branch | A..B | https://github.com/... | https://gitlab.../-/merge_requests/N>" \
+    [--repo /absolute/path/to/local/checkout]
 ```
 
 If the user did not provide a target, omit `--target` (uses current branch
 vs. its merge base).
+
+**Pass `--repo` whenever a local checkout is available.** If the current
+working directory is inside the project's git repo (i.e. `git rev-parse --show-toplevel` in
+the CWD resolves), or the user pointed at a checkout somewhere, pass the
+absolute path via `--repo`. This unlocks the fact-checking step in
+Phase 2 (see below). If no checkout is available, omit `--repo` and skip
+the verification — but say so in the report.
 
 The command prints a JSON blob on stdout with keys:
 - `slug` — kebab-case filename slug.
@@ -60,6 +104,8 @@ The command prints a JSON blob on stdout with keys:
 - `diff_path` — where the raw diff was also persisted (`/tmp/rick-diff-<slug>.diff`).
   Phase 3 needs this path — it's how the renderer mechanically parses the
   diff into per-file line data without spending Claude tokens on it.
+- `repo` — absolute path to the local checkout, **only when `--repo` was given**.
+  Use it in Phase 2 to grep for evidence supporting your concerns.
 
 If the JSON contains an `error` key instead, print Rick's error to the user
 and stop.
@@ -148,14 +194,28 @@ Payload contract, field by field:
   Include it only with `{"note": "..."}` — one editorial sentence. The
   treemap's actual per-file size/color data is built mechanically by
   `render.py` from the diff, not written here.
-- `chart` — unchanged from before. `chart.type` ∈ `force | state | sequence
-  | sankey`, picked per diff shape (module graph / logic change / API call
-  order / data pipeline). `chart.data` shape depends on type:
-  - `force` → `{ nodes: [{id, label, group?}], edges: [{source, target, kind?: "added"|"removed"}] }`
-  - `state` → `{ before: {states: [{id,label}], transitions: [{from,to,label?}]}, after: {...} }`
-  - `sequence` → `{ actors: [string], messages: [{from, to, label, side?: "before"|"after"}] }`
-  - `sankey` → `{ nodes: [{name}], flows: [{source, target, value, kind?: "before"|"after"}] }`
-    (source/target are integer indices into `nodes`.)
+- `chart` — pick `chart.type` per diff shape (module graph / logic change /
+  API call order / data pipeline). Reference-resolution rules vary by
+  chart type — mismatches produce silently-dropped edges, so **read the
+  bullet for your type carefully**. `render.py` runs a lint pass at Phase
+  3 that prints an `[warn] chart lint: …` block to stderr if any
+  reference is unresolvable, and the chart JS draws a red banner on the
+  report itself listing every dropped edge/message.
+  - `force` → `{ nodes: [{id, label, group?}], edges: [{source, target, kind?: "added"|"removed"}] }`.
+    `source`/`target` are **node `id` strings** (matched by identity).
+  - `state` → `{ before: {states: [{id,label}], transitions: [{from,to,label?}]}, after: {...} }`.
+    `from`/`to` are **state `id` strings** within the same before/after block.
+  - `sequence` → `{ actors: [string], messages: [{from, to, label, side?: "before"|"after"}] }`.
+    `from`/`to` are **actor name strings** (matched against the `actors`
+    array via `indexOf`). Integer indices are accepted defensively but
+    discouraged — use the strings so the payload is human-readable. Example:
+    ```json
+    {"actors": ["Client", "Server", "DB"],
+     "messages": [{"from": "Client", "to": "Server", "label": "POST /widgets", "side": "before"}]}
+    ```
+  - `sankey` → `{ nodes: [{name}], flows: [{source, target, value, kind?: "before"|"after"}] }`.
+    `source`/`target` are **integer indices** into `nodes` (this one is
+    the odd one out — every other chart type uses id/name strings).
 - `files` — array of `{path, note, callout?, open?}`. **You don't need an
   entry for every changed file** — `render.py` discovers every file, its
   status (NEW/EDIT/DELETED/RENAMED), its adds/dels, and its full line-by-line
@@ -185,6 +245,35 @@ Payload contract, field by field:
   concerns" list. The Approve/Request-changes/Comment buttons next to it are
   static UI flavor (3 canned Rick reaction lines baked into `core.js`) — you
   don't author those.
+- `mr_review` — **optional**. Copy-paste-ready comments for the reviewer to
+  drop into the MR/PR interface. Shape:
+  ```json
+  "mr_review": {
+    "overall": "Optional overall MR-level comment (multi-paragraph, markdown-lite).",
+    "comments": [
+      {
+        "file": "path/to/file.py",
+        "line": 44,
+        "severity": "suggestion",
+        "text": "The comment body — usually 1–3 short paragraphs plus an optional code block."
+      }
+    ]
+  }
+  ```
+  - `overall` — one string; rendered as the top card in the "MR review kit"
+    section, no line binding. Skip the key if not applicable.
+  - `comments[]` — each entry needs `text` and typically `file` + `line`.
+    `line` is the post-image line number (what the reviewer sees on the
+    "Changes" tab). `severity` is a badge shown on the card: one of
+    `nit | question | suggestion | issue | praise` (falsy → no badge).
+  - **When to author this:** whenever `concerns` names a specific file/line
+    the reviewer should leave a comment on. Each concern typically maps to
+    one `mr_review.comments[]` entry. Rick's *voice* stays in `concerns`
+    (in-report analysis, snarky); `mr_review.text` is drafted in a
+    **professional, reviewer-friendly tone** — the reader is going to paste
+    this into GitLab/GitHub verbatim.
+  - The section is rendered only when at least one of `overall`/`comments`
+    is present; the whole panel stays hidden otherwise.
 
 **B. `/tmp/rick-sections-<slug>.html`** — **two** HTML section fragments
 delimited by `<!-- SECTION: name -->` markers:
@@ -230,6 +319,119 @@ or `<pre><code>code</code></pre>` — both are highlighted. Optionally add
 `class="language-python"` (or ts, sql, yaml, json, bash, diff, html, css,
 xml, markdown) to `<code>` to lock the language; auto-detect is usually
 correct without it.
+
+#### Fact-checking your concerns (when `repo` is available)
+
+If Phase 1's JSON includes a `repo` field, spend one grep pass per concern
+**before writing the final payload**. A concern that names a specific file
+outside the diff, or claims "X is not validated / not logged / not tested",
+is a factual claim — verify it against the checkout.
+
+Typical checks:
+
+- Claim: *"the schema doesn't enforce X"* → grep the generated model file
+  under `repo` for `Field(`, `@field_validator`, `@model_validator`.
+- Claim: *"there's no logging around Y"* → grep the surrounding module
+  for `logger.`, `log.info`, `logging.` calls.
+- Claim: *"the test file doesn't cover the None branch"* → open the test
+  file and confirm.
+- Claim: *"this helper is only called from one site"* → `grep -rn "helper_name" <repo>`
+  and count call sites.
+
+If evidence contradicts a concern → **drop it or rewrite it**. If evidence
+confirms a concern → include the file:line pointer in the concern body and
+in the matching `mr_review.comments[]` entry (concerns whose claims are
+verified become copy-paste-ready MR comments). If `repo` is absent, you may
+still author speculative concerns, but soften the language ("looks like…",
+"worth checking whether…") rather than asserting.
+
+Rick's voice stays snarky in the report; the `mr_review.text` you paste
+into GitLab/GitHub stays professional. Verification quality feeds both.
+
+#### Deduping against existing review threads
+
+Phase 1's `pr.comments` contains every comment already posted on the MR/PR,
+in a normalized shape: `{author, body, file, line, resolved, url, kind}`.
+`kind` is `"review"` for line-attached comments and `"issue"` for
+general MR discussion; `resolved` is `true` when the reviewer marked the
+thread resolved. Bot accounts (CI scanners, code-review bots,
+service-account users) are still included — the UI has a "hide bot
+comments" toggle so users can see them if they want, but you should
+ignore them when deduping.
+
+**Before writing each `mr_review.comments[]` entry**, walk `pr.comments`
+and ask: is there an unresolved human comment on the same `{file, line}`
+that raises the same concern? If yes:
+
+- **Drop** the redundant `mr_review` entry — do not post the same
+  question or suggestion twice.
+- **Acknowledge** the existing thread in `mr_review.overall` (e.g.
+  "Another reviewer already raised the retry-loop question, so I won't
+  duplicate it; the constant-hoisting suggestion applies regardless of
+  how that thread resolves.").
+- If your point is a refinement of the existing thread — a concrete
+  code example, a follow-up question — post it *as a reply* by wording
+  it as such ("Building on @<reviewer>'s thread: …"), rather than a
+  fresh top-level comment.
+
+Concerns in `payload.concerns` are separate: they're Rick's in-report
+analysis for the reader, not published to the MR. It's fine to keep an
+analytical concern in the Verdict panel even when the matching MR
+comment gets dropped for being redundant — the reader benefits from
+seeing the reasoning, and the MR isn't polluted.
+
+**Prior review threads section.** The report renders a "Prior review
+threads" section automatically from `pr.comments` — you don't need to
+duplicate that data in the payload. `render.py` auto-loads a sidecar
+file (`/tmp/rick-comments-<slug>.json`) that Phase 1 writes when the
+MR/PR had comments. You can override or filter by writing your own JSON
+into `payload.prior_comments` (same shape as `pr.comments`), or by
+passing `--comments <path>` to `render`.
+
+**Verify every `mr_review.comments[].line` is inside the diff's `+` added
+set.** GitLab and GitHub attach line comments only to lines that appear on
+the MR's "Changes" view — i.e. lines that are `+` (added) or context lines
+within a modified hunk. A `line` value that points at unchanged surrounding
+code will silently fail to attach (the reviewer opens GitLab, pastes the
+comment, and nothing happens — or worse, the comment lands as an
+unassociated general note).
+
+The fact-check is mechanical: for each `{file, line}` pair you're about to
+emit, confirm the line is in the diff's post-image `+` set. From the raw
+diff at `diff_path`:
+
+```bash
+python3 - <<'PY'
+import re, sys
+target_file = "path/to/changed/file.py"
+target_line = 495
+diff = open("/tmp/rick-diff-<slug>.diff").read()
+in_file, newln, in_hunk = False, 0, False
+for line in diff.splitlines():
+    if line.startswith("--- ") or line.startswith("+++ "):
+        in_file = target_file in line
+        in_hunk = False
+        continue
+    if not in_file: continue
+    if line.startswith("@@"):
+        m = re.search(r"\+(\d+)", line)
+        if m: newln = int(m.group(1)) - 1
+        in_hunk = True
+        continue
+    if not in_hunk: continue
+    if line.startswith("-"): continue
+    newln += 1
+    if line.startswith("+") and newln == target_line:
+        print("OK — line is a + addition"); sys.exit(0)
+print("BAD — line is not in the + added set")
+PY
+```
+
+If the target isn't in the `+` set: **pick a nearby `+` line that's still
+semantically the right anchor for the comment** (usually the TODO
+comment, the new function signature, or the first line of the added block).
+Never emit a `line` you haven't verified — the whole point of the review
+kit is copy-paste-ready comments, and half-broken comments defeat that.
 
 ### Phase 3 — Render
 

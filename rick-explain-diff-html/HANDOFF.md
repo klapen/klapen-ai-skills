@@ -38,11 +38,32 @@ quiz, and a verdict panel.
 
 ## Workflow (three-phase)
 
+**Before Phase 1: refresh the branch.** MR branches move — rebases, follow-up
+commits, absorbed suggestions, stacked-parent merges. Stale local state
+produces stale reports (wrong file counts, wrong line numbers, comments on
+lines that no longer exist). Run this every session, even if you fetched
+earlier:
+
+```bash
+cd <repo-checkout>
+git fetch origin main --force
+git fetch origin "refs/merge-requests/<N>/head:pr-<N>" --force  # GitLab
+# or: git fetch origin "refs/pull/<N>/head:pr-<N>" --force       # GitHub
+
+# Quick sanity: is the branch clean-based on main, or diverged?
+git log pr-<N> --oneline -5
+git merge-base --is-ancestor pr-<N>~1 origin/main && echo "clean base" || echo "diverged"
+```
+
 ```bash
 # Phase 1 — collect. Resolves branch/range/GitHub-PR-URL/GitLab-MR-URL
 # into a diff + PR metadata JSON on stdout, AND persists the raw diff to
 # /tmp/rick-diff-<slug>.diff (needed by Phase 3).
-python3 rick-explain-diff-html/scripts/render.py collect --target <ref-or-url>
+# Pass --repo when a local checkout is available — it lands in the JSON as
+# `repo` and enables fact-checking concerns against un-diffed code.
+python3 rick-explain-diff-html/scripts/render.py collect \
+    --target <ref-or-url> \
+    [--repo /absolute/path/to/local/checkout]
 
 # Phase 2 — Claude reads the diff, writes:
 #   /tmp/rick-payload-<slug>.json    (structured payload: pr_meta, risk,
@@ -112,6 +133,13 @@ NOT need to be in the payload.
   - `file`/`where` are optional but encouraged &mdash; renders an
     evidence link into the Files section.
 - `concerns` &mdash; **optional**, 0-N `{severity: "HIGH"|"MEDIUM"|"LOW", text, file?, where?}`.
+- `mr_review` &mdash; **optional** copy-paste-ready comments for the reviewer:
+  `{overall?: str, comments?: [{file, line?, severity?, text}]}`. `severity`
+  is one of `nit|question|suggestion|issue|praise`. Author `text` in a
+  **professional reviewer tone** (unlike `concerns`, which is Rick's
+  in-report voice). Each concern that names a file/line typically maps to
+  one entry here. Section auto-hides when both `overall` and `comments` are
+  empty.
 
 ## Prose fragments (two required)
 
@@ -163,6 +191,26 @@ rick-explain-diff-html/
 
 `assets/gauges/` is gone &mdash; the single risk gauge was replaced by named
 risk bars (`payload.risk.items`), so gauge widgets have no role anymore.
+
+## Fact-checking (when `repo` is available)
+
+If Phase 1's JSON includes `repo`, verify every concern that names a
+specific file outside the diff or claims *"X is not validated / not logged
+/ not tested"* against the checkout before writing the final payload. One
+grep pass per concern. Drop or rewrite concerns whose claims don't hold up;
+strengthen the ones that do by adding a file:line pointer. Then the same
+verified concerns become the `mr_review.comments[]` entries pasted into
+GitLab/GitHub. If `repo` is absent, either soften the language
+("looks like&hellip;", "worth checking&hellip;") or omit the concern.
+
+**Also verify every `mr_review.comments[].line` is a `+` added line in the
+diff.** GitLab/GitHub only attach line comments to lines that appear on the
+MR's "Changes" view; a `line` value pointing at unchanged code silently
+fails to attach. Trace the diff's `+` set with a `@@ ... @@` walker and
+confirm each target line-number is in it before emitting. When a target
+isn't in the `+` set, pick a nearby added line that's still the right
+semantic anchor (the TODO comment, the new function signature, the first
+line of the added block).
 
 ## Common pitfalls to avoid
 
