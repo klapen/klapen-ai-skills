@@ -10,6 +10,7 @@ where applicable.
 | Skill | Purpose |
 | --- | --- |
 | [`rick-explain-diff-html`](rick-explain-diff-html/) | Generates a rich, interactive, single-file HTML report explaining a code change, narrated by Rick Sanchez inside a "RickOS v137.0" alien-OS UI. Renders `git diff`, GitHub PR URLs, or GitLab MR URLs. |
+| [`repo-architecture-analyzer`](repo-architecture-analyzer/) | Analyzes a repository's structure, dependencies, static metrics, and Git history, and renders a self-contained interactive D3 HTML report — repo map, dependency matrix, and hotspots. |
 
 ## Installing
 
@@ -79,6 +80,7 @@ For everything in this repo you need at minimum:
 
 - Bash (macOS / Linux / WSL / Git Bash on Windows)
 - `python3` on `PATH`
+- `Node.js` (`>=18`) on PATH — only for skills that need it (currently `repo-architecture-analyzer`); see each skill's `SKILL.md` for its actual requirements
 - Optional: `gh` (GitHub CLI) and/or `glab` (GitLab CLI) for the skills that resolve PR/MR URLs
 
 ### Updating

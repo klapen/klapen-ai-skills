@@ -1,0 +1,47 @@
+{
+  "sourceRoots": ["src", "lib", "app"],
+  "testRoots": ["test", "tests", "__tests__", "spec"],
+  "include": ["**/*"],
+  "exclude": [
+    "**/.git/**",
+    "**/node_modules/**",
+    "**/vendor/**",
+    "**/dist/**",
+    "**/build/**",
+    "**/target/**",
+    "**/coverage/**",
+    "**/.next/**",
+    "**/out/**",
+    "**/bin/**",
+    "**/obj/**",
+    "**/.cache/**",
+    "**/generated/**",
+    "**/*.min.js"
+  ],
+  "layers": [],
+  "git": {
+    "since": "12 months ago",
+    "maxCommits": 5000,
+    "coChangeMinimumCommits": 3,
+    "coChangeMinimumConfidence": 0.2,
+    "bulkCommitFileThreshold": 50,
+    "bulkCommitWeight": 0.2,
+    "lockfilePatterns": [
+      "package-lock.json",
+      "yarn.lock",
+      "pnpm-lock.yaml",
+      "poetry.lock",
+      "Cargo.lock"
+    ]
+  },
+  "risk": {
+    "complexityWeight": 0.3,
+    "churnWeight": 0.25,
+    "couplingWeight": 0.2,
+    "cycleWeight": 0.15,
+    "coverageWeight": 0.1
+  },
+  "cache": {
+    "enabled": true
+  }
+}
