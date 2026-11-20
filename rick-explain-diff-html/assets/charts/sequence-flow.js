@@ -43,7 +43,11 @@ window.RickChartSequence = function (container, data) {
   function wrap(text, maxChars) {
     if (!text) return [''];
     if (text.length <= maxChars) return [text];
-    var parts = text.split(/(\s+)/); // preserve whitespace so we can rebuild
+    // Break on whitespace AND after _ . ( - so long snake_case, dotted
+    // method chains, or hyphenated identifiers wrap instead of getting
+    // truncated. Delimiter stays attached to the preceding chunk (so
+    // "awaiting_" reads as one visual unit).
+    var parts = text.split(/(\s+|(?<=[_.\-(]))/).filter(Boolean);
     var lines = [];
     var current = '';
     for (var i = 0; i < parts.length; i++) {

@@ -222,7 +222,21 @@
       idLine.textContent = bits.join(' · ');
     }
     var title = document.getElementById('rk-summary-title');
-    if (title) title.textContent = meta.title || payload.pr_slug || 'Untitled change';
+    if (title) {
+      var titleText = meta.title || payload.pr_slug || 'Untitled change';
+      if (meta.url) {
+        var a = el('a', null, titleText);
+        a.href = meta.url;
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer';
+        a.style.cssText = 'color:inherit;text-decoration:none;border-bottom:1px solid currentColor;padding-bottom:1px;opacity:0.85';
+        a.addEventListener('mouseenter', function() { a.style.opacity = '1'; });
+        a.addEventListener('mouseleave', function() { a.style.opacity = '0.85'; });
+        title.appendChild(a);
+      } else {
+        title.textContent = titleText;
+      }
+    }
 
     var tags = document.getElementById('rk-summary-tags');
     if (tags) {
@@ -682,6 +696,18 @@
   // typically hit any of these substrings.
   var BOT_AUTHOR_RE = /(-bot\b|\bbot\b|-service-account\b|_service_account\b|gitlab-ox|renovate|dependabot)/i;
 
+  // Unhide an optional section whose content was injected as static HTML at
+  // render time. If the section body is empty (render.py wrote "" for the
+  // placeholder), keep it hidden so it doesn't appear in the nav.
+  function initOptionalHtmlSection(sectionId) {
+    var section = document.getElementById(sectionId);
+    if (!section) return;
+    var body = section.querySelector('.rk-section-body');
+    if (body && body.innerHTML.trim().length > 0) {
+      section.hidden = false;
+    }
+  }
+
   function initPrior(comments) {
     var section = document.getElementById('s-prior');
     var wrap = document.getElementById('rk-prior');
@@ -827,6 +853,8 @@
     initConcerns(payload.concerns || []);
     initPrior(payload.prior_comments || []);
     initMRKit(payload.mr_review);
+    initOptionalHtmlSection('s-deep');
+    initOptionalHtmlSection('s-consistency');
     initVerdict();
 
     initToggles();

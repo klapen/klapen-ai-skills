@@ -197,6 +197,7 @@ def resolve_github_pr(url):
         try:
             meta = run(base + ["view", pr_num, "--json", "title,body"]).stdout
             pr_meta = json.loads(meta)
+            pr_meta["url"] = url
             pr_meta["comments"] = _github_review_comments(repo, pr_num)
         except Exception as e:
             eprint(f"gh pr view failed: {e}")
@@ -331,6 +332,7 @@ def resolve_gitlab_mr(url):
             pr_meta = {
                 "title": data.get("title"),
                 "body": data.get("description"),
+                "url": url,
                 "comments": _gitlab_mr_comments(repo_path, mr_num),
             }
         except Exception as e:
@@ -407,6 +409,16 @@ def cmd_collect(args):
             print(json.dumps(err))
             return 1
         payload["repo"] = str(repo_path)
+    else:
+        # Auto-detect: resolve git root from CWD
+        try:
+            result = subprocess.run(
+                ["git", "rev-parse", "--show-toplevel"],
+                capture_output=True, text=True, check=True,
+            )
+            payload["repo"] = result.stdout.strip()
+        except subprocess.CalledProcessError:
+            pass  # Not in a git repo — fact-checking unavailable
 
     print(json.dumps(payload))
     return 0
@@ -807,6 +819,8 @@ def cmd_render(args):
         "FOOTER": footer_sample,
         "SECTION_SUMMARY": sections.get("summary", ERROR_FRAGMENT),
         "SECTION_CORE_LOGIC": sections.get("core_logic", ERROR_FRAGMENT),
+        "SECTION_DEEP_ANALYSIS": sections.get("deep_analysis", ""),
+        "SECTION_CONSISTENCY_REVIEW": sections.get("consistency_review", ""),
         "PAYLOAD_JSON": json.dumps(final_payload),
         "D3_JS": read_text(TEMPLATE_DIR / "d3.min.js"),
         "D3_SANKEY_JS": read_text(TEMPLATE_DIR / "d3-sankey.min.js"),
@@ -855,9 +869,10 @@ def build_parser():
     pc.add_argument("--target", default=None,
                     help="Branch, range (A..B), PR URL, or MR URL. Omit for current branch.")
     pc.add_argument("--repo", default=None,
-                    help="Optional absolute path to a local checkout of the project. When given, "
-                         "the emitted JSON includes a `repo` field so Claude can grep/read un-diffed "
-                         "code to fact-check its concerns before finalizing the report.")
+                    help="Override the local checkout path. Auto-detected from CWD via "
+                         "`git rev-parse --show-toplevel` when omitted. The emitted JSON includes "
+                         "a `repo` field so Claude can grep/read un-diffed code to fact-check "
+                         "its concerns before finalizing the report.")
     pc.set_defaults(func=cmd_collect)
 
     pr = sub.add_parser("render", help="Assemble the final HTML from payload+sections+diff.")

@@ -541,7 +541,7 @@ body::before {
   background: var(--rk-deep);
   border: 1px solid rgba(255,255,255,0.08);
 }
-.rk-diagram svg { width: 100%; height: auto; min-height: 280px; display: block; overflow: visible; }
+.rk-diagram svg { width: 100%; height: auto; min-height: 280px; display: block; overflow: hidden; }
 .rk-flow-notes { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px,1fr)); gap: 18px; margin-top: 16px; font-size: 14px; line-height: 1.6; color: var(--rk-dim); }
 
 .chart-node { cursor: pointer; }
